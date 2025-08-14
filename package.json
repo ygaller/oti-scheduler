@@ -25,7 +25,14 @@
     "dist:win": "node scripts/build-electron.js && electron-builder --win",
     "dist:mac": "node scripts/build-electron.js && electron-builder --mac",
     "dist:all": "node scripts/build-electron.js && electron-builder --mac --win",
-    "prepare:electron": "node scripts/build-electron.js"
+    "prepare:electron": "node scripts/build-electron.js",
+    "release": "node scripts/release.js",
+    "release:patch": "node scripts/release.js --type patch",
+    "release:minor": "node scripts/release.js --type minor",
+    "release:major": "node scripts/release.js --type major"
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
@@ -57,6 +64,13 @@
     "directories": {
       "output": "dist-electron"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ygaller",
+        "repo": "oti-scheduler"
+      }
+    ],
     "files": [
       "electron/",
       "client/build/",

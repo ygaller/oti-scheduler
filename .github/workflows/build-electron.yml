@@ -1,0 +1,204 @@
+name: Build and Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            platform: mac
+            arch: 'x64,arm64'
+          - os: windows-latest
+            platform: win
+            arch: 'x64'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm run setup
+
+      - name: Install Python (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install node-gyp (Windows)
+        if: matrix.os == 'windows-latest'
+        run: npm install -g node-gyp
+
+      - name: Build application
+        run: npm run prepare:electron
+
+      - name: Build Electron app (macOS)
+        if: matrix.platform == 'mac'
+        run: npm run dist:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false  # Disable code signing for now
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # For auto-updater
+          
+      - name: Build Electron app (Windows)
+        if: matrix.platform == 'win'
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # For auto-updater
+
+      - name: List build artifacts
+        run: ls -la dist-electron/
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'mac'
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-installers
+          path: |
+            dist-electron/*.dmg
+            dist-electron/*.dmg.blockmap
+            dist-electron/latest-mac.yml
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-installers
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.exe.blockmap
+            dist-electron/latest.yml
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-installers
+          path: dist-electron/
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-installers
+          path: dist-electron/
+
+      - name: List all artifacts
+        run: ls -la dist-electron/
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: OTI Scheduler ${{ steps.version.outputs.version }}
+          body: |
+            ## OTI Scheduler ${{ steps.version.outputs.version }}
+            
+            ### Desktop Application Downloads
+            
+            **macOS:**
+            - Universal build (Intel + Apple Silicon): `oti-scheduler-${{ steps.version.outputs.version }}.dmg`
+            - Apple Silicon only: `oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg`
+            
+            **Windows:**
+            - 64-bit installer: `oti-scheduler Setup ${{ steps.version.outputs.version }}.exe`
+            
+            ### Installation Instructions
+            
+            **macOS:**
+            1. Download the appropriate DMG file
+            2. Open the DMG and drag "oti-scheduler" to Applications
+            3. Launch from Applications folder
+            
+            **Windows:**
+            1. Download the EXE installer
+            2. Run the installer and follow the setup wizard
+            3. Launch from Desktop shortcut or Start Menu
+            
+            ### Features
+            - Self-contained application with embedded database
+            - No external dependencies required
+            - Automatic scheduling algorithm
+            - Employee and room management
+            - Hebrew interface optimized for Israeli kindergartens
+            
+            ### System Requirements
+            - **macOS**: 10.12+ (Sierra or later)
+            - **Windows**: Windows 10/11 (64-bit)
+            
+            For technical documentation, see [ELECTRON.md](https://github.com/ygaller/oti-scheduler/blob/master/ELECTRON.md)
+          draft: false
+          prerelease: false
+
+      - name: Upload macOS DMG (Universal)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist-electron/oti-scheduler-${{ steps.version.outputs.version }}.dmg
+          asset_name: oti-scheduler-${{ steps.version.outputs.version }}.dmg
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS DMG (ARM64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist-electron/oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
+          asset_name: oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows EXE
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist-electron/oti-scheduler Setup ${{ steps.version.outputs.version }}.exe
+          asset_name: oti-scheduler-Setup-${{ steps.version.outputs.version }}.exe
+          asset_content_type: application/octet-stream
+
+  notify:
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Notify success
+        run: |
+          echo "✅ Release ${{ steps.version.outputs.version }} created successfully!"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}"
