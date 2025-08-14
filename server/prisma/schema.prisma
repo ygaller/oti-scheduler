@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OCCUPATIONAL_THERAPIST
+  SPEECH_THERAPIST
+  PHYSIOTHERAPIST
+  SOCIAL_WORKER
+  ART_THERAPIST
+}
+
+enum WeekDay {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+}
+
+model Employee {
+  id                  String     @id @default(uuid())
+  firstName           String     @map("first_name")
+  lastName            String     @map("last_name")
+  role                Role
+  weeklySessionsCount Int        @map("weekly_sessions_count")
+  workingHours        Json       @map("working_hours") // Store as JSON: { sunday: { startTime: "08:00", endTime: "16:00" }, ... }
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  sessions            Session[]
+  
+  @@map("employees")
+}
+
+model Room {
+  id        String     @id @default(uuid())
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  
+  // Relations
+  sessions  Session[]
+  
+  @@map("rooms")
+}
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique // e.g., "meal_times", "system_settings"
+  value     Json     // Store configuration as JSON
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("system_config")
+}
+
+model Schedule {
+  id          String    @id @default(uuid())
+  generatedAt DateTime  @map("generated_at") @default(now())
+  isActive    Boolean   @default(false) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  sessions    Session[]
+  
+  @@map("schedules")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  roomId     String   @map("room_id")
+  scheduleId String?  @map("schedule_id") // Optional - sessions can exist without a schedule
+  day        WeekDay
+  startTime  String   @map("start_time") // Store as "HH:mm" format
+  endTime    String   @map("end_time")   // Store as "HH:mm" format
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
