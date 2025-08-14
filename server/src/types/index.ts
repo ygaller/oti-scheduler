@@ -24,11 +24,13 @@ export interface Employee {
     thursday?: WorkingHours;
   };
   weeklySessionsCount: number;
+  color: string;
 }
 
 export interface Room {
   id: string;
   name: string;
+  color: string;
 }
 
 export interface ScheduleConfig {
@@ -70,12 +72,14 @@ export interface CreateEmployeeDto {
   role: Role;
   workingHours: Employee['workingHours'];
   weeklySessionsCount: number;
+  color: string;
 }
 
 export interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
 
 export interface CreateRoomDto {
   name: string;
+  color: string;
 }
 
 export interface UpdateRoomDto extends Partial<CreateRoomDto> {}
@@ -90,4 +94,28 @@ export interface CreateSessionDto {
 }
 
 export interface UpdateSessionDto extends Partial<CreateSessionDto> {}
+
+// Available colors for rooms and employees (sorted by hex value)
+export const AVAILABLE_COLORS = [
+  '#008dcd',
+  '#00c9a7',
+  '#4b4453',
+  '#845ec2',
+  '#936c00',
+  '#ad5e00',
+  '#b0a8b9',
+  '#c34a36',
+  '#d65db1',
+  '#f3c5ff',
+  '#f9f871',
+  '#ff6f91',
+  '#ff8066',
+  '#ff9671',
+  '#ffc75f'
+].sort();
+
+// Helper function to get a random color
+export const getRandomColor = (): string => {
+  return AVAILABLE_COLORS[Math.floor(Math.random() * AVAILABLE_COLORS.length)];
+};
 

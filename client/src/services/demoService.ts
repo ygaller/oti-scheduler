@@ -1,4 +1,4 @@
-import { Employee, Room } from '../types';
+import { Employee, Room, AVAILABLE_COLORS } from '../types';
 import { employeeService, roomService, scheduleService } from './index';
 
 const demoEmployees: Omit<Employee, 'id'>[] = [
@@ -13,7 +13,8 @@ const demoEmployees: Omit<Employee, 'id'>[] = [
       tuesday: { startTime: '08:00', endTime: '16:00' },
       wednesday: { startTime: '08:00', endTime: '14:00' },
       thursday: { startTime: '08:00', endTime: '16:00' }
-    }
+    },
+    color: AVAILABLE_COLORS[0]
   },
   {
     firstName: 'דוד',
@@ -26,7 +27,8 @@ const demoEmployees: Omit<Employee, 'id'>[] = [
       tuesday: { startTime: '09:00', endTime: '17:00' },
       wednesday: { startTime: '09:00', endTime: '15:00' },
       thursday: { startTime: '09:00', endTime: '17:00' }
-    }
+    },
+    color: AVAILABLE_COLORS[3]
   },
   {
     firstName: 'מירי',
@@ -37,15 +39,16 @@ const demoEmployees: Omit<Employee, 'id'>[] = [
       sunday: { startTime: '08:30', endTime: '15:30' },
       tuesday: { startTime: '08:30', endTime: '15:30' },
       thursday: { startTime: '08:30', endTime: '15:30' }
-    }
+    },
+    color: AVAILABLE_COLORS[8]
   }
 ];
 
 const demoRooms: Omit<Room, 'id'>[] = [
-  { name: 'חדר טיפול 1' },
-  { name: 'חדר טיפול 2' },
-  { name: 'חדר פיזיותרפיה' },
-  { name: 'חדר תקשורת' }
+  { name: 'חדר טיפול 1', color: AVAILABLE_COLORS[1] },
+  { name: 'חדר טיפול 2', color: AVAILABLE_COLORS[5] },
+  { name: 'חדר פיזיותרפיה', color: AVAILABLE_COLORS[10] },
+  { name: 'חדר תקשורת', color: AVAILABLE_COLORS[14] }
 ];
 
 export const demoService = {

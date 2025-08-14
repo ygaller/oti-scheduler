@@ -38,6 +38,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
         role: prismaRole,
         workingHours: employeeData.workingHours as any,
         weeklySessionsCount: employeeData.weeklySessionsCount,
+        color: employeeData.color,
       }
     });
     return mapPrismaEmployeeToAPI(employee);
@@ -51,6 +52,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     if (employeeData.role !== undefined) updateData.role = mapAPIRoleToPrisma(employeeData.role);
     if (employeeData.workingHours !== undefined) updateData.workingHours = employeeData.workingHours as any;
     if (employeeData.weeklySessionsCount !== undefined) updateData.weeklySessionsCount = employeeData.weeklySessionsCount;
+    if (employeeData.color !== undefined) updateData.color = employeeData.color;
     
     const employee = await this.prisma.employee.update({
       where: { id },

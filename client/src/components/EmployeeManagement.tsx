@@ -24,8 +24,9 @@ import {
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { Employee, Role, ROLE_LABELS, DAY_LABELS, WEEK_DAYS } from '../types';
+import { Employee, Role, ROLE_LABELS, DAY_LABELS, WEEK_DAYS, getRandomColor } from '../types';
 import { employeeService } from '../services';
+import ColorPicker from './ColorPicker';
 
 interface EmployeeManagementProps {
   employees: Employee[];
@@ -40,7 +41,8 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
     lastName: '',
     role: 'occupational-therapist',
     weeklySessionsCount: 10,
-    workingHours: {}
+    workingHours: {},
+    color: ''
   });
 
   const handleOpenDialog = (employee?: Employee) => {
@@ -54,7 +56,8 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         lastName: '',
         role: 'occupational-therapist',
         weeklySessionsCount: 10,
-        workingHours: {}
+        workingHours: {},
+        color: getRandomColor()
       });
     }
     setDialogOpen(true);
@@ -75,7 +78,8 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         lastName: formData.lastName,
         role: formData.role || 'occupational-therapist',
         weeklySessionsCount: formData.weeklySessionsCount || 10,
-        workingHours: formData.workingHours || {}
+        workingHours: formData.workingHours || {},
+        color: formData.color || getRandomColor()
       };
 
       if (editingEmployee) {
@@ -162,11 +166,14 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableCell>תפקיד</TableCell>
               <TableCell>מספר טיפולים שבועי</TableCell>
               <TableCell>ימי עבודה</TableCell>
+              <TableCell>צבע</TableCell>
               <TableCell>פעולות</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {employees.map((employee) => (
+            {[...employees].sort((a, b) => 
+              `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+            ).map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell>{employee.firstName}</TableCell>
                 <TableCell>{employee.lastName}</TableCell>
@@ -186,6 +193,18 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                       ) : null;
                     })}
                   </Box>
+                </TableCell>
+                <TableCell>
+                  <Box
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      backgroundColor: employee.color,
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: 'grey.300'
+                    }}
+                  />
                 </TableCell>
                 <TableCell>
                   <IconButton onClick={() => handleOpenDialog(employee)}>
@@ -244,6 +263,12 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               />
             </Box>
             
+            <ColorPicker
+              value={formData.color || ''}
+              onChange={(color) => setFormData(prev => ({ ...prev, color }))}
+              label="צבע העובד"
+            />
+            
             {/* Working Hours */}
             <Box>
               <Typography variant="h6" sx={{ mb: 2 }}>שעות עבודה</Typography>
@@ -257,12 +282,14 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                       label="שעת התחלה"
                       value={formData.workingHours?.[day]?.startTime ? parseTime(formData.workingHours[day]!.startTime) : null}
                       onChange={(newValue) => handleWorkingHoursChange(day, 'startTime', newValue)}
+                      ampm={false}
                       slotProps={{ textField: { size: 'small' } }}
                     />
                     <TimePicker
                       label="שעת סיום"
                       value={formData.workingHours?.[day]?.endTime ? parseTime(formData.workingHours[day]!.endTime) : null}
                       onChange={(newValue) => handleWorkingHoursChange(day, 'endTime', newValue)}
+                      ampm={false}
                       slotProps={{ textField: { size: 'small' } }}
                     />
                   </Box>

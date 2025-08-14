@@ -15,15 +15,20 @@ import {
   MenuItem,
   Card,
   CardContent,
-  IconButton,
   Chip,
-  CircularProgress
+  CircularProgress,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import { 
   CalendarToday, 
   Download, 
-  Edit, 
-  Delete,
   Add 
 } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
@@ -60,6 +65,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [sessionForm, setSessionForm] = useState<Partial<Session>>({});
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   const handleGenerateSchedule = async () => {
     console.log('Generate schedule button clicked!');
@@ -197,18 +203,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   };
 
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!schedule) return;
-    
-    try {
-      await scheduleService.deleteSession(sessionId);
-      await setSchedule(); // Refresh the schedule from the server
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      alert('שגיאה במחיקת הטיפול');
-    }
-  };
-
   const parseTime = (timeStr: string): Date => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date();
@@ -246,6 +240,286 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const getEmployeeSessionCount = (employeeId: string) => {
     if (!schedule) return 0;
     return schedule.sessions.filter(s => s.employeeId === employeeId).length;
+  };
+
+  // Calendar grid helper functions
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 7; hour < 17; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(time);
+      }
+    }
+    return slots;
+  };
+
+  const timeToMinutes = (timeStr: string): number => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const getSessionDurationInSlots = (session: Session): number => {
+    const startMinutes = timeToMinutes(session.startTime);
+    const endMinutes = timeToMinutes(session.endTime);
+    return Math.ceil((endMinutes - startMinutes) / 15);
+  };
+
+  const isTimeInRange = (time: string, startTime: string, endTime: string): boolean => {
+    const timeMinutes = timeToMinutes(time);
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    return timeMinutes >= startMinutes && timeMinutes < endMinutes;
+  };
+
+  const getReservedSlot = (time: string) => {
+    if (isTimeInRange(time, scheduleConfig.breakfast.startTime, scheduleConfig.breakfast.endTime)) {
+      return { type: 'breakfast', label: 'ארוחת בוקר' };
+    }
+    if (isTimeInRange(time, scheduleConfig.morningMeetup.startTime, scheduleConfig.morningMeetup.endTime)) {
+      return { type: 'meeting', label: 'מפגש בוקר' };
+    }
+    if (isTimeInRange(time, scheduleConfig.lunch.startTime, scheduleConfig.lunch.endTime)) {
+      return { type: 'lunch', label: 'ארוחת צהריים' };
+    }
+    return null;
+  };
+
+  const getSessionAtTime = (sessions: Session[], time: string, employeeId?: string, roomId?: string): Session | null => {
+    return sessions.find(session => {
+      const matchesEmployee = !employeeId || session.employeeId === employeeId;
+      const matchesRoom = !roomId || session.roomId === roomId;
+      return matchesEmployee && matchesRoom && isTimeInRange(time, session.startTime, session.endTime);
+    }) || null;
+  };
+
+  // Calendar components
+  const EmployeeCalendarView = ({ day }: { day: WeekDay }) => {
+    const timeSlots = generateTimeSlots();
+    const daySessions = getSessionsForDay(day);
+    const sortedEmployees = [...employees].sort((a, b) => 
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+    );
+    
+    return (
+      <TableContainer sx={{ height: '500px', border: 1, borderColor: 'divider' }}>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
+                שעה
+              </TableCell>
+              {sortedEmployees.map(employee => (
+                <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
+                  {employee.firstName} {employee.lastName}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {timeSlots.map((time, index) => {
+              const isHourMark = time.endsWith(':00');
+              return (
+                <TableRow key={time} sx={{ 
+                  height: 20,
+                  borderTop: isHourMark ? 2 : 0.5,
+                  borderColor: isHourMark ? 'primary.main' : 'divider'
+                }}>
+                  <TableCell sx={{ 
+                    p: 0.5, 
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                    backgroundColor: isHourMark ? 'grey.50' : 'transparent',
+                    fontWeight: isHourMark ? 'bold' : 'normal'
+                  }}>
+                    {isHourMark ? time : ''}
+                  </TableCell>
+                  {sortedEmployees.map(employee => {
+                    const session = getSessionAtTime(daySessions, time, employee.id);
+                    const reservedSlot = getReservedSlot(time);
+                    
+                    if (reservedSlot) {
+                      return (
+                        <TableCell key={employee.id} sx={{ 
+                          p: 0.5,
+                          backgroundColor: reservedSlot.type === 'breakfast' ? '#fff3e0' : 
+                                         reservedSlot.type === 'lunch' ? '#e8f5e8' : '#f3e5f5',
+                          textAlign: 'center',
+                          fontSize: '0.7rem',
+                          color: 'text.secondary'
+                        }}>
+                          {isHourMark ? reservedSlot.label : ''}
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (session && time === session.startTime) {
+                      const duration = getSessionDurationInSlots(session);
+                      const room = rooms.find(r => r.id === session.roomId);
+                      return (
+                        <TableCell key={employee.id} 
+                          rowSpan={duration}
+                          sx={{ 
+                            p: 1,
+                            backgroundColor: room?.color || '#845ec2',
+                            textAlign: 'center',
+                            fontSize: '0.8rem',
+                            color: 'white',
+                            cursor: 'pointer',
+                            '&:hover': { 
+                              filter: 'brightness(0.8)'
+                            }
+                          }}
+                          onClick={() => handleEditSession(session)}
+                        >
+                          <Box>
+                            <Typography variant="caption" display="block">
+                              {session.startTime} - {session.endTime}
+                            </Typography>
+                            <Typography variant="caption" display="block">
+                              {getRoomName(session.roomId)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                      );
+                    }
+                    
+                    // Skip cells that are part of a session span
+                    const hasSessionAbove = daySessions.some(s => 
+                      s.employeeId === employee.id && 
+                      isTimeInRange(time, s.startTime, s.endTime) && 
+                      s.startTime !== time
+                    );
+                    
+                    if (hasSessionAbove) {
+                      return null;
+                    }
+                    
+                    return (
+                      <TableCell key={employee.id} sx={{ p: 0.5 }}>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
+  const RoomCalendarView = ({ day }: { day: WeekDay }) => {
+    const timeSlots = generateTimeSlots();
+    const daySessions = getSessionsForDay(day);
+    const sortedRooms = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    
+    return (
+      <TableContainer sx={{ height: '500px', border: 1, borderColor: 'divider' }}>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
+                שעה
+              </TableCell>
+              {sortedRooms.map(room => (
+                <TableCell key={room.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
+                  {room.name}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {timeSlots.map((time, index) => {
+              const isHourMark = time.endsWith(':00');
+              return (
+                <TableRow key={time} sx={{ 
+                  height: 20,
+                  borderTop: isHourMark ? 2 : 0.5,
+                  borderColor: isHourMark ? 'primary.main' : 'divider'
+                }}>
+                  <TableCell sx={{ 
+                    p: 0.5, 
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                    backgroundColor: isHourMark ? 'grey.50' : 'transparent',
+                    fontWeight: isHourMark ? 'bold' : 'normal'
+                  }}>
+                    {isHourMark ? time : ''}
+                  </TableCell>
+                  {sortedRooms.map(room => {
+                    const session = getSessionAtTime(daySessions, time, undefined, room.id);
+                    const reservedSlot = getReservedSlot(time);
+                    
+                    if (reservedSlot) {
+                      return (
+                        <TableCell key={room.id} sx={{ 
+                          p: 0.5,
+                          backgroundColor: reservedSlot.type === 'breakfast' ? '#fff3e0' : 
+                                         reservedSlot.type === 'lunch' ? '#e8f5e8' : '#f3e5f5',
+                          textAlign: 'center',
+                          fontSize: '0.7rem',
+                          color: 'text.secondary'
+                        }}>
+                          {isHourMark ? reservedSlot.label : ''}
+                        </TableCell>
+                      );
+                    }
+                    
+                    if (session && time === session.startTime) {
+                      const duration = getSessionDurationInSlots(session);
+                      const employee = employees.find(e => e.id === session.employeeId);
+                      return (
+                        <TableCell key={room.id} 
+                          rowSpan={duration}
+                          sx={{ 
+                            p: 1,
+                            backgroundColor: employee?.color || '#845ec2',
+                            textAlign: 'center',
+                            fontSize: '0.8rem',
+                            color: 'white',
+                            cursor: 'pointer',
+                            '&:hover': { 
+                              filter: 'brightness(0.8)'
+                            }
+                          }}
+                          onClick={() => handleEditSession(session)}
+                        >
+                          <Box>
+                            <Typography variant="caption" display="block">
+                              {session.startTime} - {session.endTime}
+                            </Typography>
+                            <Typography variant="caption" display="block">
+                              {getEmployeeName(session.employeeId)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                      );
+                    }
+                    
+                    // Skip cells that are part of a session span
+                    const hasSessionAbove = daySessions.some(s => 
+                      s.roomId === room.id && 
+                      isTimeInRange(time, s.startTime, s.endTime) && 
+                      s.startTime !== time
+                    );
+                    
+                    if (hasSessionAbove) {
+                      return null;
+                    }
+                    
+                    return (
+                      <TableCell key={room.id} sx={{ p: 0.5 }}>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
   };
 
   return (
@@ -312,62 +586,95 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 טיפולים לפי עובד:
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={1}>
-                {employees.map(employee => (
+                {[...employees].sort((a, b) => 
+                  `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                ).map(employee => (
                   <Chip
                     key={employee.id}
                     label={`${employee.firstName} ${employee.lastName}: ${getEmployeeSessionCount(employee.id)}/${employee.weeklySessionsCount}`}
-                    color={getEmployeeSessionCount(employee.id) === employee.weeklySessionsCount ? 'success' : 'default'}
                     variant="outlined"
                     size="small"
+                    sx={{
+                      borderColor: employee.color,
+                      color: employee.color,
+                      backgroundColor: getEmployeeSessionCount(employee.id) === employee.weeklySessionsCount 
+                        ? `${employee.color}20` 
+                        : 'transparent'
+                    }}
                   />
                 ))}
               </Box>
             </CardContent>
           </Card>
 
-          <Box display="flex" flexWrap="wrap" gap={2}>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" component="h2" mb={2}>
+                מקרא צבעים
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {activeTab === 0 
+                  ? 'בתצוגת עובדים: צבע התא מציג את צבע החדר'
+                  : 'בתצוגת חדרים: צבע התא מציג את צבע העובד'
+                }
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Box sx={{ mb: 2 }}>
+            <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
+              <Tab label="תצוגת עובדים" />
+              <Tab label="תצוגת חדרים" />
+            </Tabs>
+          </Box>
+
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              overflowX: 'auto',
+              gap: 3,
+              pb: 2,
+              '&::-webkit-scrollbar': {
+                height: 8,
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'grey.200',
+                borderRadius: 4,
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'grey.400',
+                borderRadius: 4,
+                '&:hover': {
+                  backgroundColor: 'grey.500',
+                },
+              },
+            }}
+          >
             {WEEK_DAYS.map(day => (
-              <Box key={day} sx={{ flex: { xs: '1 1 100%', md: '1 1 calc(50% - 8px)', lg: '1 1 calc(33.333% - 11px)' } }}>
-                <Paper sx={{ p: 2, height: '400px', overflow: 'auto' }}>
-                  <Typography variant="h6" component="h3" mb={2} color="primary">
-                    {DAY_LABELS[day]}
+              <Paper 
+                key={day} 
+                sx={{ 
+                  p: 3, 
+                  minWidth: '400px',
+                  flexShrink: 0,
+                  height: 'fit-content'
+                }}
+              >
+                <Typography variant="h5" component="h3" mb={2} color="primary" textAlign="center">
+                  {DAY_LABELS[day]}
+                </Typography>
+                
+                {getSessionsForDay(day).length === 0 && activeTab === 0 ? (
+                  <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
+                    אין טיפולים מתוזמנים ליום זה
                   </Typography>
-                  
-                  {getSessionsForDay(day).length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      אין טיפולים מתוזמנים
-                    </Typography>
-                  ) : (
-                    <Box display="flex" flexDirection="column" gap={1}>
-                      {getSessionsForDay(day).map(session => (
-                        <Card key={session.id} variant="outlined" sx={{ p: 1 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold">
-                                {session.startTime} - {session.endTime}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {getEmployeeName(session.employeeId)}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {getRoomName(session.roomId)}
-                              </Typography>
-                            </Box>
-                            <Box>
-                              <IconButton size="small" onClick={() => handleEditSession(session)}>
-                                <Edit fontSize="small" />
-                              </IconButton>
-                              <IconButton size="small" onClick={() => handleDeleteSession(session.id)}>
-                                <Delete fontSize="small" />
-                              </IconButton>
-                            </Box>
-                          </Box>
-                        </Card>
-                      ))}
-                    </Box>
-                  )}
-                </Paper>
-              </Box>
+                ) : (
+                  <>
+                    {activeTab === 0 && <EmployeeCalendarView day={day} />}
+                    {activeTab === 1 && <RoomCalendarView day={day} />}
+                  </>
+                )}
+              </Paper>
             ))}
           </Box>
         </>
@@ -407,6 +714,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   ...prev, 
                   startTime: formatTime(newValue) 
                 }))}
+                ampm={false}
                 slotProps={{ textField: { fullWidth: true } }}
               />
               
@@ -417,6 +725,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   ...prev, 
                   endTime: formatTime(newValue) 
                 }))}
+                ampm={false}
                 slotProps={{ textField: { fullWidth: true } }}
               />
             </Box>
@@ -428,7 +737,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 label="עובד"
                 onChange={(e) => setSessionForm(prev => ({ ...prev, employeeId: e.target.value }))}
               >
-                {employees.map(employee => (
+                {[...employees].sort((a, b) => 
+                  `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                ).map(employee => (
                   <MenuItem key={employee.id} value={employee.id}>
                     {employee.firstName} {employee.lastName} - {ROLE_LABELS[employee.role]}
                   </MenuItem>
@@ -443,7 +754,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 label="חדר"
                 onChange={(e) => setSessionForm(prev => ({ ...prev, roomId: e.target.value }))}
               >
-                {rooms.map(room => (
+                {[...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(room => (
                   <MenuItem key={room.id} value={room.id}>
                     {room.name}
                   </MenuItem>

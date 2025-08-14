@@ -33,6 +33,7 @@ model Employee {
   role                Role
   weeklySessionsCount Int        @map("weekly_sessions_count")
   workingHours        Json       @map("working_hours") // Store as JSON: { sunday: { startTime: "08:00", endTime: "16:00" }, ... }
+  color               String     @default("#845ec2") // Hex color for visual identification
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
   
@@ -45,6 +46,7 @@ model Employee {
 model Room {
   id        String     @id @default(uuid())
   name      String
+  color     String     @default("#845ec2") // Hex color for visual identification
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
   

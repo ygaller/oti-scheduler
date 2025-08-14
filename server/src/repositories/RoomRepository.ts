@@ -24,6 +24,7 @@ export class PrismaRoomRepository implements RoomRepository {
     const room = await this.prisma.room.create({
       data: {
         name: roomData.name,
+        color: roomData.color,
       }
     });
     return mapPrismaRoomToAPI(room);
@@ -33,6 +34,7 @@ export class PrismaRoomRepository implements RoomRepository {
     const updateData: any = {};
     
     if (roomData.name !== undefined) updateData.name = roomData.name;
+    if (roomData.color !== undefined) updateData.color = roomData.color;
     
     const room = await this.prisma.room.update({
       where: { id },

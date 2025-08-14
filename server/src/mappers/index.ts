@@ -44,6 +44,7 @@ export const mapPrismaEmployeeToAPI = (prismaEmployee: PrismaEmployee): Employee
     role: PRISMA_TO_API_ROLE[prismaEmployee.role],
     workingHours: prismaEmployee.workingHours as Employee['workingHours'],
     weeklySessionsCount: prismaEmployee.weeklySessionsCount,
+    color: prismaEmployee.color,
   };
 };
 
@@ -56,6 +57,7 @@ export const mapPrismaRoomToAPI = (prismaRoom: PrismaRoom): Room => {
   return {
     id: prismaRoom.id,
     name: prismaRoom.name,
+    color: prismaRoom.color,
   };
 };
 
