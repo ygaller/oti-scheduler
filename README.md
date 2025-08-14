@@ -6,8 +6,10 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Electron](https://img.shields.io/badge/Electron-2B2E3A?logo=electron&logoColor=9FEAF9)](https://www.electronjs.org/)
+[![Cross-Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-blue)](https://github.com/ygaller/oti-scheduler)
 
-מערכת מתקדמת לתיזמון עובדי גן ילדים עם מסד נתונים PostgreSQL משובץ ותמיכה עתידית ב-Electron.
+מערכת מתקדמת לתיזמון עובדי גן ילדים עם מסד נתונים PostgreSQL משובץ. זמינה כיישום ווב וכיישום שולחן עבודה (Electron).
 
 ## ✨ תכונות
 
@@ -17,7 +19,8 @@
 - **הגדרות מערכת**: קביעת זמני ארוחות ומפגשים
 - **איפוס נתונים**: אפשרות לאיפוס מלא של המערכת
 - **מסד נתונים משובץ**: PostgreSQL משובץ עם אפשרות חיבור למסד נתונים חיצוני
-- **תמיכה עתידית ב-Electron**: ארכיטקטורה מותאמת לפיתוח Electron
+- **יישום שולחן עבודה**: אפליקציה עצמאית ב-Electron עבור Windows ו-macOS
+- **הפצה צולבת פלטפורמה**: חבילות התקנה מוכנות עבור פלטפורמות שונות
 
 ## 🏗 ארכיטקטורה
 
@@ -46,8 +49,13 @@ scheduling/
 │   │   ├── routes/       # נתיבי API
 │   │   └── types/        # הגדרות TypeScript
 │   └── prisma/           # סכמת מסד נתונים
+├── electron/        # יישום שולחן עבודה
+│   ├── main.js           # תהליך ראשי של Electron
+│   ├── preload.js        # סקריפט preload עבור אבטחה
+│   ├── server.js         # ניהול שרת משובץ
+│   └── icons/            # איקונים עבור האפליקציה
 ├── config/          # הגדרות משותפות
-└── scripts/         # סקריפטים עזר
+└── scripts/         # סקריפטים עזר וביטוח
 ```
 
 ## 🚀 התקנה והפעלה
@@ -100,6 +108,59 @@ npm run client:dev
 - **שרת API**: http://localhost:3001
 - **בריאות השרת**: http://localhost:3001/api/health
 
+## 🖥 יישום שולחן עבודה (Electron)
+
+### פיתוח יישום שולחן עבודה
+
+```bash
+# הפעלה במצב פיתוח (משיק שרת, לקוח ו-Electron)
+npm run electron:dev
+```
+
+### בניית חבילות התקנה
+
+```bash
+# הכנה לבנייה
+npm run prepare:electron
+
+# בנייה עבור macOS
+npm run dist:mac
+
+# בנייה עבור Windows
+npm run dist:win
+
+# בנייה עבור שתי הפלטפורמות
+npm run dist:all
+```
+
+### תכונות יישום שולחן העבודה
+
+- **עצמאי לחלוטין**: כולל מסד נתונים משובץ, ללא צורך בהתקנות נוספות
+- **תמיכה צולבת פלטפורמה**: Windows (x64) ו-macOS (Intel + Apple Silicon)
+- **התקנה פשוטה**: קבצי DMG ו-EXE מוכנים להפצה
+- **אבטחה**: הפרדת תהליכים ו-IPC מאובטח
+- **ביצועים**: ממשק משתמש מקורי עם אפליקציה מלאה
+
+### קבצים מיוצרים
+
+#### macOS
+- `oti-scheduler-1.0.0.dmg` (Intel x64)
+- `oti-scheduler-1.0.0-arm64.dmg` (Apple Silicon)
+
+#### Windows
+- `oti-scheduler Setup 1.0.0.exe`
+
+### דרישות לבנייה
+
+**עבור macOS:**
+- macOS (למימוש קוד signing)
+- Xcode Command Line Tools
+
+**עבור Windows:**
+- Windows (מומלץ) או הגדרת cross-compilation
+
+לפרטים נוספים, ראה [ELECTRON.md](./ELECTRON.md)
+
 ## 🗄 מסד הנתונים
 
 ### PostgreSQL משובץ
@@ -150,30 +211,27 @@ npm run db:seed
 - `GET /api/system/status` - סטטוס המערכת
 - `POST /api/system/reset` - איפוס כל הנתונים
 
-## 🖥 תמיכה עתידית ב-Electron
+## 📱 הפצה ומיתוג
 
-הארכיטקטורה מותאמת לפיתוח Electron עתידי:
+### שם המוצר
+היישום נקרא **oti-scheduler** ומותג כ"OTI Scheduler" בכל הפלטפורמות.
 
-- מסד הנתונים יישמר ב-`userData` directory
-- שרת API יפעל בתהליך הראשי של Electron
-- תקשורת דרך IPC או HTTP מקומי
-- קבצי הגדרה מותאמים לסביבת Electron
+### פורמטי הפצה
+- **macOS**: DMG installers עם תמיכה אוניברסלית (Intel + Apple Silicon)
+- **Windows**: NSIS installer עם shortcuts אוטומטיים
+- **Web**: יישום React זמין בדפדפן
 
-### הגדרות Electron
-
-משתני סביבה שיוגדרו על ידי Electron:
-
-```env
-ELECTRON=true
-USER_DATA_PATH=/path/to/electron/userData
-```
+### מסלולי פיתוח
+- **פיתוח מקומי**: `npm run dev` או `npm run electron:dev`
+- **staging**: בנייה מקומית למטרות בדיקה
+- **production**: CI/CD pipeline עם הפצה אוטומטית
 
 ## 🛠 פיתוח
 
 ### בניית הפרויקט
 
 ```bash
-# בניית כל הפרויקט
+# בניית כל הפרויקט (ווב)
 npm run build
 
 # בניית השרת בלבד
@@ -181,6 +239,10 @@ npm run server:build
 
 # בניית הלקוח בלבד
 npm run client:build
+
+# הכנה ובנייה עבור Electron
+npm run prepare:electron
+npm run electron:pack
 ```
 
 ### בדיקות
@@ -224,9 +286,9 @@ PORT=3001
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
-# הגדרות Electron
-ELECTRON=false
-USER_DATA_PATH=
+# הגדרות Electron (מוגדרות אוטומטית על ידי האפליקציה)
+ELECTRON=true
+USER_DATA_PATH=/path/to/electron/userData
 ```
 
 ## 📋 רישיון
