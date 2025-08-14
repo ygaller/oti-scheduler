@@ -224,11 +224,7 @@ USER_DATA_PATH=
 
 ## 📋 רישיון
 
-ISC License
-
-## 🤝 תרומה
-
-נשמח לקבל תרומות לפרויקט! אנא פתח issue או pull request.
+MIT License
 
 ---
 
