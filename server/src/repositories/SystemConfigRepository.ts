@@ -40,3 +40,4 @@ export class PrismaSystemConfigRepository implements SystemConfigRepository {
     await this.set(SCHEDULE_CONFIG_KEY, config);
   }
 }
+

@@ -22,3 +22,4 @@ export const employeeService = {
     return api.delete(`/employees/${id}`);
   },
 };
+

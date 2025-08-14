@@ -76,3 +76,4 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     await this.prisma.schedule.deleteMany();
   }
 }
+

@@ -95,3 +95,4 @@ model Session {
   
   @@map("sessions")
 }
+

@@ -50,3 +50,4 @@ export const scheduleService = {
     return api.delete(`/schedule/sessions/${id}`);
   },
 };
+

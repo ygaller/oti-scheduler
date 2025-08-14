@@ -43,3 +43,4 @@ function getDataPath(isElectron: boolean, userDataPath?: string): string {
 export function getConnectionString(config: DatabaseConfig): string {
   return `postgresql://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}`;
 }
+

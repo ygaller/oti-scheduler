@@ -90,3 +90,4 @@ export interface CreateSessionDto {
 }
 
 export interface UpdateSessionDto extends Partial<CreateSessionDto> {}
+

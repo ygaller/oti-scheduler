@@ -344,3 +344,4 @@ function timesOverlap(start1: string, end1: string, start2: string, end2: string
 
   return start1Min < end2Min && start2Min < end1Min;
 }
+

@@ -70,3 +70,4 @@ const SimpleEmployeeList: React.FC<SimpleEmployeeListProps> = ({ employees, onRe
 };
 
 export default SimpleEmployeeList;
+

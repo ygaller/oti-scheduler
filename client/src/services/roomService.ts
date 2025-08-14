@@ -22,3 +22,4 @@ export const roomService = {
     return api.delete(`/rooms/${id}`);
   },
 };
+

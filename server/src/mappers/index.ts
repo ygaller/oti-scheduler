@@ -83,3 +83,4 @@ export const mapPrismaScheduleToAPI = (prismaSchedule: PrismaSchedule & { sessio
     generatedAt: prismaSchedule.generatedAt,
   };
 };
+

@@ -51,3 +51,4 @@ export class PrismaRoomRepository implements RoomRepository {
     await this.prisma.room.deleteMany();
   }
 }
+

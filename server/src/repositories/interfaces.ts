@@ -47,3 +47,4 @@ export interface SystemConfigRepository {
   getScheduleConfig(): Promise<ScheduleConfig | null>;
   setScheduleConfig(config: ScheduleConfig): Promise<void>;
 }
+

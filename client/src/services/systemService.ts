@@ -17,3 +17,4 @@ export const systemService = {
     return api.post<{ message: string }>('/system/reset');
   },
 };
+
