@@ -65,10 +65,68 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #0066CC;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #003366;
+}
+
+/* OTI-style enhancements */
+.MuiTabs-indicator {
+  background-color: #003366 !important;
+}
+
+.MuiTab-root {
+  color: #666666 !important;
+}
+
+.MuiTab-root.Mui-selected {
+  color: #003366 !important;
+  font-weight: 700 !important;
+}
+
+/* Enhanced button styles */
+.MuiButton-containedPrimary {
+  background: linear-gradient(135deg, #003366 0%, #0066CC 100%) !important;
+  box-shadow: 0 2px 8px rgba(0, 51, 102, 0.2) !important;
+}
+
+.MuiButton-containedPrimary:hover {
+  background: linear-gradient(135deg, #002244 0%, #004499 100%) !important;
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.3) !important;
+}
+
+.MuiButton-containedSecondary {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff9463 100%) !important;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.2) !important;
+}
+
+.MuiButton-containedSecondary:hover {
+  background: linear-gradient(135deg, #c54a23 0%, #e67852 100%) !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
+}
+
+/* Paper elevation enhancement */
+.MuiPaper-elevation1 {
+  box-shadow: 0 2px 8px rgba(0, 51, 102, 0.08) !important;
+}
+
+.MuiPaper-elevation2 {
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.12) !important;
+}
+
+/* Typography enhancements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Nunito Sans', sans-serif !important;
+}
+
+/* Focus states */
+.MuiTextField-root .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #0066CC !important;
+}
+
+.MuiTextField-root .MuiOutlinedInput-root.Mui-focused .MuiInputLabel-root {
+  color: #003366 !important;
 }

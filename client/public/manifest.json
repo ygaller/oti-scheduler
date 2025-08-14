@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "ניהול לוח זמנים",
+  "name": "ניהול לוח זמנים - מערכת תיזמון מתקדמת",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#003366",
+  "background_color": "#ffffff",
+  "description": "מערכת תיזמון מתקדמת לניהול לוח זמנים עם עיצוב בהשראת OTI"
 }

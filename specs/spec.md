@@ -55,11 +55,11 @@ A schedule can be exported as a csv file.
 # Glossary for UI
 * Days of the week (Sun-Thu) - יום ראשון, יום שני, יום שלישי, יום רביעי, יום חמישי
 * Roles
-** Occupational Therapist - מרפאה בעיסוק
-** Speech Therapist - קלינאית תקשורת
-** Pysiotherapist - פיזיותרפיסט
-** Social worker - עובד סוציאלי
-** Art Therapist - מטפל בהבעה ויצירה
+** Occupational Therapist - ריפוי בעיסוק
+** Speech Therapist - קלינאות תקשורת
+** Pysiotherapist - פיזיותרפיה
+** Social worker - עבודה סוציאלית
+** Art Therapist - טיפול בהבעה ויציאה
 ** Room - חדר טיפול
 ** Session - טיפול
 ** Breakfast - ארוחת בוקר

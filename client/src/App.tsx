@@ -27,17 +27,80 @@ const theme = createTheme({
   direction: 'rtl',
   palette: {
     primary: {
-      main: '#2196f3',
+      main: '#003366', // Deep blue from OTI
+      light: '#0066CC', // Lighter blue for accents
+      dark: '#002244',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#ff4081',
+      main: '#ff6b35', // Orange accent color for CTAs
+      light: '#ff9463',
+      dark: '#c54a23',
+      contrastText: '#ffffff',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#ffffff', // Clean white background
+      paper: '#fafafa',
+    },
+    text: {
+      primary: '#333333', // Dark gray for readability
+      secondary: '#666666',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Nunito Sans", "Roboto", "Helvetica", "Arial", sans-serif',
+    h3: {
+      fontWeight: 700,
+      color: '#003366',
+    },
+    h4: {
+      fontWeight: 600,
+      color: '#003366',
+    },
+    h5: {
+      fontWeight: 600,
+      color: '#003366',
+    },
+    h6: {
+      fontWeight: 600,
+      color: '#003366',
+    },
+  },
+  components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          backgroundColor: '#ffffff',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          border: '1px solid #e0e0e0',
+          borderRadius: '8px',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: '6px',
+          textTransform: 'none',
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          fontWeight: 600,
+          '&.Mui-selected': {
+            color: '#003366',
+          },
+        },
+      },
+    },
   },
 });
 
@@ -123,9 +186,20 @@ function App() {
           <CssBaseline />
           <Box dir="rtl" sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
             <Container maxWidth="xl" sx={{ py: 3 }}>
-              <Typography variant="h3" component="h1" mb={3} textAlign="center">
-                🎯 מערכת התיזמון
-              </Typography>
+              <Box display="flex" alignItems="center" justifyContent="center" mb={3} gap={2}>
+                <img 
+                  src="/oti-header-logo.png" 
+                  alt="OTI Logo" 
+                  style={{ 
+                    height: '60px', 
+                    width: 'auto',
+                    filter: 'drop-shadow(0 2px 4px rgba(0, 51, 102, 0.1))'
+                  }} 
+                />
+                <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+                  ניהול לוח זמנים
+                </Typography>
+              </Box>
               
               <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
@@ -187,8 +261,16 @@ function App() {
                 </>
               )}
 
-              <Box sx={{ mt: 4, p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white', borderRadius: 1 }}>
-                <Typography variant="body2">
+              <Box sx={{ 
+                mt: 4, 
+                p: 2, 
+                textAlign: 'center', 
+                background: 'linear-gradient(135deg, #003366 0%, #0066CC 100%)', 
+                color: 'white', 
+                borderRadius: 2,
+                boxShadow: '0 2px 8px rgba(0, 51, 102, 0.2)'
+              }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   ✅ מסד הנתונים: PostgreSQL מוטמע | 🚀 API: http://localhost:3001 | 💾 נתונים נשמרים באופן קבוע
                 </Typography>
               </Box>
