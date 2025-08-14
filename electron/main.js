@@ -2,7 +2,11 @@ const { app, BrowserWindow, dialog, Menu } = require('electron');
 const path = require('path');
 const { startEmbeddedServer, stopEmbeddedServer } = require('./server');
 const AppUpdater = require('./updater');
+const { SecureConfigManager } = require('./secure-config');
 const isDev = process.env.NODE_ENV === 'development';
+
+// Initialize secure config for Electron
+const secureConfig = new SecureConfigManager();
 
 // Keep a global reference of the window object
 let mainWindow;
@@ -12,6 +16,10 @@ let updater;
 
 const createWindow = async () => {
   try {
+    // Set up secure environment for server
+    const serverEnv = secureConfig.getServerEnvironment();
+    Object.assign(process.env, serverEnv);
+    
     // Start the server first
     await startEmbeddedServer();
 

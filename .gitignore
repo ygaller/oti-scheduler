@@ -40,5 +40,13 @@ yarn-error.log*
 .vscode/
 .idea/
 
+# SSL certificates (local development)
+client/ssl/
+server/ssl/
+ssl/
+
 # OS generated files
 Thumbs.db
+*.env
+.env.local
+electron/config.json

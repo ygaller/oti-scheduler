@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, Box, Tabs, Tab, Typography, Paper, CircularProgress } from '@mui/material';
+import { CssBaseline, Container, Box, Tabs, Tab, Typography, Paper, CircularProgress, Alert } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import rtlPlugin from 'stylis-plugin-rtl';
@@ -14,7 +15,10 @@ import EmployeeManagement from './components/EmployeeManagement';
 import RoomManagement from './components/RoomManagement';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
 import ScheduleView from './components/ScheduleView';
+import { LoginButton } from './components/LoginButton';
+import AuthCallback from './components/AuthCallback';
 import { employeeService, roomService, scheduleService } from './services';
+import { authService, User } from './services/authService';
 import { Employee, Room, ScheduleConfig, Schedule } from './types';
 
 // Create RTL cache
@@ -104,7 +108,12 @@ const theme = createTheme({
   },
 });
 
-function App() {
+// Main App Content Component (everything except routing)
+function AppContent() {
+  // Authentication state
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  
   // Load saved tab from localStorage or default to 0
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('scheduling-app-active-tab');
@@ -119,8 +128,30 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    checkAuthStatus();
+    fetchData(); // Load data regardless of authentication status
   }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      setAuthLoading(true);
+      const currentUser = authService.getUser();
+      if (currentUser) {
+        // Verify session with server
+        const verifiedUser = await authService.verifySession();
+        if (verifiedUser) {
+          setUser(verifiedUser);
+        } else {
+          setUser(null);
+        }
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -209,6 +240,15 @@ function App() {
     localStorage.setItem('scheduling-app-active-tab', newValue.toString());
   };
 
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    // Don't clear data on logout - keep the app functional
+  };
+
   return (
     <CacheProvider value={cacheRtl}>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -216,108 +256,164 @@ function App() {
           <CssBaseline />
           <Box dir="rtl" sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
             <Container maxWidth="xl" sx={{ py: 3 }}>
-              <Box display="flex" alignItems="center" justifyContent="center" mb={3} gap={2}>
-                <img 
-                  src="/oti-header-logo.png" 
-                  alt="OTI Logo" 
-                  style={{ 
-                    height: '60px', 
-                    width: 'auto',
-                    filter: 'drop-shadow(0 2px 4px rgba(155, 30, 101, 0.1))'
-                  }} 
-                />
-                <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
-                  ניהול לוח זמנים
-                </Typography>
-              </Box>
-              
-              <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
-                  <Tab label="עובדים" />
-                  <Tab label="חדרי טיפול" />
-                  <Tab label="הגדרות" />
-                  <Tab label="לוח זמנים" />
-                </Tabs>
+              {/* Header with logo, title, and auth */}
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <img 
+                    src="/oti-header-logo.png" 
+                    alt="OTI Logo" 
+                    style={{ 
+                      height: '60px', 
+                      width: 'auto',
+                      filter: 'drop-shadow(0 2px 4px rgba(155, 30, 101, 0.1))'
+                    }} 
+                  />
+                  <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+                    ניהול לוח זמנים
+                  </Typography>
+                </Box>
+                
+                {/* Authentication section */}
+                <Box>
+                  {authLoading ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    <LoginButton
+                      user={user}
+                      onLogin={handleLogin}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                </Box>
               </Box>
 
-              {loading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                  <CircularProgress />
-                </Box>
-              ) : (
+              {/* Show welcome message if not authenticated */}
+              {!authLoading && !user && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  <Typography variant="body2">
+                    <strong>טיפ:</strong> התחבר/י עם חשבון Google כדי לייצא לוחות זמנים לחשבון שלך ב-Google Drive.
+                  </Typography>
+                </Alert>
+              )}
+
+
+
+              {/* Show "Google OAuth Setup Required" warning if not configured */}
+              {(!process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') && (
+                <Alert severity="warning" sx={{ mb: 3 }}>
+                  <Typography variant="body2">
+                    <strong>נדרש הגדרת Google OAuth:</strong> יש להגדיר את משתני הסביבה REACT_APP_GOOGLE_CLIENT_ID ו-GOOGLE_CLIENT_ID במערכת.
+                  </Typography>
+                </Alert>
+              )}
+              
+              {/* Main content - always show after loading */}
+              {!authLoading && (
                 <>
-                  {activeTab === 0 && (
-                    <EmployeeManagement 
-                      employees={employees} 
-                      setEmployees={refreshEmployees}
-                      setEmployeeActive={setEmployeeActive}
-                    />
-                  )}
-                  
-                  {activeTab === 1 && (
-                    <RoomManagement 
-                      rooms={rooms} 
-                      setRooms={refreshRooms}
-                      setRoomActive={setRoomActive}
-                    />
-                  )}
-                  
-                  {activeTab === 2 && (
-                    config ? (
-                      <ScheduleConfiguration 
-                        config={config} 
-                        setConfig={updateConfig}
-                        onDataChange={async () => {
-                          await Promise.all([
-                            refreshEmployees(),
-                            refreshRooms(),
-                            fetchData()
-                          ]);
-                        }}
-                      />
-                    ) : (
-                      <Paper sx={{ p: 3 }}>
-                        <Typography>טוען הגדרות...</Typography>
-                      </Paper>
-                    )
-                  )}
-                  
-                  {activeTab === 3 && (
-                    config ? (
-                      <ScheduleView 
-                        employees={employees} 
-                        rooms={rooms} 
-                        scheduleConfig={config}
-                        schedule={schedule}
-                        setSchedule={refreshSchedule} 
-                      />
-                    ) : (
-                      <Paper sx={{ p: 3 }}>
-                        <Typography>טוען נתוני לוח זמנים...</Typography>
-                      </Paper>
-                    )
+                  <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                    <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
+                      <Tab label="עובדים" />
+                      <Tab label="חדרי טיפול" />
+                      <Tab label="הגדרות" />
+                      <Tab label="לוח זמנים" />
+                    </Tabs>
+                  </Box>
+
+                  {loading ? (
+                    <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <>
+                      {activeTab === 0 && (
+                        <EmployeeManagement 
+                          employees={employees} 
+                          setEmployees={refreshEmployees}
+                          setEmployeeActive={setEmployeeActive}
+                        />
+                      )}
+                      
+                      {activeTab === 1 && (
+                        <RoomManagement 
+                          rooms={rooms} 
+                          setRooms={refreshRooms}
+                          setRoomActive={setRoomActive}
+                        />
+                      )}
+                      
+                      {activeTab === 2 && (
+                        <>
+                          {config ? (
+                            <ScheduleConfiguration 
+                              config={config} 
+                              setConfig={updateConfig}
+                              onDataChange={async () => {
+                                await Promise.all([
+                                  refreshEmployees(),
+                                  refreshRooms(),
+                                  fetchData()
+                                ]);
+                              }}
+                            />
+                          ) : (
+                            <Paper sx={{ p: 3 }}>
+                              <Typography>טוען הגדרות...</Typography>
+                            </Paper>
+                          )}
+                          
+                          {/* System status - only show in settings tab */}
+                          <Box sx={{ 
+                            mt: 4, 
+                            p: 2, 
+                            textAlign: 'center', 
+                            background: 'linear-gradient(135deg, #9B1E65 0%, #b54080 100%)', 
+                            color: 'white', 
+                            borderRadius: 2,
+                            boxShadow: '0 2px 8px rgba(155, 30, 101, 0.2)'
+                          }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              ✅ מסד הנתונים: PostgreSQL מוטמע | 🚀 API: http://localhost:3001
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+                      
+                      {activeTab === 3 && (
+                        config ? (
+                          <ScheduleView 
+                            employees={employees} 
+                            rooms={rooms} 
+                            scheduleConfig={config}
+                            schedule={schedule}
+                            setSchedule={refreshSchedule} 
+                          />
+                        ) : (
+                          <Paper sx={{ p: 3 }}>
+                            <Typography>טוען נתוני לוח זמנים...</Typography>
+                          </Paper>
+                        )
+                      )}
+                    </>
                   )}
                 </>
               )}
-
-              <Box sx={{ 
-                mt: 4, 
-                p: 2, 
-                textAlign: 'center', 
-                background: 'linear-gradient(135deg, #9B1E65 0%, #b54080 100%)', 
-                color: 'white', 
-                borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(155, 30, 101, 0.2)'
-              }}>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  ✅ מסד הנתונים: PostgreSQL מוטמע | 🚀 API: http://localhost:3001 | 💾 נתונים נשמרים באופן קבוע
-                </Typography>
-              </Box>
             </Container>
           </Box>
         </ThemeProvider>
       </LocalizationProvider>
     </CacheProvider>
+  );
+}
+
+// Main App Component with Routing
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="*" element={<AppContent />} />
+      </Routes>
+    </Router>
   );
 }
 

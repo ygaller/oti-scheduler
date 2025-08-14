@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Callback</title>
+</head>
+<body>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const error = params.get('error');
+        
+        if (window.opener) {
+            window.opener.postMessage({
+                type: error ? 'GOOGLE_AUTH_ERROR' : 'GOOGLE_AUTH_SUCCESS',
+                code: code,
+                error: error
+            }, 'http://localhost:3000');
+        }
+        
+        window.close();
+    </script>
+</body>
+</html>
