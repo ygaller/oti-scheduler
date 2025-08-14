@@ -1,4 +1,4 @@
-import { Employee, Room, AVAILABLE_COLORS } from '../types';
+import { Employee, Patient, Room, AVAILABLE_COLORS } from '../types';
 
 export const createDemoEmployees = (): Employee[] => [
   {
@@ -45,6 +45,64 @@ export const createDemoEmployees = (): Employee[] => [
       thursday: { startTime: '08:30', endTime: '15:30' }
     },
     color: AVAILABLE_COLORS[8],
+    isActive: true
+  }
+];
+
+export const createDemoPatients = (): Patient[] => [
+  {
+    id: 'patient1',
+    firstName: 'אמיר',
+    lastName: 'רוזן',
+    color: AVAILABLE_COLORS[2],
+    therapyRequirements: {
+      'occupational-therapist': 2,
+      'speech-therapist': 1
+    },
+    isActive: true
+  },
+  {
+    id: 'patient2',
+    firstName: 'דנה',
+    lastName: 'ברק',
+    color: AVAILABLE_COLORS[6],
+    therapyRequirements: {
+      'physiotherapist': 3,
+      'occupational-therapist': 1
+    },
+    isActive: true
+  },
+  {
+    id: 'patient3',
+    firstName: 'נועם',
+    lastName: 'ישראלי',
+    color: AVAILABLE_COLORS[9],
+    therapyRequirements: {
+      'speech-therapist': 2,
+      'art-therapist': 1
+    },
+    isActive: true
+  },
+  {
+    id: 'patient4',
+    firstName: 'מיכל',
+    lastName: 'אדמון',
+    color: AVAILABLE_COLORS[11],
+    therapyRequirements: {
+      'occupational-therapist': 1,
+      'physiotherapist': 2,
+      'social-worker': 1
+    },
+    isActive: true
+  },
+  {
+    id: 'patient5',
+    firstName: 'עידו',
+    lastName: 'מורג',
+    color: AVAILABLE_COLORS[13],
+    therapyRequirements: {
+      'speech-therapist': 3
+    },
     isActive: true
   }
 ];

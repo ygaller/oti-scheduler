@@ -12,14 +12,15 @@ import './App.css';
 
 // Import components and services
 import EmployeeManagement from './components/EmployeeManagement';
+import PatientManagement from './components/PatientManagement';
 import RoomManagement from './components/RoomManagement';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
 import ScheduleView from './components/ScheduleView';
 import { LoginButton } from './components/LoginButton';
 import AuthCallback from './components/AuthCallback';
-import { employeeService, roomService, scheduleService } from './services';
+import { employeeService, patientService, roomService, scheduleService } from './services';
 import { authService, User } from './services/authService';
-import { Employee, Room, ScheduleConfig, Schedule } from './types';
+import { Employee, Patient, Room, ScheduleConfig, Schedule } from './types';
 
 // Create RTL cache
 const cacheRtl = createCache({
@@ -118,10 +119,11 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('scheduling-app-active-tab');
     const tabIndex = savedTab ? parseInt(savedTab, 10) : 0;
-    // Ensure the tab index is valid (0-3 for the 4 tabs)
-    return tabIndex >= 0 && tabIndex <= 3 ? tabIndex : 0;
+    // Ensure the tab index is valid (0-4 for the 5 tabs)
+    return tabIndex >= 0 && tabIndex <= 4 ? tabIndex : 0;
   });
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
@@ -156,14 +158,16 @@ function AppContent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [employeesData, roomsData, configData, activeSchedule] = await Promise.all([
+      const [employeesData, patientsData, roomsData, configData, activeSchedule] = await Promise.all([
         employeeService.getAll(),
+        patientService.getAll(),
         roomService.getAll(),
         scheduleService.getConfig(),
         scheduleService.getActive().catch(() => null) // Handle case where no active schedule exists
       ]);
       
       setEmployees(employeesData);
+      setPatients(patientsData);
       setRooms(roomsData);
       setConfig(configData);
       setSchedule(activeSchedule);
@@ -183,6 +187,15 @@ function AppContent() {
     }
   };
 
+  const refreshPatients = async (includeInactive = false) => {
+    try {
+      const patientsData = await patientService.getAll(includeInactive);
+      setPatients(patientsData);
+    } catch (error) {
+      console.error('Error refreshing patients:', error);
+    }
+  };
+
   const refreshRooms = async (includeInactive = false) => {
     try {
       const roomsData = await roomService.getAll(includeInactive);
@@ -199,6 +212,17 @@ function AppContent() {
       return updatedEmployee;
     } catch (error) {
       console.error('Error updating employee status:', error);
+      throw error;
+    }
+  };
+
+  const setPatientActive = async (id: string, isActive: boolean): Promise<Patient> => {
+    try {
+      const updatedPatient = await patientService.setActive(id, isActive);
+      setPatients(prev => prev.map(patient => patient.id === id ? updatedPatient : patient));
+      return updatedPatient;
+    } catch (error) {
+      console.error('Error updating patient status:', error);
       throw error;
     }
   };
@@ -313,6 +337,7 @@ function AppContent() {
                   <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
                       <Tab label="עובדים" />
+                      <Tab label="מטופלים" />
                       <Tab label="חדרי טיפול" />
                       <Tab label="הגדרות" />
                       <Tab label="לוח זמנים" />
@@ -334,6 +359,14 @@ function AppContent() {
                       )}
                       
                       {activeTab === 1 && (
+                        <PatientManagement 
+                          patients={patients} 
+                          setPatients={refreshPatients}
+                          setPatientActive={setPatientActive}
+                        />
+                      )}
+                      
+                      {activeTab === 2 && (
                         <RoomManagement 
                           rooms={rooms} 
                           setRooms={refreshRooms}
@@ -341,7 +374,7 @@ function AppContent() {
                         />
                       )}
                       
-                      {activeTab === 2 && (
+                      {activeTab === 3 && (
                         <>
                           {config ? (
                             <ScheduleConfiguration 
@@ -350,6 +383,7 @@ function AppContent() {
                               onDataChange={async () => {
                                 await Promise.all([
                                   refreshEmployees(),
+                                  refreshPatients(),
                                   refreshRooms(),
                                   fetchData()
                                 ]);
@@ -378,7 +412,7 @@ function AppContent() {
                         </>
                       )}
                       
-                      {activeTab === 3 && (
+                      {activeTab === 4 && (
                         config ? (
                           <ScheduleView 
                             employees={employees} 

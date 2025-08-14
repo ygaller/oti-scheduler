@@ -5,6 +5,7 @@ import path from 'path';
 import { initializeDatabase, closeDatabase, getPrismaClient } from './database/connection';
 import { 
   PrismaEmployeeRepository, 
+  PrismaPatientRepository,
   PrismaRoomRepository, 
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
@@ -79,6 +80,7 @@ async function startServer() {
     
     // Initialize repositories
     const employeeRepo = new PrismaEmployeeRepository(prisma);
+    const patientRepo = new PrismaPatientRepository(prisma);
     const roomRepo = new PrismaRoomRepository(prisma);
     const scheduleRepo = new PrismaScheduleRepository(prisma);
     const sessionRepo = new PrismaSessionRepository(prisma);
@@ -87,7 +89,7 @@ async function startServer() {
     const blockedPeriodRepo = new PrismaBlockedPeriodRepository(prisma);
     
     // Setup API routes
-    app.use('/api', createApiRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, blockedPeriodRepo));
+    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, blockedPeriodRepo));
     app.use('/api/auth', createAuthRouter(userRepo));
     
     // Default route
@@ -97,6 +99,7 @@ async function startServer() {
         version: '1.0.0',
         endpoints: {
           employees: '/api/employees',
+          patients: '/api/patients',
           rooms: '/api/rooms',
           schedule: '/api/schedule',
           system: '/api/system',

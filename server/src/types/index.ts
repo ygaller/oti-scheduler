@@ -28,11 +28,16 @@ export interface Employee {
   isActive: boolean;
 }
 
+export interface TherapyRequirements {
+  [role: string]: number; // Role as key, minimum sessions as value
+}
+
 export interface Patient {
   id: string;
   firstName: string;
   lastName: string;
   color: string;
+  therapyRequirements: TherapyRequirements;
   isActive: boolean;
 }
 
@@ -122,6 +127,7 @@ export interface CreatePatientDto {
   firstName: string;
   lastName: string;
   color: string;
+  therapyRequirements?: TherapyRequirements;
   isActive?: boolean;
 }
 

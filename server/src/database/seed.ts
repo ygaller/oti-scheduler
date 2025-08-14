@@ -49,6 +49,59 @@ const demoEmployees = [
   }
 ];
 
+const demoPatients = [
+  {
+    firstName: 'אמיר',
+    lastName: 'רוזן',
+    color: '#4b4453',
+    therapyRequirements: {
+      'occupational-therapist': 2,
+      'speech-therapist': 1
+    },
+    isActive: true
+  },
+  {
+    firstName: 'דנה',
+    lastName: 'ברק',
+    color: '#b0a8b9',
+    therapyRequirements: {
+      'physiotherapist': 3,
+      'occupational-therapist': 1
+    },
+    isActive: true
+  },
+  {
+    firstName: 'נועם',
+    lastName: 'ישראלי',
+    color: '#f3c5ff',
+    therapyRequirements: {
+      'speech-therapist': 2,
+      'art-therapist': 1
+    },
+    isActive: true
+  },
+  {
+    firstName: 'מיכל',
+    lastName: 'אדמון',
+    color: '#ff6f91',
+    therapyRequirements: {
+      'occupational-therapist': 1,
+      'physiotherapist': 2,
+      'social-worker': 1
+    },
+    isActive: true
+  },
+  {
+    firstName: 'עידו',
+    lastName: 'מורג',
+    color: '#ffc75f',
+    therapyRequirements: {
+      'speech-therapist': 3
+    },
+    isActive: true
+  }
+];
+
 const demoRooms = [
   { name: 'חדר טיפול 1', color: '#008dcd', isActive: true },
   { name: 'חדר טיפול 2', color: '#ffc75f', isActive: true },
@@ -71,6 +124,7 @@ async function seed() {
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
+    await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
     await prisma.systemConfig.deleteMany();
 
@@ -82,6 +136,15 @@ async function seed() {
       )
     );
     console.log(`✅ Created ${createdEmployees.length} employees`);
+
+    // Seed patients
+    console.log('Seeding patients...');
+    const createdPatients = await Promise.all(
+      demoPatients.map(patient =>
+        prisma.patient.create({ data: patient as any })
+      )
+    );
+    console.log(`✅ Created ${createdPatients.length} patients`);
 
     // Seed rooms
     console.log('Seeding rooms...');
@@ -105,6 +168,7 @@ async function seed() {
     console.log('🎉 Database seeding completed successfully!');
     console.log('\nCreated:');
     console.log(`  - ${createdEmployees.length} employees`);
+    console.log(`  - ${createdPatients.length} patients`);
     console.log(`  - ${createdRooms.length} rooms`);
     console.log(`  - 1 schedule configuration`);
 

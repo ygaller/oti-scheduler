@@ -1,4 +1,4 @@
-import { Employee, Room, Session, Schedule, ScheduleConfig, BlockedPeriod, CreateEmployeeDto, UpdateEmployeeDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateBlockedPeriodDto, UpdateBlockedPeriodDto } from '../types';
+import { Employee, Patient, Room, Session, Schedule, ScheduleConfig, BlockedPeriod, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateBlockedPeriodDto, UpdateBlockedPeriodDto } from '../types';
 
 export interface EmployeeRepository {
   findAll(includeInactive?: boolean): Promise<Employee[]>;
@@ -6,6 +6,16 @@ export interface EmployeeRepository {
   create(employee: CreateEmployeeDto): Promise<Employee>;
   update(id: string, employee: UpdateEmployeeDto): Promise<Employee>;
   setActive(id: string, isActive: boolean): Promise<Employee>;
+  delete(id: string): Promise<void>; // Keep for backward compatibility, but won't be used in UI
+  deleteAll(): Promise<void>; // Keep for backward compatibility, but won't be used in UI
+}
+
+export interface PatientRepository {
+  findAll(includeInactive?: boolean): Promise<Patient[]>;
+  findById(id: string): Promise<Patient | null>;
+  create(patient: CreatePatientDto): Promise<Patient>;
+  update(id: string, patient: UpdatePatientDto): Promise<Patient>;
+  setActive(id: string, isActive: boolean): Promise<Patient>;
   delete(id: string): Promise<void>; // Keep for backward compatibility, but won't be used in UI
   deleteAll(): Promise<void>; // Keep for backward compatibility, but won't be used in UI
 }
