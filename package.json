@@ -2,6 +2,8 @@
   "name": "scheduling-app",
   "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
+  "homepage": "./",
   "description": "מערכת לתיזמון עובדי גן ילדים המאפשרת יצירת לוח זמנים אוטומטי עם אילוצים ותכונות ניהול מתקדמות.",
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
@@ -15,10 +17,22 @@
     "build": "npm run server:build && npm run client:build",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
     "db:seed": "cd server && npm run db:seed",
-    "setup": "npm run install:all"
+    "setup": "npm run install:all",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run server:dev\" \"wait-on http://localhost:3001 && npm run client:dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:pack": "node scripts/build-electron.js && electron-builder",
+    "electron:dist": "node scripts/build-electron.js && electron-builder --publish=never",
+    "dist:win": "node scripts/build-electron.js && electron-builder --win",
+    "dist:mac": "node scripts/build-electron.js && electron-builder --mac",
+    "dist:all": "node scripts/build-electron.js && electron-builder --mac --win",
+    "prepare:electron": "node scripts/build-electron.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0",
+    "electron-icon-builder": "^2.0.1"
   },
   "repository": {
     "type": "git",
@@ -36,5 +50,70 @@
   "bugs": {
     "url": "https://github.com/ygaller/oti-scheduler/issues"
   },
-  "homepage": "https://github.com/ygaller/oti-scheduler#readme"
+  "homepage": "https://github.com/ygaller/oti-scheduler#readme",
+  "build": {
+    "appId": "com.oti.scheduling-app",
+    "productName": "oti-scheduler",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/",
+      "client/build/",
+      "server/dist/",
+      "server/package.json",
+      "server/node_modules/",
+      "server/prisma/",
+      "!server/src/",
+      "!server/tests/",
+      "!server/jest.config.js",
+      "!server/tsconfig.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server/prisma",
+        "to": "prisma"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "electron/icons/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "icon": "electron/icons/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "dmg": {
+      "title": "OTI Scheduler",
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  }
 }

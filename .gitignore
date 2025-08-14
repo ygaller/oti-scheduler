@@ -13,6 +13,9 @@ node_modules/
 # production
 /build
 /dist
+/dist-electron
+/client/build
+/server/dist
 
 # environment variables
 .env
