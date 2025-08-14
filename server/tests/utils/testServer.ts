@@ -3,6 +3,7 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { 
   PrismaEmployeeRepository, 
+  PrismaPatientRepository,
   PrismaRoomRepository, 
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
@@ -21,6 +22,7 @@ export const createTestApp = (prisma: PrismaClient) => {
   
   // Initialize repositories
   const employeeRepo = new PrismaEmployeeRepository(prisma);
+  const patientRepo = new PrismaPatientRepository(prisma);
   const roomRepo = new PrismaRoomRepository(prisma);
   const scheduleRepo = new PrismaScheduleRepository(prisma);
   const sessionRepo = new PrismaSessionRepository(prisma);
@@ -28,7 +30,7 @@ export const createTestApp = (prisma: PrismaClient) => {
   const blockedPeriodRepo = new PrismaBlockedPeriodRepository(prisma);
   
   // Setup API routes
-  app.use('/api', createApiRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, blockedPeriodRepo));
+  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, blockedPeriodRepo));
   
   // Error handling
   app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

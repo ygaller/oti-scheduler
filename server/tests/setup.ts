@@ -19,6 +19,7 @@ beforeEach(async () => {
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
+    await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
     await prisma.systemConfig.deleteMany();
   } catch (error) {
@@ -32,6 +33,7 @@ afterAll(async () => {
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
+    await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
     await prisma.systemConfig.deleteMany();
   } catch (error) {
