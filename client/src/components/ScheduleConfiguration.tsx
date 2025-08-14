@@ -14,20 +14,25 @@ import {
   CircularProgress
 } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { Delete as DeleteIcon, Warning as WarningIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Warning as WarningIcon, DataObject as DemoIcon } from '@mui/icons-material';
 import { ScheduleConfig } from '../types';
 import { systemService } from '../services';
+import { demoService } from '../services/demoService';
 
 interface ScheduleConfigurationProps {
   config: ScheduleConfig | null;
   setConfig: (config: ScheduleConfig) => Promise<void>;
+  onDataChange?: () => Promise<void>; // Callback to refresh data after demo load
 }
 
-const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, setConfig }) => {
+const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, setConfig, onDataChange }) => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [demoSuccess, setDemoSuccess] = useState(false);
   const parseTime = (timeStr: string): Date => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date();
@@ -81,6 +86,30 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
     }
   };
 
+  const handleLoadDemoData = async () => {
+    try {
+      setLoadingDemo(true);
+      setDemoError(null);
+      setDemoSuccess(false);
+      
+      await demoService.loadDemoData();
+      
+      // Notify parent to refresh data
+      if (onDataChange) {
+        await onDataChange();
+      }
+      
+      setDemoSuccess(true);
+      // Hide success message after 3 seconds
+      setTimeout(() => setDemoSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error loading demo data:', error);
+      setDemoError(error instanceof Error ? error.message : 'Failed to load demo data');
+    } finally {
+      setLoadingDemo(false);
+    }
+  };
+
   // Return loading state if config is not loaded yet
   if (!config) {
     return (
@@ -96,17 +125,30 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
         <Typography variant="h4" component="h1">
           הגדרות מערכת הזמנים
         </Typography>
-        <Button
-          variant="outlined"
-          color="error"
-          startIcon={<DeleteIcon />}
-          onClick={() => setResetDialogOpen(true)}
-        >
-          איפוס כל הנתונים
-        </Button>
+        <Box display="flex" gap={2}>
+          {process.env.NODE_ENV === 'development' && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={loadingDemo ? <CircularProgress size={16} /> : <DemoIcon />}
+              onClick={handleLoadDemoData}
+              disabled={loadingDemo}
+            >
+              {loadingDemo ? 'טוען נתוני דמו...' : 'צור נתוני דמו'}
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => setResetDialogOpen(true)}
+          >
+            איפוס כל הנתונים
+          </Button>
+        </Box>
       </Box>
 
-      {/* Error messages */}
+      {/* Error and success messages */}
       {updateError && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setUpdateError(null)}>
           {updateError}
@@ -116,6 +158,18 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
       {resetError && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setResetError(null)}>
           {resetError}
+        </Alert>
+      )}
+
+      {demoError && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setDemoError(null)}>
+          {demoError}
+        </Alert>
+      )}
+
+      {demoSuccess && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setDemoSuccess(false)}>
+          נתוני הדמו נוצרו בהצלחה! נוספו 3 עובדים ו-4 חדרי טיפול למערכת.
         </Alert>
       )}
 
@@ -187,25 +241,46 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
         </Card>
       </Box>
 
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h6" component="h3" mb={2}>
-          תצוגה מקדימה של הגדרות הזמנים
-        </Typography>
-        <Box display="flex" flexWrap="wrap" gap={2}>
-          <Typography variant="body2" color="text.secondary">
-            ארוחת בוקר: {config.breakfast.startTime} - {config.breakfast.endTime}
+      <Box display="flex" flexWrap="wrap" gap={3} mt={3}>
+        <Paper sx={{ p: 3, flex: process.env.NODE_ENV === 'development' ? { xs: '1 1 100%', md: '1 1 calc(50% - 12px)' } : '1 1 100%' }}>
+          <Typography variant="h6" component="h3" mb={2}>
+            תצוגה מקדימה של הגדרות הזמנים
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            מפגש בוקר: {config.morningMeetup.startTime} - {config.morningMeetup.endTime}
+          <Box display="flex" flexWrap="wrap" gap={2}>
+            <Typography variant="body2" color="text.secondary">
+              ארוחת בוקר: {config.breakfast.startTime} - {config.breakfast.endTime}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              מפגש בוקר: {config.morningMeetup.startTime} - {config.morningMeetup.endTime}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              ארוחת צהריים: {config.lunch.startTime} - {config.lunch.endTime}
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            <strong>הערה:</strong> בזמנים אלה לא ניתן לתזמן טיפולים. השינויים נשמרים אוטומטית.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            ארוחת צהריים: {config.lunch.startTime} - {config.lunch.endTime}
-          </Typography>
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          <strong>הערה:</strong> בזמנים אלה לא ניתן לתזמן טיפולים. השינויים נשמרים אוטומטית.
-        </Typography>
-      </Paper>
+        </Paper>
+
+        {process.env.NODE_ENV === 'development' && (
+          <Paper sx={{ p: 3, flex: { xs: '1 1 100%', md: '1 1 calc(50% - 12px)' } }}>
+            <Typography variant="h6" component="h3" mb={2} color="primary">
+              נתוני דמו
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              צירת נתוני דמו תוסיף למערכת:
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, mb: 2, color: 'text.secondary' }}>
+              <Typography component="li" variant="body2">3 עובדים עם תחומי התמחות שונים</Typography>
+              <Typography component="li" variant="body2">4 חדרי טיפול מוכנים לשימוש</Typography>
+              <Typography component="li" variant="body2">הגדרות זמנים מתאימות</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              זה יאפשר לך לראות איך המערכת עובדת ולבדוק את יצירת לוחות הזמנים.
+            </Typography>
+          </Paper>
+        )}
+      </Box>
 
       {/* Reset Confirmation Dialog */}
       <Dialog

@@ -302,8 +302,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     );
     
     return (
-      <TableContainer sx={{ height: '500px', border: 1, borderColor: 'divider' }}>
-        <Table stickyHeader size="small">
+      <TableContainer sx={{ border: 1, borderColor: 'divider', maxHeight: 'none' }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
@@ -415,8 +415,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     const sortedRooms = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he'));
     
     return (
-      <TableContainer sx={{ height: '500px', border: 1, borderColor: 'divider' }}>
-        <Table stickyHeader size="small">
+      <TableContainer sx={{ border: 1, borderColor: 'divider', maxHeight: 'none' }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
@@ -607,19 +607,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </CardContent>
           </Card>
 
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" component="h2" mb={2}>
-                מקרא צבעים
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {activeTab === 0 
-                  ? 'בתצוגת עובדים: צבע התא מציג את צבע החדר'
-                  : 'בתצוגת חדרים: צבע התא מציג את צבע העובד'
-                }
-              </Typography>
-            </CardContent>
-          </Card>
+
 
           <Box sx={{ mb: 2 }}>
             <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
@@ -655,7 +643,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 key={day} 
                 sx={{ 
                   p: 3, 
-                  minWidth: '400px',
+                  minWidth: '500px',
                   flexShrink: 0,
                   height: 'fit-content'
                 }}
@@ -737,7 +725,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 label="עובד"
                 onChange={(e) => setSessionForm(prev => ({ ...prev, employeeId: e.target.value }))}
               >
-                {[...employees].sort((a, b) => 
+                {[...employees].filter(employee => employee.isActive).sort((a, b) => 
                   `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
                 ).map(employee => (
                   <MenuItem key={employee.id} value={employee.id}>
@@ -754,7 +742,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 label="חדר"
                 onChange={(e) => setSessionForm(prev => ({ ...prev, roomId: e.target.value }))}
               >
-                {[...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(room => (
+                {[...rooms].filter(room => room.isActive).sort((a, b) => a.name.localeCompare(b.name, 'he')).map(room => (
                   <MenuItem key={room.id} value={room.id}>
                     {room.name}
                   </MenuItem>

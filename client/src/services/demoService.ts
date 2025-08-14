@@ -1,7 +1,7 @@
 import { Employee, Room, AVAILABLE_COLORS } from '../types';
 import { employeeService, roomService, scheduleService } from './index';
 
-const demoEmployees: Omit<Employee, 'id'>[] = [
+const demoEmployees: Omit<Employee, 'id' | 'isActive'>[] = [
   {
     firstName: 'שרה',
     lastName: 'כהן',
@@ -44,7 +44,7 @@ const demoEmployees: Omit<Employee, 'id'>[] = [
   }
 ];
 
-const demoRooms: Omit<Room, 'id'>[] = [
+const demoRooms: Omit<Room, 'id' | 'isActive'>[] = [
   { name: 'חדר טיפול 1', color: AVAILABLE_COLORS[1] },
   { name: 'חדר טיפול 2', color: AVAILABLE_COLORS[5] },
   { name: 'חדר פיזיותרפיה', color: AVAILABLE_COLORS[10] },

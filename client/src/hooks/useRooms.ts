@@ -6,10 +6,11 @@ interface UseRoomsResult {
   rooms: Room[];
   loading: boolean;
   error: string | null;
-  refetch: () => Promise<void>;
-  createRoom: (room: Omit<Room, 'id'>) => Promise<Room>;
+  refetch: (includeInactive?: boolean) => Promise<void>;
+  createRoom: (room: Omit<Room, 'id' | 'isActive'>) => Promise<Room>;
   updateRoom: (id: string, room: Partial<Room>) => Promise<Room>;
-  deleteRoom: (id: string) => Promise<void>;
+  setRoomActive: (id: string, isActive: boolean) => Promise<Room>;
+  deleteRoom: (id: string) => Promise<void>; // Keep for backward compatibility
 }
 
 export const useRooms = (): UseRoomsResult => {
@@ -17,11 +18,11 @@ export const useRooms = (): UseRoomsResult => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRooms = useCallback(async () => {
+  const fetchRooms = useCallback(async (includeInactive = false) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await roomService.getAll();
+      const data = await roomService.getAll(includeInactive);
       setRooms(data);
     } catch (err) {
       console.error('Error fetching rooms:', err);
@@ -31,7 +32,7 @@ export const useRooms = (): UseRoomsResult => {
     }
   }, []);
 
-  const createRoom = useCallback(async (room: Omit<Room, 'id'>): Promise<Room> => {
+  const createRoom = useCallback(async (room: Omit<Room, 'id' | 'isActive'>): Promise<Room> => {
     try {
       setError(null);
       const newRoom = await roomService.create(room);
@@ -52,6 +53,19 @@ export const useRooms = (): UseRoomsResult => {
       return updatedRoom;
     } catch (err) {
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to update room';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const setRoomActive = useCallback(async (id: string, isActive: boolean): Promise<Room> => {
+    try {
+      setError(null);
+      const updatedRoom = await roomService.setActive(id, isActive);
+      setRooms(prev => prev.map(r => r.id === id ? updatedRoom : r));
+      return updatedRoom;
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to update room status';
       setError(errorMessage);
       throw new Error(errorMessage);
     }
@@ -80,6 +94,7 @@ export const useRooms = (): UseRoomsResult => {
     refetch: fetchRooms,
     createRoom,
     updateRoom,
+    setRoomActive,
     deleteRoom,
   };
 };

@@ -20,9 +20,12 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip
+  Chip,
+  Checkbox,
+  FormControlLabel,
+  Tooltip
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { Employee, Role, ROLE_LABELS, DAY_LABELS, WEEK_DAYS, getRandomColor } from '../types';
 import { employeeService } from '../services';
@@ -30,12 +33,14 @@ import ColorPicker from './ColorPicker';
 
 interface EmployeeManagementProps {
   employees: Employee[];
-  setEmployees: () => Promise<void>;
+  setEmployees: (includeInactive?: boolean) => Promise<void>;
+  setEmployeeActive: (id: string, isActive: boolean) => Promise<Employee>;
 }
 
-const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setEmployees }) => {
+const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setEmployees, setEmployeeActive }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: '',
     lastName: '',
@@ -73,7 +78,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
     if (!formData.firstName || !formData.lastName) return;
 
     try {
-      const employeeData: Omit<Employee, 'id'> = {
+      const employeeData: Omit<Employee, 'id' | 'isActive'> = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role || 'occupational-therapist',
@@ -88,7 +93,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         await employeeService.create(employeeData);
       }
 
-      await setEmployees(); // Refresh the list
+      await setEmployees(!showActiveOnly); // Refresh the list
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving employee:', error);
@@ -96,14 +101,19 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
     }
   };
 
-  const handleDelete = async (employeeId: string) => {
+  const handleToggleActive = async (employeeId: string, currentStatus: boolean) => {
     try {
-      await employeeService.delete(employeeId);
-      await setEmployees(); // Refresh the list
+      await setEmployeeActive(employeeId, !currentStatus);
+      await setEmployees(!showActiveOnly); // Refresh the list
     } catch (error) {
-      console.error('Error deleting employee:', error);
+      console.error('Error updating employee status:', error);
       // TODO: Add proper error handling/notification
     }
+  };
+
+  const handleShowActiveToggle = async (checked: boolean) => {
+    setShowActiveOnly(checked);
+    await setEmployees(!checked); // If showing active only, don't include inactive
   };
 
   const handleWorkingHoursChange = (day: keyof Employee['workingHours'], field: 'startTime' | 'endTime', value: Date | null) => {
@@ -148,13 +158,24 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         <Typography variant="h4" component="h1">
           ניהול עובדים
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpenDialog()}
-        >
-          הוסף עובד
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={showActiveOnly}
+                onChange={(e) => handleShowActiveToggle(e.target.checked)}
+              />
+            }
+            label="הראה פעילים בלבד"
+          />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+          >
+            הוסף עובד
+          </Button>
+        </Box>
       </Box>
 
       <TableContainer component={Paper}>
@@ -167,6 +188,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableCell>מספר טיפולים שבועי</TableCell>
               <TableCell>ימי עבודה</TableCell>
               <TableCell>צבע</TableCell>
+              <TableCell>סטטוס</TableCell>
               <TableCell>פעולות</TableCell>
             </TableRow>
           </TableHead>
@@ -174,7 +196,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
             {[...employees].sort((a, b) => 
               `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
             ).map((employee) => (
-              <TableRow key={employee.id}>
+              <TableRow key={employee.id} sx={{ opacity: employee.isActive ? 1 : 0.6 }}>
                 <TableCell>{employee.firstName}</TableCell>
                 <TableCell>{employee.lastName}</TableCell>
                 <TableCell>{ROLE_LABELS[employee.role]}</TableCell>
@@ -207,12 +229,21 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                   />
                 </TableCell>
                 <TableCell>
+                  <Chip
+                    label={employee.isActive ? 'פעיל' : 'כבוי'}
+                    color={employee.isActive ? 'success' : 'default'}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
                   <IconButton onClick={() => handleOpenDialog(employee)}>
                     <Edit />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(employee.id)}>
-                    <Delete />
-                  </IconButton>
+                  <Tooltip title={employee.isActive ? 'כבה' : 'הפעל'}>
+                    <IconButton onClick={() => handleToggleActive(employee.id, employee.isActive)}>
+                      {employee.isActive ? <PowerOff /> : <Power />}
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}

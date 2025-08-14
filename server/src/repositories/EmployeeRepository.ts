@@ -6,8 +6,9 @@ import { mapPrismaEmployeeToAPI, mapAPIRoleToPrisma } from '../mappers';
 export class PrismaEmployeeRepository implements EmployeeRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async findAll(): Promise<Employee[]> {
+  async findAll(includeInactive = false): Promise<Employee[]> {
     const employees = await this.prisma.employee.findMany({
+      where: includeInactive ? {} : { isActive: true } as any,
       orderBy: { createdAt: 'asc' }
     });
     return employees.map(mapPrismaEmployeeToAPI);
@@ -39,7 +40,8 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
         workingHours: employeeData.workingHours as any,
         weeklySessionsCount: employeeData.weeklySessionsCount,
         color: employeeData.color,
-      }
+        isActive: employeeData.isActive ?? true,
+      } as any
     });
     return mapPrismaEmployeeToAPI(employee);
   }
@@ -53,10 +55,19 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     if (employeeData.workingHours !== undefined) updateData.workingHours = employeeData.workingHours as any;
     if (employeeData.weeklySessionsCount !== undefined) updateData.weeklySessionsCount = employeeData.weeklySessionsCount;
     if (employeeData.color !== undefined) updateData.color = employeeData.color;
+    if (employeeData.isActive !== undefined) updateData.isActive = employeeData.isActive;
     
     const employee = await this.prisma.employee.update({
       where: { id },
       data: updateData
+    });
+    return mapPrismaEmployeeToAPI(employee);
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<Employee> {
+    const employee = await this.prisma.employee.update({
+      where: { id },
+      data: { isActive } as any
     });
     return mapPrismaEmployeeToAPI(employee);
   }

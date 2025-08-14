@@ -24,12 +24,14 @@ export interface Employee {
   };
   weeklySessionsCount: number;
   color: string;
+  isActive: boolean;
 }
 
 export interface Room {
   id: string;
   name: string;
   color: string;
+  isActive: boolean;
 }
 
 export interface ScheduleConfig {

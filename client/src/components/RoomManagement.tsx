@@ -5,7 +5,6 @@ import {
   CardContent,
   Typography,
   Button,
-
   Dialog,
   DialogTitle,
   DialogContent,
@@ -18,23 +17,29 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  Checkbox,
+  FormControlLabel,
+  Chip,
+  Tooltip
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
 import { Room, getRandomColor } from '../types';
 import { roomService } from '../services';
 import ColorPicker from './ColorPicker';
 
 interface RoomManagementProps {
   rooms: Room[];
-  setRooms: () => Promise<void>;
+  setRooms: (includeInactive?: boolean) => Promise<void>;
+  setRoomActive: (id: string, isActive: boolean) => Promise<Room>;
 }
 
-const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
+const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms, setRoomActive }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [roomName, setRoomName] = useState('');
   const [roomColor, setRoomColor] = useState('');
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
 
   const handleOpenDialog = (room?: Room) => {
     if (room) {
@@ -60,7 +65,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
     if (!roomName.trim()) return;
 
     try {
-      const roomData: Omit<Room, 'id'> = {
+      const roomData: Omit<Room, 'id' | 'isActive'> = {
         name: roomName.trim(),
         color: roomColor
       };
@@ -71,7 +76,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
         await roomService.create(roomData);
       }
 
-      await setRooms(); // Refresh the list
+      await setRooms(!showActiveOnly); // Refresh the list
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving room:', error);
@@ -79,14 +84,19 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
     }
   };
 
-  const handleDelete = async (roomId: string) => {
+  const handleToggleActive = async (roomId: string, currentStatus: boolean) => {
     try {
-      await roomService.delete(roomId);
-      await setRooms(); // Refresh the list
+      await setRoomActive(roomId, !currentStatus);
+      await setRooms(!showActiveOnly); // Refresh the list
     } catch (error) {
-      console.error('Error deleting room:', error);
+      console.error('Error updating room status:', error);
       // TODO: Add proper error handling/notification
     }
+  };
+
+  const handleShowActiveToggle = async (checked: boolean) => {
+    setShowActiveOnly(checked);
+    await setRooms(!checked); // If showing active only, don't include inactive
   };
 
   return (
@@ -95,13 +105,24 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
         <Typography variant="h4" component="h1">
           ניהול חדרי טיפול
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpenDialog()}
-        >
-          הוסף חדר טיפול
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={showActiveOnly}
+                onChange={(e) => handleShowActiveToggle(e.target.checked)}
+              />
+            }
+            label="הראה פעילים בלבד"
+          />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+          >
+            הוסף חדר טיפול
+          </Button>
+        </Box>
       </Box>
 
       {rooms.length === 0 ? (
@@ -119,12 +140,13 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
               <TableRow>
                 <TableCell>שם החדר</TableCell>
                 <TableCell>צבע</TableCell>
+                <TableCell>סטטוס</TableCell>
                 <TableCell>פעולות</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {[...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((room) => (
-                <TableRow key={room.id}>
+                <TableRow key={room.id} sx={{ opacity: room.isActive ? 1 : 0.6 }}>
                   <TableCell>
                     <Typography variant="body1">{room.name}</Typography>
                   </TableCell>
@@ -141,12 +163,21 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms }) => {
                     />
                   </TableCell>
                   <TableCell>
+                    <Chip
+                      label={room.isActive ? 'פעיל' : 'כבוי'}
+                      color={room.isActive ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
                     <IconButton onClick={() => handleOpenDialog(room)}>
                       <Edit />
                     </IconButton>
-                    <IconButton onClick={() => handleDelete(room.id)}>
-                      <Delete />
-                    </IconButton>
+                    <Tooltip title={room.isActive ? 'כבה' : 'הפעל'}>
+                      <IconButton onClick={() => handleToggleActive(room.id, room.isActive)}>
+                        {room.isActive ? <PowerOff /> : <Power />}
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}

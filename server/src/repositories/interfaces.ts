@@ -1,21 +1,23 @@
 import { Employee, Room, Session, Schedule, ScheduleConfig, CreateEmployeeDto, UpdateEmployeeDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto } from '../types';
 
 export interface EmployeeRepository {
-  findAll(): Promise<Employee[]>;
+  findAll(includeInactive?: boolean): Promise<Employee[]>;
   findById(id: string): Promise<Employee | null>;
   create(employee: CreateEmployeeDto): Promise<Employee>;
   update(id: string, employee: UpdateEmployeeDto): Promise<Employee>;
-  delete(id: string): Promise<void>;
-  deleteAll(): Promise<void>;
+  setActive(id: string, isActive: boolean): Promise<Employee>;
+  delete(id: string): Promise<void>; // Keep for backward compatibility, but won't be used in UI
+  deleteAll(): Promise<void>; // Keep for backward compatibility, but won't be used in UI
 }
 
 export interface RoomRepository {
-  findAll(): Promise<Room[]>;
+  findAll(includeInactive?: boolean): Promise<Room[]>;
   findById(id: string): Promise<Room | null>;
   create(room: CreateRoomDto): Promise<Room>;
   update(id: string, room: UpdateRoomDto): Promise<Room>;
-  delete(id: string): Promise<void>;
-  deleteAll(): Promise<void>;
+  setActive(id: string, isActive: boolean): Promise<Room>;
+  delete(id: string): Promise<void>; // Keep for backward compatibility, but won't be used in UI
+  deleteAll(): Promise<void>; // Keep for backward compatibility, but won't be used in UI
 }
 
 export interface SessionRepository {

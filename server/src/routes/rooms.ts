@@ -9,7 +9,8 @@ export const createRoomRouter = (roomRepo: RoomRepository): Router => {
   // GET /api/rooms - Get all rooms
   router.get('/', async (req, res) => {
     try {
-      const rooms = await roomRepo.findAll();
+      const includeInactive = req.query.includeInactive === 'true';
+      const rooms = await roomRepo.findAll(includeInactive);
       res.json(rooms);
     } catch (error) {
       console.error('Error fetching rooms:', error);
@@ -65,17 +66,22 @@ export const createRoomRouter = (roomRepo: RoomRepository): Router => {
     }
   });
 
-  // DELETE /api/rooms/:id - Delete room
-  router.delete('/:id', validateUUID(), async (req, res) => {
+  // PATCH /api/rooms/:id/status - Enable/disable room
+  router.patch('/:id/status', validateUUID(), async (req, res) => {
     try {
-      await roomRepo.delete(req.params.id);
-      res.status(204).send();
+      const { isActive } = req.body;
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: 'isActive must be a boolean' });
+      }
+      
+      const room = await roomRepo.setActive(req.params.id, isActive);
+      res.json(room);
     } catch (error) {
-      console.error('Error deleting room:', error);
-      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
+      console.error('Error updating room status:', error);
+      if (error instanceof Error && error.message.includes('Record to update not found')) {
         res.status(404).json({ error: 'Room not found' });
       } else {
-        res.status(500).json({ error: 'Failed to delete room' });
+        res.status(500).json({ error: 'Failed to update room status' });
       }
     }
   });

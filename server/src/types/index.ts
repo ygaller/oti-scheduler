@@ -25,12 +25,14 @@ export interface Employee {
   };
   weeklySessionsCount: number;
   color: string;
+  isActive: boolean;
 }
 
 export interface Room {
   id: string;
   name: string;
   color: string;
+  isActive: boolean;
 }
 
 export interface ScheduleConfig {
@@ -73,6 +75,7 @@ export interface CreateEmployeeDto {
   workingHours: Employee['workingHours'];
   weeklySessionsCount: number;
   color: string;
+  isActive?: boolean;
 }
 
 export interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
@@ -80,6 +83,7 @@ export interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
 export interface CreateRoomDto {
   name: string;
   color: string;
+  isActive?: boolean;
 }
 
 export interface UpdateRoomDto extends Partial<CreateRoomDto> {}

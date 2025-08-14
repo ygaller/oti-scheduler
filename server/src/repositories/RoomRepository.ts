@@ -6,8 +6,9 @@ import { mapPrismaRoomToAPI } from '../mappers';
 export class PrismaRoomRepository implements RoomRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async findAll(): Promise<Room[]> {
+  async findAll(includeInactive = false): Promise<Room[]> {
     const rooms = await this.prisma.room.findMany({
+      where: includeInactive ? {} : { isActive: true } as any,
       orderBy: { createdAt: 'asc' }
     });
     return rooms.map(mapPrismaRoomToAPI);
@@ -25,7 +26,8 @@ export class PrismaRoomRepository implements RoomRepository {
       data: {
         name: roomData.name,
         color: roomData.color,
-      }
+        isActive: roomData.isActive ?? true,
+      } as any
     });
     return mapPrismaRoomToAPI(room);
   }
@@ -35,10 +37,19 @@ export class PrismaRoomRepository implements RoomRepository {
     
     if (roomData.name !== undefined) updateData.name = roomData.name;
     if (roomData.color !== undefined) updateData.color = roomData.color;
+    if (roomData.isActive !== undefined) updateData.isActive = roomData.isActive;
     
     const room = await this.prisma.room.update({
       where: { id },
       data: updateData
+    });
+    return mapPrismaRoomToAPI(room);
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<Room> {
+    const room = await this.prisma.room.update({
+      where: { id },
+      data: { isActive } as any
     });
     return mapPrismaRoomToAPI(room);
   }

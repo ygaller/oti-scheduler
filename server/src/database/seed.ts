@@ -15,7 +15,9 @@ const demoEmployees = [
       tuesday: { startTime: '08:00', endTime: '16:00' },
       wednesday: { startTime: '08:00', endTime: '14:00' },
       thursday: { startTime: '08:00', endTime: '16:00' }
-    }
+    },
+    color: '#845ec2',
+    isActive: true
   },
   {
     firstName: 'דוד',
@@ -28,7 +30,9 @@ const demoEmployees = [
       tuesday: { startTime: '09:00', endTime: '17:00' },
       wednesday: { startTime: '09:00', endTime: '15:00' },
       thursday: { startTime: '09:00', endTime: '17:00' }
-    }
+    },
+    color: '#ff6f91',
+    isActive: true
   },
   {
     firstName: 'מירי',
@@ -39,15 +43,17 @@ const demoEmployees = [
       sunday: { startTime: '08:30', endTime: '15:30' },
       tuesday: { startTime: '08:30', endTime: '15:30' },
       thursday: { startTime: '08:30', endTime: '15:30' }
-    }
+    },
+    color: '#00c9a7',
+    isActive: true
   }
 ];
 
 const demoRooms = [
-  { name: 'חדר טיפול 1' },
-  { name: 'חדר טיפול 2' },
-  { name: 'חדר פיזיותרפיה' },
-  { name: 'חדר תקשורת' }
+  { name: 'חדר טיפול 1', color: '#008dcd', isActive: true },
+  { name: 'חדר טיפול 2', color: '#ffc75f', isActive: true },
+  { name: 'חדר פיזיותרפיה', color: '#d65db1', isActive: true },
+  { name: 'חדר תקשורת', color: '#ff8066', isActive: true }
 ];
 
 const defaultScheduleConfig = {
@@ -72,7 +78,7 @@ async function seed() {
     console.log('Seeding employees...');
     const createdEmployees = await Promise.all(
       demoEmployees.map(employee =>
-        prisma.employee.create({ data: employee })
+        prisma.employee.create({ data: employee as any })
       )
     );
     console.log(`✅ Created ${createdEmployees.length} employees`);
@@ -81,7 +87,7 @@ async function seed() {
     console.log('Seeding rooms...');
     const createdRooms = await Promise.all(
       demoRooms.map(room =>
-        prisma.room.create({ data: room })
+        prisma.room.create({ data: room as any })
       )
     );
     console.log(`✅ Created ${createdRooms.length} rooms`);

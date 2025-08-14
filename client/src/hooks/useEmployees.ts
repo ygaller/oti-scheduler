@@ -6,10 +6,11 @@ interface UseEmployeesResult {
   employees: Employee[];
   loading: boolean;
   error: string | null;
-  refetch: () => Promise<void>;
-  createEmployee: (employee: Omit<Employee, 'id'>) => Promise<Employee>;
+  refetch: (includeInactive?: boolean) => Promise<void>;
+  createEmployee: (employee: Omit<Employee, 'id' | 'isActive'>) => Promise<Employee>;
   updateEmployee: (id: string, employee: Partial<Employee>) => Promise<Employee>;
-  deleteEmployee: (id: string) => Promise<void>;
+  setEmployeeActive: (id: string, isActive: boolean) => Promise<Employee>;
+  deleteEmployee: (id: string) => Promise<void>; // Keep for backward compatibility
 }
 
 export const useEmployees = (): UseEmployeesResult => {
@@ -17,11 +18,11 @@ export const useEmployees = (): UseEmployeesResult => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchEmployees = useCallback(async () => {
+  const fetchEmployees = useCallback(async (includeInactive = false) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await employeeService.getAll();
+      const data = await employeeService.getAll(includeInactive);
       setEmployees(data);
     } catch (err) {
       console.error('Error fetching employees:', err);
@@ -31,7 +32,7 @@ export const useEmployees = (): UseEmployeesResult => {
     }
   }, []);
 
-  const createEmployee = useCallback(async (employee: Omit<Employee, 'id'>): Promise<Employee> => {
+  const createEmployee = useCallback(async (employee: Omit<Employee, 'id' | 'isActive'>): Promise<Employee> => {
     try {
       setError(null);
       const newEmployee = await employeeService.create(employee);
@@ -52,6 +53,19 @@ export const useEmployees = (): UseEmployeesResult => {
       return updatedEmployee;
     } catch (err) {
       const errorMessage = err instanceof ApiError ? err.message : 'Failed to update employee';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const setEmployeeActive = useCallback(async (id: string, isActive: boolean): Promise<Employee> => {
+    try {
+      setError(null);
+      const updatedEmployee = await employeeService.setActive(id, isActive);
+      setEmployees(prev => prev.map(emp => emp.id === id ? updatedEmployee : emp));
+      return updatedEmployee;
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : 'Failed to update employee status';
       setError(errorMessage);
       throw new Error(errorMessage);
     }
@@ -80,6 +94,7 @@ export const useEmployees = (): UseEmployeesResult => {
     refetch: fetchEmployees,
     createEmployee,
     updateEmployee,
+    setEmployeeActive,
     deleteEmployee,
   };
 };

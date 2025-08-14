@@ -9,7 +9,8 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
   // GET /api/employees - Get all employees
   router.get('/', async (req, res) => {
     try {
-      const employees = await employeeRepo.findAll();
+      const includeInactive = req.query.includeInactive === 'true';
+      const employees = await employeeRepo.findAll(includeInactive);
       res.json(employees);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -65,17 +66,22 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
     }
   });
 
-  // DELETE /api/employees/:id - Delete employee
-  router.delete('/:id', validateUUID(), async (req, res) => {
+  // PATCH /api/employees/:id/status - Enable/disable employee
+  router.patch('/:id/status', validateUUID(), async (req, res) => {
     try {
-      await employeeRepo.delete(req.params.id);
-      res.status(204).send();
+      const { isActive } = req.body;
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: 'isActive must be a boolean' });
+      }
+      
+      const employee = await employeeRepo.setActive(req.params.id, isActive);
+      res.json(employee);
     } catch (error) {
-      console.error('Error deleting employee:', error);
-      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
+      console.error('Error updating employee status:', error);
+      if (error instanceof Error && error.message.includes('Record to update not found')) {
         res.status(404).json({ error: 'Employee not found' });
       } else {
-        res.status(500).json({ error: 'Failed to delete employee' });
+        res.status(500).json({ error: 'Failed to update employee status' });
       }
     }
   });

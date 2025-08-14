@@ -143,21 +143,43 @@ function App() {
     }
   };
 
-  const refreshEmployees = async () => {
+  const refreshEmployees = async (includeInactive = false) => {
     try {
-      const employeesData = await employeeService.getAll();
+      const employeesData = await employeeService.getAll(includeInactive);
       setEmployees(employeesData);
     } catch (error) {
       console.error('Error refreshing employees:', error);
     }
   };
 
-  const refreshRooms = async () => {
+  const refreshRooms = async (includeInactive = false) => {
     try {
-      const roomsData = await roomService.getAll();
+      const roomsData = await roomService.getAll(includeInactive);
       setRooms(roomsData);
     } catch (error) {
       console.error('Error refreshing rooms:', error);
+    }
+  };
+
+  const setEmployeeActive = async (id: string, isActive: boolean): Promise<Employee> => {
+    try {
+      const updatedEmployee = await employeeService.setActive(id, isActive);
+      setEmployees(prev => prev.map(emp => emp.id === id ? updatedEmployee : emp));
+      return updatedEmployee;
+    } catch (error) {
+      console.error('Error updating employee status:', error);
+      throw error;
+    }
+  };
+
+  const setRoomActive = async (id: string, isActive: boolean): Promise<Room> => {
+    try {
+      const updatedRoom = await roomService.setActive(id, isActive);
+      setRooms(prev => prev.map(room => room.id === id ? updatedRoom : room));
+      return updatedRoom;
+    } catch (error) {
+      console.error('Error updating room status:', error);
+      throw error;
     }
   };
 
@@ -227,14 +249,16 @@ function App() {
                   {activeTab === 0 && (
                     <EmployeeManagement 
                       employees={employees} 
-                      setEmployees={refreshEmployees} 
+                      setEmployees={refreshEmployees}
+                      setEmployeeActive={setEmployeeActive}
                     />
                   )}
                   
                   {activeTab === 1 && (
                     <RoomManagement 
                       rooms={rooms} 
-                      setRooms={refreshRooms} 
+                      setRooms={refreshRooms}
+                      setRoomActive={setRoomActive}
                     />
                   )}
                   
@@ -242,7 +266,14 @@ function App() {
                     config ? (
                       <ScheduleConfiguration 
                         config={config} 
-                        setConfig={updateConfig} 
+                        setConfig={updateConfig}
+                        onDataChange={async () => {
+                          await Promise.all([
+                            refreshEmployees(),
+                            refreshRooms(),
+                            fetchData()
+                          ]);
+                        }}
                       />
                     ) : (
                       <Paper sx={{ p: 3 }}>
