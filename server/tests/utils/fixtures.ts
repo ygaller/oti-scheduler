@@ -12,11 +12,15 @@ export const createEmployeeFixture = (overrides: Partial<CreateEmployeeDto> = {}
     thursday: { startTime: '08:00', endTime: '16:00' }
   },
   weeklySessionsCount: 20,
+  color: '#845ec2',
+  isActive: true,
   ...overrides
 });
 
 export const createRoomFixture = (overrides: Partial<CreateRoomDto> = {}): CreateRoomDto => ({
   name: 'Room A',
+  color: '#008dcd',
+  isActive: true,
   ...overrides
 });
 
