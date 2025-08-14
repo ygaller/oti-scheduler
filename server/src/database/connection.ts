@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { spawn, ChildProcess } from 'child_process';
-import { getDatabaseConfig, getConnectionString } from '../../../config/database';
+import { getDatabaseConfig, getConnectionString } from '../config/database';
 import path from 'path';
 import fs from 'fs/promises';
 

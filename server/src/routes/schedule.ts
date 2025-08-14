@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository } from '../repositories';
-import { generateSchedule, validateScheduleConstraints } from '../../../client/src/utils/scheduler';
+import { generateSchedule, validateScheduleConstraints } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 
 export const createScheduleRouter = (

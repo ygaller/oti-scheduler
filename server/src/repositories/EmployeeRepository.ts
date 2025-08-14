@@ -26,7 +26,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
         firstName: employeeData.firstName,
         lastName: employeeData.lastName,
         role: mapAPIRoleToPrisma(employeeData.role),
-        workingHours: employeeData.workingHours,
+        workingHours: employeeData.workingHours as any,
         weeklySessionsCount: employeeData.weeklySessionsCount,
       }
     });
@@ -39,7 +39,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     if (employeeData.firstName !== undefined) updateData.firstName = employeeData.firstName;
     if (employeeData.lastName !== undefined) updateData.lastName = employeeData.lastName;
     if (employeeData.role !== undefined) updateData.role = mapAPIRoleToPrisma(employeeData.role);
-    if (employeeData.workingHours !== undefined) updateData.workingHours = employeeData.workingHours;
+    if (employeeData.workingHours !== undefined) updateData.workingHours = employeeData.workingHours as any;
     if (employeeData.weeklySessionsCount !== undefined) updateData.weeklySessionsCount = employeeData.weeklySessionsCount;
     
     const employee = await this.prisma.employee.update({

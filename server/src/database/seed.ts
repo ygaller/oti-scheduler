@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { getDatabaseConfig, getConnectionString } from '../../../config/database';
+import { getDatabaseConfig, getConnectionString } from '../config/database';
 
 const prisma = new PrismaClient();
 
