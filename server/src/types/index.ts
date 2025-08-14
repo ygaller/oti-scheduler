@@ -28,6 +28,14 @@ export interface Employee {
   isActive: boolean;
 }
 
+export interface Patient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  color: string;
+  isActive: boolean;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -109,6 +117,15 @@ export interface CreateRoomDto {
 }
 
 export interface UpdateRoomDto extends Partial<CreateRoomDto> {}
+
+export interface CreatePatientDto {
+  firstName: string;
+  lastName: string;
+  color: string;
+  isActive?: boolean;
+}
+
+export interface UpdatePatientDto extends Partial<CreatePatientDto> {}
 
 export interface CreateSessionDto {
   employeeId: string;

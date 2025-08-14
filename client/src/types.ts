@@ -27,6 +27,14 @@ export interface Employee {
   isActive: boolean;
 }
 
+export interface Patient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  color: string;
+  isActive: boolean;
+}
+
 export interface Room {
   id: string;
   name: string;
