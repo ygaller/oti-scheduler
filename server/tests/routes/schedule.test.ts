@@ -235,7 +235,7 @@ describe('Schedule API Endpoints', () => {
       expect(response.body.error).toBe('No rooms found');
     });
 
-    it('should return 400 when no schedule config exists', async () => {
+    it('should use default config when no schedule config exists', async () => {
       // Clear all data and recreate only employees and rooms
       await request(app).post('/api/system/reset');
       await request(app)
@@ -245,12 +245,14 @@ describe('Schedule API Endpoints', () => {
         .post('/api/rooms')
         .send(createRoomFixture());
 
-      // Don't set config - let it use default or fail
+      // Don't set config - should use default config and succeed
       const response = await request(app)
         .post('/api/schedule/generate')
-        .expect(400);
+        .expect(200);
 
-      expect(response.body.error).toBe('Schedule configuration not found');
+      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('sessions');
+      expect(Array.isArray(response.body.sessions)).toBe(true);
     });
 
     it('should generate different schedules on multiple calls', async () => {

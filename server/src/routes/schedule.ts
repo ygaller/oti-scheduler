@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository } from '../repositories';
 import { generateSchedule, validateScheduleConstraints } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
+import { validateUUID } from '../utils/validation';
 
 export const createScheduleRouter = (
   employeeRepo: EmployeeRepository,
@@ -50,7 +51,7 @@ export const createScheduleRouter = (
     try {
       const employees = await employeeRepo.findAll();
       const rooms = await roomRepo.findAll();
-      const config = await configRepo.getScheduleConfig();
+      let config = await configRepo.getScheduleConfig();
 
       if (employees.length === 0) {
         return res.status(400).json({ error: 'No employees found' });
@@ -58,8 +59,14 @@ export const createScheduleRouter = (
       if (rooms.length === 0) {
         return res.status(400).json({ error: 'No rooms found' });
       }
+      
+      // Use default config if none exists
       if (!config) {
-        return res.status(400).json({ error: 'Schedule configuration not found' });
+        config = {
+          breakfast: { startTime: '08:00', endTime: '08:30' },
+          morningMeetup: { startTime: '09:00', endTime: '09:15' },
+          lunch: { startTime: '12:00', endTime: '13:00' }
+        };
       }
 
       // Generate schedule using existing algorithm
@@ -98,7 +105,7 @@ export const createScheduleRouter = (
   });
 
   // PUT /api/schedule/:id/activate - Set schedule as active
-  router.put('/:id/activate', async (req, res) => {
+  router.put('/:id/activate', validateUUID(), async (req, res) => {
     try {
       const schedule = await scheduleRepo.setActive(req.params.id);
       res.json(schedule);
@@ -113,7 +120,7 @@ export const createScheduleRouter = (
   });
 
   // DELETE /api/schedule/:id - Delete schedule
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', validateUUID(), async (req, res) => {
     try {
       await scheduleRepo.delete(req.params.id);
       res.status(204).send();
@@ -174,7 +181,7 @@ export const createScheduleRouter = (
   });
 
   // PUT /api/schedule/sessions/:id - Update session
-  router.put('/sessions/:id', async (req, res) => {
+  router.put('/sessions/:id', validateUUID(), async (req, res) => {
     try {
       const sessionData: UpdateSessionDto = req.body;
       
@@ -225,7 +232,7 @@ export const createScheduleRouter = (
   });
 
   // DELETE /api/schedule/sessions/:id - Delete session
-  router.delete('/sessions/:id', async (req, res) => {
+  router.delete('/sessions/:id', validateUUID(), async (req, res) => {
     try {
       await sessionRepo.delete(req.params.id);
       res.status(204).send();

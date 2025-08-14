@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { EmployeeRepository } from '../repositories';
 import { CreateEmployeeDto, UpdateEmployeeDto } from '../types';
+import { validateUUID } from '../utils/validation';
 
 export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router => {
   const router = Router();
@@ -17,7 +18,7 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
   });
 
   // GET /api/employees/:id - Get employee by ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID(), async (req, res) => {
     try {
       const employee = await employeeRepo.findById(req.params.id);
       if (!employee) {
@@ -49,7 +50,7 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
   });
 
   // PUT /api/employees/:id - Update employee
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', validateUUID(), async (req, res) => {
     try {
       const employeeData: UpdateEmployeeDto = req.body;
       const employee = await employeeRepo.update(req.params.id, employeeData);
@@ -65,7 +66,7 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
   });
 
   // DELETE /api/employees/:id - Delete employee
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', validateUUID(), async (req, res) => {
     try {
       await employeeRepo.delete(req.params.id);
       res.status(204).send();

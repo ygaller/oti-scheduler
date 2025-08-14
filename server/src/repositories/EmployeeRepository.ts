@@ -21,11 +21,21 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
   }
 
   async create(employeeData: CreateEmployeeDto): Promise<Employee> {
+    // Validate that role exists and can be mapped
+    if (!employeeData.role) {
+      throw new Error('Role is required');
+    }
+    
+    const prismaRole = mapAPIRoleToPrisma(employeeData.role);
+    if (!prismaRole) {
+      throw new Error(`Invalid role: ${employeeData.role}`);
+    }
+
     const employee = await this.prisma.employee.create({
       data: {
         firstName: employeeData.firstName,
         lastName: employeeData.lastName,
-        role: mapAPIRoleToPrisma(employeeData.role),
+        role: prismaRole,
         workingHours: employeeData.workingHours as any,
         weeklySessionsCount: employeeData.weeklySessionsCount,
       }

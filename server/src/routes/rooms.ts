@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { RoomRepository } from '../repositories';
 import { CreateRoomDto, UpdateRoomDto } from '../types';
+import { validateUUID } from '../utils/validation';
 
 export const createRoomRouter = (roomRepo: RoomRepository): Router => {
   const router = Router();
@@ -17,7 +18,7 @@ export const createRoomRouter = (roomRepo: RoomRepository): Router => {
   });
 
   // GET /api/rooms/:id - Get room by ID
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID(), async (req, res) => {
     try {
       const room = await roomRepo.findById(req.params.id);
       if (!room) {
@@ -49,7 +50,7 @@ export const createRoomRouter = (roomRepo: RoomRepository): Router => {
   });
 
   // PUT /api/rooms/:id - Update room
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', validateUUID(), async (req, res) => {
     try {
       const roomData: UpdateRoomDto = req.body;
       const room = await roomRepo.update(req.params.id, roomData);
@@ -65,7 +66,7 @@ export const createRoomRouter = (roomRepo: RoomRepository): Router => {
   });
 
   // DELETE /api/rooms/:id - Delete room
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', validateUUID(), async (req, res) => {
     try {
       await roomRepo.delete(req.params.id);
       res.status(204).send();
