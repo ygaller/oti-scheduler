@@ -1,0 +1,1 @@
+Make the app into a standalone app that is runnable both in windows and macos environments
