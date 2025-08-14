@@ -1,4 +1,30 @@
-import { Employee, Room, ScheduleConfig, Session, WeekDay, WEEK_DAYS } from '../types';
+import { Employee, Room, ScheduleConfig, Session, WeekDay, WEEK_DAYS, BlockedPeriod } from '../types';
+
+// Helper function to get the effective time range for a blocked period on a specific day
+function getBlockedPeriodTimeForDay(blockedPeriod: BlockedPeriod, day: WeekDay): { startTime: string; endTime: string } | null {
+  // Check if there's a day-specific override
+  const dayOverride = blockedPeriod.dayOverrides[day];
+  
+  if (dayOverride !== undefined) {
+    // If the override is explicitly null, this day is not blocked
+    if (dayOverride === null) {
+      return null;
+    }
+    // Use the override time
+    return dayOverride;
+  }
+  
+  // Use default time if both are available
+  if (blockedPeriod.defaultStartTime && blockedPeriod.defaultEndTime) {
+    return {
+      startTime: blockedPeriod.defaultStartTime,
+      endTime: blockedPeriod.defaultEndTime
+    };
+  }
+  
+  // No time specified for this day
+  return null;
+}
 
 interface TimeSlot {
   day: WeekDay;
@@ -316,14 +342,101 @@ export function validateScheduleConstraints(
     return { valid: false, error: 'העובד תפוס בזמן זה' };
   }
 
-  // Check blocked periods
-  const blockedPeriods = [config.breakfast, config.morningMeetup, config.lunch];
-  const blockedConflict = blockedPeriods.some(period =>
-    timesOverlap(period.startTime, period.endTime, session.startTime, session.endTime)
+  // Check blocked periods - convert legacy config
+  const legacyBlockedPeriods: BlockedPeriod[] = [
+    {
+      id: 'legacy-breakfast',
+      name: 'ארוחת בוקר',
+      color: '#ff9671',
+      defaultStartTime: config.breakfast.startTime,
+      defaultEndTime: config.breakfast.endTime,
+      dayOverrides: {},
+      isActive: true
+    },
+    {
+      id: 'legacy-morning-meetup', 
+      name: 'מפגש בוקר',
+      color: '#845ec2',
+      defaultStartTime: config.morningMeetup.startTime,
+      defaultEndTime: config.morningMeetup.endTime,
+      dayOverrides: {},
+      isActive: true
+    },
+    {
+      id: 'legacy-lunch',
+      name: 'ארוחת צהריים',
+      color: '#00c9a7',
+      defaultStartTime: config.lunch.startTime,
+      defaultEndTime: config.lunch.endTime,
+      dayOverrides: {},
+      isActive: true
+    }
+  ];
+
+  return validateScheduleConstraintsWithBlockedPeriods(session, allSessions, employees, rooms, legacyBlockedPeriods);
+}
+
+// New validation function that uses BlockedPeriod[]
+export function validateScheduleConstraintsWithBlockedPeriods(
+  session: Session,
+  allSessions: Session[],
+  employees: Employee[],
+  rooms: Room[],
+  blockedPeriods: BlockedPeriod[]
+): { valid: boolean; error?: string } {
+  const employee = employees.find(e => e.id === session.employeeId);
+  const room = rooms.find(r => r.id === session.roomId);
+
+  if (!employee) return { valid: false, error: 'עובד לא נמצא' };
+  if (!room) return { valid: false, error: 'חדר לא נמצא' };
+
+  // Check working hours
+  const workingHours = employee.workingHours[session.day];
+  if (!workingHours) {
+    return { valid: false, error: 'העובד לא עובד ביום זה' };
+  }
+
+  if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
+    return { valid: false, error: 'הטיפול מחוץ לשעות העבודה של העובד' };
+  }
+
+  // Check room conflicts
+  const roomConflicts = allSessions.filter(s => 
+    s.id !== session.id &&
+    s.roomId === session.roomId &&
+    s.day === session.day &&
+    timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
   );
 
+  if (roomConflicts.length > 0) {
+    return { valid: false, error: 'החדר תפוס בזמן זה' };
+  }
+
+  // Check employee conflicts
+  const employeeConflicts = allSessions.filter(s => 
+    s.id !== session.id &&
+    s.employeeId === session.employeeId &&
+    s.day === session.day &&
+    timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
+  );
+
+  if (employeeConflicts.length > 0) {
+    return { valid: false, error: 'העובד תפוס בזמן זה' };
+  }
+
+  // Check blocked periods using new logic
+  const activeBlockedPeriods = blockedPeriods.filter(bp => bp.isActive);
+  const blockedConflict = activeBlockedPeriods.some(blockedPeriod => {
+    const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, session.day);
+    if (!periodTime) {
+      return false; // No blocking for this day
+    }
+    
+    return timesOverlap(periodTime.startTime, periodTime.endTime, session.startTime, session.endTime);
+  });
+
   if (blockedConflict) {
-    return { valid: false, error: 'לא ניתן לתזמן טיפול בזמן ארוחה או מפגש' };
+    return { valid: false, error: 'לא ניתן לתזמן טיפול בזמן חסום' };
   }
 
   return { valid: true };

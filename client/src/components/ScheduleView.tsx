@@ -29,7 +29,8 @@ import {
 import { 
   CalendarToday, 
   Download, 
-  Add 
+  Add,
+  Print 
 } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { 
@@ -137,6 +138,47 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     link.href = URL.createObjectURL(blob);
     link.download = `לוח_זמנים_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+  };
+
+  const handlePrint = () => {
+    if (!schedule || schedule.sessions.length === 0) {
+      alert('אין נתונים להדפסה');
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה');
+      return;
+    }
+
+    // Generate the printable content
+    const printContent = generatePrintableSchedule();
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="he">
+      <head>
+        <meta charset="UTF-8">
+        <title>לוח זמנים - ${new Date().toLocaleDateString('he-IL')}</title>
+        <style>
+          ${getPrintStyles()}
+        </style>
+      </head>
+      <body>
+        ${printContent}
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    
+    // Wait for content to load then print
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const handleEditSession = (session: Session) => {
@@ -325,6 +367,291 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       const matchesRoom = !roomId || session.roomId === roomId;
       return matchesEmployee && matchesRoom && isTimeInRange(time, session.startTime, session.endTime);
     }) || null;
+  };
+
+  // Print helper functions
+  const getPrintStyles = (): string => {
+    return `
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        direction: rtl;
+        font-size: 12px;
+      }
+      
+      .print-header {
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #333;
+        padding-bottom: 15px;
+      }
+      
+      .print-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      
+      .print-date {
+        font-size: 14px;
+        color: #666;
+      }
+      
+      .schedule-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      
+      @media print {
+        .schedule-grid {
+          grid-template-columns: repeat(5, 1fr);
+          gap: 10px;
+        }
+        
+        .day-schedule {
+          page-break-inside: avoid;
+          margin-bottom: 15px;
+        }
+        
+        body {
+          font-size: 9px;
+        }
+        
+        .day-header {
+          font-size: 12px;
+          padding: 6px;
+        }
+        
+        .session-item {
+          margin-bottom: 6px;
+          padding: 4px;
+        }
+        
+        .session-details {
+          font-size: 8px;
+        }
+        
+        .statistics {
+          margin-top: 15px;
+          padding: 12px;
+        }
+        
+        .stats-grid {
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 8px;
+        }
+        
+        .stat-item {
+          padding: 6px;
+          font-size: 9px;
+        }
+        
+        .statistics-title {
+          font-size: 14px;
+        }
+      }
+      
+      .day-schedule {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      
+      .day-header {
+        background-color: #f5f5f5;
+        padding: 12px;
+        font-weight: bold;
+        font-size: 16px;
+        text-align: center;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      .day-content {
+        padding: 15px;
+      }
+      
+      .sessions-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      
+      .session-item {
+        margin-bottom: 12px;
+        padding: 10px;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        background-color: #fafafa;
+      }
+      
+      .session-time {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 4px;
+      }
+      
+      .session-details {
+        font-size: 11px;
+        color: #666;
+      }
+      
+      .no-sessions {
+        text-align: center;
+        color: #999;
+        font-style: italic;
+        padding: 20px;
+      }
+      
+      .statistics {
+        margin-top: 30px;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      
+      .statistics-title {
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 15px;
+      }
+      
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+      }
+      
+      .stat-item {
+        padding: 10px;
+        background-color: white;
+        border: 1px solid #eee;
+        border-radius: 4px;
+      }
+      
+      .blocked-periods {
+        margin-top: 20px;
+      }
+      
+      .blocked-period-item {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-right: 4px solid #ff6b6b;
+        background-color: #fff5f5;
+        font-size: 11px;
+      }
+    `;
+  };
+
+  const generatePrintableSchedule = (): string => {
+    if (!schedule) return '';
+
+    const sortedEmployees = [...employees].sort((a, b) => 
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+    );
+
+    const sortedRooms = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+
+    // Generate header
+    let html = `
+      <div class="print-header">
+        <div class="print-title">לוח זמנים</div>
+        <div class="print-date">נוצר ב: ${schedule.generatedAt.toLocaleString('he-IL')}</div>
+        <div class="print-date">הודפס ב: ${new Date().toLocaleString('he-IL')}</div>
+      </div>
+    `;
+
+    // Generate schedule grid for all days
+    html += '<div class="schedule-grid">';
+    
+    WEEK_DAYS.forEach(day => {
+      const daySessions = getSessionsForDay(day);
+      
+      html += `
+        <div class="day-schedule">
+          <div class="day-header">${DAY_LABELS[day]}</div>
+          <div class="day-content">
+      `;
+      
+      if (daySessions.length === 0) {
+        html += '<div class="no-sessions">אין טיפולים מתוזמנים ליום זה</div>';
+      } else {
+        html += '<ul class="sessions-list">';
+        
+        daySessions.forEach(session => {
+          const employee = employees.find(e => e.id === session.employeeId);
+          const room = rooms.find(r => r.id === session.roomId);
+          
+          html += `
+            <li class="session-item">
+              <div class="session-time">${session.startTime} - ${session.endTime}</div>
+              <div class="session-details">
+                עובד: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
+                תפקיד: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}<br>
+                חדר: ${room ? room.name : 'לא ידוע'}
+              </div>
+            </li>
+          `;
+        });
+        
+        html += '</ul>';
+      }
+      
+      html += '</div></div>';
+    });
+    
+    html += '</div>';
+
+    // Generate statistics section
+    html += `
+      <div class="statistics">
+        <div class="statistics-title">סטטיסטיקות</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <strong>סה"כ טיפולים:</strong> ${getTotalScheduledSessions()}
+          </div>
+    `;
+
+    // Add employee statistics
+    sortedEmployees.forEach(employee => {
+      const sessionCount = getEmployeeSessionCount(employee.id);
+      html += `
+        <div class="stat-item">
+          <strong>${employee.firstName} ${employee.lastName}:</strong><br>
+          ${sessionCount}/${employee.weeklySessionsCount} טיפולים
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    // Add blocked periods if any
+    if (blockedPeriods.length > 0) {
+      html += `
+        <div class="blocked-periods">
+          <div class="statistics-title">תקופות חסומות</div>
+      `;
+      
+      blockedPeriods.forEach(period => {
+        html += `
+          <div class="blocked-period-item">
+            <strong>${period.name}</strong><br>
+            ${period.defaultStartTime && period.defaultEndTime 
+              ? `שעות ברירת מחדל: ${period.defaultStartTime} - ${period.defaultEndTime}` 
+              : 'שעות מותאמות לפי יום'}
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+    }
+
+    html += '</div>';
+
+    return html;
   };
 
   // Calendar components
@@ -584,6 +911,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             disabled={!schedule || schedule.sessions.length === 0}
           >
             ייצא לCSV
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Print />}
+            onClick={handlePrint}
+            disabled={!schedule || schedule.sessions.length === 0}
+          >
+            הדפס
           </Button>
         </Box>
       </Box>

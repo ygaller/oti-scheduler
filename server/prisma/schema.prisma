@@ -111,6 +111,20 @@ model UserSession {
   @@map("user_sessions")
 }
 
+model BlockedPeriod {
+  id           String    @id @default(uuid())
+  name         String    // e.g., "ארוחת בוקר", "מפגש צוות", "הפסקת קפה"
+  color        String    @default("#ff6b6b") // Hex color for visual identification
+  defaultStartTime String? @map("default_start_time") // Optional default HH:mm format
+  defaultEndTime   String? @map("default_end_time")   // Optional default HH:mm format
+  dayOverrides Json      @default("{}") @map("day_overrides") // JSON: { "monday": { "startTime": "12:30", "endTime": "13:30" }, "tuesday": null }
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  @@map("blocked_periods")
+}
+
 model Session {
   id         String   @id @default(uuid())
   employeeId String   @map("employee_id")

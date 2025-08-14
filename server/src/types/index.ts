@@ -35,6 +35,28 @@ export interface Room {
   isActive: boolean;
 }
 
+export interface TimeRange {
+  startTime: string;
+  endTime: string;
+}
+
+export interface DayTimeOverride {
+  [key: string]: TimeRange | null; // null means use default or no override for this day
+}
+
+export interface BlockedPeriod {
+  id: string;
+  name: string;
+  color: string;
+  defaultStartTime: string | null; // null means no default time
+  defaultEndTime: string | null;   // null means no default time
+  dayOverrides: DayTimeOverride;   // JSON field for day-specific overrides
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Legacy interface for backward compatibility during migration
 export interface ScheduleConfig {
   breakfast: {
     startTime: string;
@@ -98,6 +120,17 @@ export interface CreateSessionDto {
 }
 
 export interface UpdateSessionDto extends Partial<CreateSessionDto> {}
+
+export interface CreateBlockedPeriodDto {
+  name: string;
+  color: string;
+  defaultStartTime?: string | null;
+  defaultEndTime?: string | null;
+  dayOverrides?: DayTimeOverride;
+  isActive?: boolean;
+}
+
+export interface UpdateBlockedPeriodDto extends Partial<CreateBlockedPeriodDto> {}
 
 // Available colors for rooms and employees (sorted by hex value)
 export const AVAILABLE_COLORS = [

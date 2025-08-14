@@ -9,7 +9,8 @@ import {
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
   PrismaSystemConfigRepository,
-  PrismaUserRepository 
+  PrismaUserRepository,
+  PrismaBlockedPeriodRepository
 } from './repositories';
 import { createApiRouter } from './routes';
 import { createAuthRouter } from './routes/auth';
@@ -83,9 +84,10 @@ async function startServer() {
     const sessionRepo = new PrismaSessionRepository(prisma);
     const configRepo = new PrismaSystemConfigRepository(prisma);
     const userRepo = new PrismaUserRepository(prisma);
+    const blockedPeriodRepo = new PrismaBlockedPeriodRepository(prisma);
     
     // Setup API routes
-    app.use('/api', createApiRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo));
+    app.use('/api', createApiRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, blockedPeriodRepo));
     app.use('/api/auth', createAuthRouter(userRepo));
     
     // Default route
@@ -98,6 +100,7 @@ async function startServer() {
           rooms: '/api/rooms',
           schedule: '/api/schedule',
           system: '/api/system',
+          blockedPeriods: '/api/blocked-periods',
           health: '/api/health'
         }
       });

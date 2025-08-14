@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload signed macOS artifacts
         if: matrix.platform == 'mac'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-signed-installers
           path: |
@@ -126,7 +126,7 @@ jobs:
 
       - name: Upload signed Windows artifacts
         if: matrix.platform == 'win'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-signed-installers
           path: |
@@ -143,13 +143,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download macOS signed artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-signed-installers
           path: dist-electron/
 
       - name: Download Windows signed artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: windows-signed-installers
           path: dist-electron/
@@ -164,13 +164,12 @@ jobs:
           fi
 
       - name: Create Production Release
-        id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          release_name: OTI Scheduler ${{ steps.version.outputs.version }} (Production)
+          name: OTI Scheduler ${{ steps.version.outputs.version }} (Production)
           body: |
             ## OTI Scheduler ${{ steps.version.outputs.version }} - Production Release
             
@@ -219,34 +218,7 @@ jobs:
             - 💬 Discussions: [GitHub Discussions](https://github.com/ygaller/oti-scheduler/discussions)
           draft: false
           prerelease: false
-
-      # Upload release assets
-      - name: Upload macOS DMG (Universal)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist-electron/oti-scheduler-${{ steps.version.outputs.version }}.dmg
-          asset_name: oti-scheduler-${{ steps.version.outputs.version }}.dmg
-          asset_content_type: application/x-apple-diskimage
-
-      - name: Upload macOS DMG (ARM64)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist-electron/oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
-          asset_name: oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
-          asset_content_type: application/x-apple-diskimage
-
-      - name: Upload Windows EXE
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist-electron/oti-scheduler Setup ${{ steps.version.outputs.version }}.exe
-          asset_name: oti-scheduler-Setup-${{ steps.version.outputs.version }}.exe
-          asset_content_type: application/x-msdownload
+          files: |
+            dist-electron/oti-scheduler-${{ steps.version.outputs.version }}.dmg
+            dist-electron/oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
+            dist-electron/oti-scheduler Setup ${{ steps.version.outputs.version }}.exe
