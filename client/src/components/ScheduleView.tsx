@@ -41,10 +41,12 @@ import {
   DAY_LABELS, 
   WEEK_DAYS,
   WeekDay,
-  ROLE_LABELS 
+  ROLE_LABELS,
+  BlockedPeriod 
 } from '../types';
 import { validateScheduleConstraints } from '../utils/scheduler';
 import { scheduleService } from '../services';
+import { useBlockedPeriods } from '../hooks';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -66,6 +68,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [sessionForm, setSessionForm] = useState<Partial<Session>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+
+  // Get blocked periods for display
+  const { blockedPeriods } = useBlockedPeriods(true); // Only active ones
 
   const handleGenerateSchedule = async () => {
     console.log('Generate schedule button clicked!');
@@ -272,15 +277,44 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     return timeMinutes >= startMinutes && timeMinutes < endMinutes;
   };
 
-  const getReservedSlot = (time: string) => {
-    if (isTimeInRange(time, scheduleConfig.breakfast.startTime, scheduleConfig.breakfast.endTime)) {
-      return { type: 'breakfast', label: 'ארוחת בוקר' };
+  // Helper function to get the effective time range for a blocked period on a specific day
+  const getBlockedPeriodTimeForDay = (blockedPeriod: BlockedPeriod, day: WeekDay): { startTime: string; endTime: string } | null => {
+    // Check if there's a day-specific override
+    const dayOverride = blockedPeriod.dayOverrides[day];
+    
+    if (dayOverride !== undefined) {
+      // If the override is explicitly null, this day is not blocked
+      if (dayOverride === null) {
+        return null;
+      }
+      // Use the override time
+      return dayOverride;
     }
-    if (isTimeInRange(time, scheduleConfig.morningMeetup.startTime, scheduleConfig.morningMeetup.endTime)) {
-      return { type: 'meeting', label: 'מפגש בוקר' };
+    
+    // Use default time if both are available
+    if (blockedPeriod.defaultStartTime && blockedPeriod.defaultEndTime) {
+      return {
+        startTime: blockedPeriod.defaultStartTime,
+        endTime: blockedPeriod.defaultEndTime
+      };
     }
-    if (isTimeInRange(time, scheduleConfig.lunch.startTime, scheduleConfig.lunch.endTime)) {
-      return { type: 'lunch', label: 'ארוחת צהריים' };
+    
+    // No time specified for this day
+    return null;
+  };
+
+  const getReservedSlot = (time: string, day: WeekDay) => {
+    // Check all active blocked periods
+    for (const blockedPeriod of blockedPeriods) {
+      const timeRange = getBlockedPeriodTimeForDay(blockedPeriod, day);
+      if (timeRange && isTimeInRange(time, timeRange.startTime, timeRange.endTime)) {
+        return { 
+          type: blockedPeriod.id, 
+          label: blockedPeriod.name,
+          color: blockedPeriod.color,
+          isStartTime: time === timeRange.startTime
+        };
+      }
     }
     return null;
   };
@@ -336,19 +370,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   </TableCell>
                   {sortedEmployees.map(employee => {
                     const session = getSessionAtTime(daySessions, time, employee.id);
-                    const reservedSlot = getReservedSlot(time);
+                    const reservedSlot = getReservedSlot(time, day);
                     
                     if (reservedSlot) {
                       return (
                         <TableCell key={employee.id} sx={{ 
                           p: 0.5,
-                          backgroundColor: reservedSlot.type === 'breakfast' ? '#fff3e0' : 
-                                         reservedSlot.type === 'lunch' ? '#e8f5e8' : '#f3e5f5',
+                          backgroundColor: reservedSlot.color + '20', // Add transparency to the blocked period's color
                           textAlign: 'center',
                           fontSize: '0.7rem',
                           color: 'text.secondary'
                         }}>
-                          {isHourMark ? reservedSlot.label : ''}
+                          {reservedSlot.isStartTime ? reservedSlot.label : ''}
                         </TableCell>
                       );
                     }
@@ -449,19 +482,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   </TableCell>
                   {sortedRooms.map(room => {
                     const session = getSessionAtTime(daySessions, time, undefined, room.id);
-                    const reservedSlot = getReservedSlot(time);
+                    const reservedSlot = getReservedSlot(time, day);
                     
                     if (reservedSlot) {
                       return (
                         <TableCell key={room.id} sx={{ 
                           p: 0.5,
-                          backgroundColor: reservedSlot.type === 'breakfast' ? '#fff3e0' : 
-                                         reservedSlot.type === 'lunch' ? '#e8f5e8' : '#f3e5f5',
+                          backgroundColor: reservedSlot.color + '20', // Add transparency to the blocked period's color
                           textAlign: 'center',
                           fontSize: '0.7rem',
                           color: 'text.secondary'
                         }}>
-                          {isHourMark ? reservedSlot.label : ''}
+                          {reservedSlot.isStartTime ? reservedSlot.label : ''}
                         </TableCell>
                       );
                     }
@@ -611,8 +643,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
           <Box sx={{ mb: 2 }}>
             <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
-              <Tab label="תצוגת עובדים" />
-              <Tab label="תצוגת חדרים" />
+              <Tab label="לו״ז טיפולים" />
+              <Tab label="לו״ז חדרים" />
             </Tabs>
           </Box>
 
