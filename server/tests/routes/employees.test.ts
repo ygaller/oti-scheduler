@@ -83,9 +83,10 @@ describe('Employee API Endpoints', () => {
     it('should handle invalid UUID format', async () => {
       const response = await request(app)
         .get('/api/employees/invalid-id')
-        .expect(500);
+        .expect(400);
 
       expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Invalid id format');
     });
   });
 
@@ -244,7 +245,7 @@ describe('Employee API Endpoints', () => {
     });
   });
 
-  describe('DELETE /api/employees/:id', () => {
+  describe('PATCH /api/employees/:id/status', () => {
     let employeeId: string;
 
     beforeEach(async () => {
@@ -255,28 +256,66 @@ describe('Employee API Endpoints', () => {
       employeeId = response.body.id;
     });
 
-    it('should delete existing employee', async () => {
-      await request(app)
-        .delete(`/api/employees/${employeeId}`)
-        .expect(204);
+    it('should deactivate existing employee', async () => {
+      const response = await request(app)
+        .patch(`/api/employees/${employeeId}/status`)
+        .send({ isActive: false })
+        .expect(200);
 
-      // Verify employee is deleted
+      expect(response.body.isActive).toBe(false);
+
+      // Verify employee is excluded from default list (active only)
+      const allEmployeesResponse = await request(app).get('/api/employees');
+      expect(allEmployeesResponse.body).toHaveLength(0);
+
+      // Verify employee still exists when including inactive
+      const allIncludingInactiveResponse = await request(app).get('/api/employees?includeInactive=true');
+      expect(allIncludingInactiveResponse.body).toHaveLength(1);
+      expect(allIncludingInactiveResponse.body[0].isActive).toBe(false);
+    });
+
+    it('should reactivate deactivated employee', async () => {
+      // First deactivate
       await request(app)
-        .get(`/api/employees/${employeeId}`)
-        .expect(404);
+        .patch(`/api/employees/${employeeId}/status`)
+        .send({ isActive: false })
+        .expect(200);
+
+      // Then reactivate
+      const response = await request(app)
+        .patch(`/api/employees/${employeeId}/status`)
+        .send({ isActive: true })
+        .expect(200);
+
+      expect(response.body.isActive).toBe(true);
+
+      // Verify employee appears in default list again
+      const allEmployeesResponse = await request(app).get('/api/employees');
+      expect(allEmployeesResponse.body).toHaveLength(1);
+      expect(allEmployeesResponse.body[0].isActive).toBe(true);
     });
 
     it('should return 404 for non-existent employee', async () => {
       const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
       const response = await request(app)
-        .delete(`/api/employees/${nonExistentId}`)
+        .patch(`/api/employees/${nonExistentId}/status`)
+        .send({ isActive: false })
         .expect(404);
 
       expect(response.body.error).toBe('Employee not found');
     });
 
-    it('should handle multiple deletions', async () => {
+    it('should return 400 for invalid isActive value', async () => {
+      const response = await request(app)
+        .patch(`/api/employees/${employeeId}/status`)
+        .send({ isActive: 'invalid' })
+        .expect(400);
+
+      expect(response.body.error).toBe('isActive must be a boolean');
+    });
+
+    it('should handle multiple status changes', async () => {
       // Create another employee
       const employee2Data = createEmployeeFixture({ firstName: 'Second' });
       const employee2Response = await request(app)
@@ -284,13 +323,18 @@ describe('Employee API Endpoints', () => {
         .send(employee2Data);
       const employee2Id = employee2Response.body.id;
 
-      // Delete both employees
-      await request(app).delete(`/api/employees/${employeeId}`).expect(204);
-      await request(app).delete(`/api/employees/${employee2Id}`).expect(204);
+      // Deactivate both employees
+      await request(app).patch(`/api/employees/${employeeId}/status`).send({ isActive: false }).expect(200);
+      await request(app).patch(`/api/employees/${employee2Id}/status`).send({ isActive: false }).expect(200);
 
-      // Verify both are deleted
+      // Verify both are excluded from default list
       const allEmployeesResponse = await request(app).get('/api/employees');
       expect(allEmployeesResponse.body).toHaveLength(0);
+
+      // Verify both exist when including inactive
+      const allIncludingInactiveResponse = await request(app).get('/api/employees?includeInactive=true');
+      expect(allIncludingInactiveResponse.body).toHaveLength(2);
+      expect(allIncludingInactiveResponse.body.every((emp: any) => emp.isActive === false)).toBe(true);
     });
   });
 });

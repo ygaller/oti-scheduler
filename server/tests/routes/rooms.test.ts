@@ -91,9 +91,10 @@ describe('Room API Endpoints', () => {
     it('should handle invalid UUID format', async () => {
       const response = await request(app)
         .get('/api/rooms/invalid-id')
-        .expect(500);
+        .expect(400);
 
       expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Invalid id format');
     });
   });
 
@@ -266,45 +267,84 @@ describe('Room API Endpoints', () => {
       const response = await request(app)
         .put('/api/rooms/invalid-id')
         .send(updateData)
-        .expect(500);
+        .expect(400);
 
       expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Invalid id format');
     });
   });
 
-  describe('DELETE /api/rooms/:id', () => {
+  describe('PATCH /api/rooms/:id/status', () => {
     let roomId: string;
 
     beforeEach(async () => {
-      const roomData = createRoomFixture({ name: 'Room to Delete' });
+      const roomData = createRoomFixture({ name: 'Room to Deactivate' });
       const response = await request(app)
         .post('/api/rooms')
         .send(roomData);
       roomId = response.body.id;
     });
 
-    it('should delete existing room', async () => {
-      await request(app)
-        .delete(`/api/rooms/${roomId}`)
-        .expect(204);
+    it('should deactivate existing room', async () => {
+      const response = await request(app)
+        .patch(`/api/rooms/${roomId}/status`)
+        .send({ isActive: false })
+        .expect(200);
 
-      // Verify room is deleted
+      expect(response.body.isActive).toBe(false);
+
+      // Verify room is excluded from default list (active only)
+      const allRoomsResponse = await request(app).get('/api/rooms');
+      expect(allRoomsResponse.body).toHaveLength(0);
+
+      // Verify room still exists when including inactive
+      const allIncludingInactiveResponse = await request(app).get('/api/rooms?includeInactive=true');
+      expect(allIncludingInactiveResponse.body).toHaveLength(1);
+      expect(allIncludingInactiveResponse.body[0].isActive).toBe(false);
+    });
+
+    it('should reactivate deactivated room', async () => {
+      // First deactivate
       await request(app)
-        .get(`/api/rooms/${roomId}`)
-        .expect(404);
+        .patch(`/api/rooms/${roomId}/status`)
+        .send({ isActive: false })
+        .expect(200);
+
+      // Then reactivate
+      const response = await request(app)
+        .patch(`/api/rooms/${roomId}/status`)
+        .send({ isActive: true })
+        .expect(200);
+
+      expect(response.body.isActive).toBe(true);
+
+      // Verify room appears in default list again
+      const allRoomsResponse = await request(app).get('/api/rooms');
+      expect(allRoomsResponse.body).toHaveLength(1);
+      expect(allRoomsResponse.body[0].isActive).toBe(true);
     });
 
     it('should return 404 for non-existent room', async () => {
       const nonExistentId = '00000000-0000-0000-0000-000000000000';
 
       const response = await request(app)
-        .delete(`/api/rooms/${nonExistentId}`)
+        .patch(`/api/rooms/${nonExistentId}/status`)
+        .send({ isActive: false })
         .expect(404);
 
       expect(response.body.error).toBe('Room not found');
     });
 
-    it('should handle multiple deletions', async () => {
+    it('should return 400 for invalid isActive value', async () => {
+      const response = await request(app)
+        .patch(`/api/rooms/${roomId}/status`)
+        .send({ isActive: 'invalid' })
+        .expect(400);
+
+      expect(response.body.error).toBe('isActive must be a boolean');
+    });
+
+    it('should handle multiple status changes', async () => {
       // Create additional rooms
       const room2Response = await request(app)
         .post('/api/rooms')
@@ -316,30 +356,42 @@ describe('Room API Endpoints', () => {
       const room2Id = room2Response.body.id;
       const room3Id = room3Response.body.id;
 
-      // Delete all rooms
-      await request(app).delete(`/api/rooms/${roomId}`).expect(204);
-      await request(app).delete(`/api/rooms/${room2Id}`).expect(204);
-      await request(app).delete(`/api/rooms/${room3Id}`).expect(204);
+      // Deactivate all rooms
+      await request(app).patch(`/api/rooms/${roomId}/status`).send({ isActive: false }).expect(200);
+      await request(app).patch(`/api/rooms/${room2Id}/status`).send({ isActive: false }).expect(200);
+      await request(app).patch(`/api/rooms/${room3Id}/status`).send({ isActive: false }).expect(200);
 
-      // Verify all are deleted
+      // Verify all are excluded from default list
       const allRoomsResponse = await request(app).get('/api/rooms');
       expect(allRoomsResponse.body).toHaveLength(0);
+
+      // Verify all exist when including inactive
+      const allIncludingInactiveResponse = await request(app).get('/api/rooms?includeInactive=true');
+      expect(allIncludingInactiveResponse.body).toHaveLength(3);
+      expect(allIncludingInactiveResponse.body.every((room: any) => room.isActive === false)).toBe(true);
     });
 
-    it('should handle deletion of already deleted room', async () => {
-      // Delete room first time
-      await request(app).delete(`/api/rooms/${roomId}`).expect(204);
+    it('should handle deactivation of already deactivated room', async () => {
+      // Deactivate room first time
+      await request(app).patch(`/api/rooms/${roomId}/status`).send({ isActive: false }).expect(200);
 
-      // Try to delete again
-      await request(app).delete(`/api/rooms/${roomId}`).expect(404);
-    });
-
-    it('should handle invalid UUID in deletion', async () => {
+      // Try to deactivate again (should still work)
       const response = await request(app)
-        .delete('/api/rooms/invalid-id')
-        .expect(500);
+        .patch(`/api/rooms/${roomId}/status`)
+        .send({ isActive: false })
+        .expect(200);
+
+      expect(response.body.isActive).toBe(false);
+    });
+
+    it('should handle invalid UUID in status update', async () => {
+      const response = await request(app)
+        .patch('/api/rooms/invalid-id/status')
+        .send({ isActive: false })
+        .expect(400);
 
       expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Invalid id format');
     });
   });
 
@@ -375,15 +427,21 @@ describe('Room API Endpoints', () => {
         .expect(200);
       expect(verifyResponse.body.name).toBe(updateData.name);
 
-      // Delete
-      await request(app)
-        .delete(`/api/rooms/${roomId}`)
-        .expect(204);
+      // Deactivate
+      const deactivateResponse = await request(app)
+        .patch(`/api/rooms/${roomId}/status`)
+        .send({ isActive: false })
+        .expect(200);
+      expect(deactivateResponse.body.isActive).toBe(false);
 
-      // Verify deletion
-      await request(app)
+      // Verify room is excluded from default list but still accessible by ID
+      const allRoomsResponse = await request(app).get('/api/rooms');
+      expect(allRoomsResponse.body).toHaveLength(0);
+      
+      const roomByIdResponse = await request(app)
         .get(`/api/rooms/${roomId}`)
-        .expect(404);
+        .expect(200);
+      expect(roomByIdResponse.body.isActive).toBe(false);
     });
   });
 });
