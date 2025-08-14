@@ -20,7 +20,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#003366",
+  "theme_color": "#9B1E65",
   "background_color": "#ffffff",
   "description": "מערכת תיזמון מתקדמת לניהול לוח זמנים עם עיצוב בהשראת OTI"
 }

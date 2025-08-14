@@ -27,9 +27,9 @@ const theme = createTheme({
   direction: 'rtl',
   palette: {
     primary: {
-      main: '#003366', // Deep blue from OTI
-      light: '#0066CC', // Lighter blue for accents
-      dark: '#002244',
+      main: '#9B1E65', // OTI primary color (e-global-color-primary)
+      light: '#b54080', // Lighter shade for accents
+      dark: '#7a1851',
       contrastText: '#ffffff',
     },
     secondary: {
@@ -51,19 +51,19 @@ const theme = createTheme({
     fontFamily: '"Nunito Sans", "Roboto", "Helvetica", "Arial", sans-serif',
     h3: {
       fontWeight: 700,
-      color: '#003366',
+      color: '#9B1E65',
     },
     h4: {
       fontWeight: 600,
-      color: '#003366',
+      color: '#9B1E65',
     },
     h5: {
       fontWeight: 600,
-      color: '#003366',
+      color: '#9B1E65',
     },
     h6: {
       fontWeight: 600,
-      color: '#003366',
+      color: '#9B1E65',
     },
   },
   components: {
@@ -96,7 +96,7 @@ const theme = createTheme({
         root: {
           fontWeight: 600,
           '&.Mui-selected': {
-            color: '#003366',
+            color: '#9B1E65',
           },
         },
       },
@@ -105,7 +105,13 @@ const theme = createTheme({
 });
 
 function App() {
-  const [activeTab, setActiveTab] = useState(0);
+  // Load saved tab from localStorage or default to 0
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('scheduling-app-active-tab');
+    const tabIndex = savedTab ? parseInt(savedTab, 10) : 0;
+    // Ensure the tab index is valid (0-3 for the 4 tabs)
+    return tabIndex >= 0 && tabIndex <= 3 ? tabIndex : 0;
+  });
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
@@ -177,6 +183,8 @@ function App() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+    // Save the active tab to localStorage for persistence
+    localStorage.setItem('scheduling-app-active-tab', newValue.toString());
   };
 
   return (
@@ -193,7 +201,7 @@ function App() {
                   style={{ 
                     height: '60px', 
                     width: 'auto',
-                    filter: 'drop-shadow(0 2px 4px rgba(0, 51, 102, 0.1))'
+                    filter: 'drop-shadow(0 2px 4px rgba(155, 30, 101, 0.1))'
                   }} 
                 />
                 <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
@@ -265,10 +273,10 @@ function App() {
                 mt: 4, 
                 p: 2, 
                 textAlign: 'center', 
-                background: 'linear-gradient(135deg, #003366 0%, #0066CC 100%)', 
+                background: 'linear-gradient(135deg, #9B1E65 0%, #b54080 100%)', 
                 color: 'white', 
                 borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(0, 51, 102, 0.2)'
+                boxShadow: '0 2px 8px rgba(155, 30, 101, 0.2)'
               }}>
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   ✅ מסד הנתונים: PostgreSQL מוטמע | 🚀 API: http://localhost:3001 | 💾 נתונים נשמרים באופן קבוע
