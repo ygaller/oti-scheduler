@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, ActivityRepository } from '../repositories';
-import { generateScheduleWithActivities, validateScheduleConstraints, validatePatientTimeConflict } from '../utils/scheduler';
+import { generateScheduleWithActivities, validateScheduleConstraints, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -214,7 +214,7 @@ export const createScheduleRouter = (
   router.post('/sessions/:id/patients', validateUUID(), async (req, res) => {
     try {
       const sessionId = req.params.id;
-      const { patientId } = req.body;
+      const { patientId, forceAssign = false } = req.body;
 
       if (!patientId) {
         return res.status(400).json({ error: 'Patient ID is required' });
@@ -246,6 +246,34 @@ export const createScheduleRouter = (
           error: 'Failed to validate patient assignment',
           details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
         });
+      }
+
+      // Check for consecutive sessions (only if not forcing assignment)
+      if (!forceAssign) {
+        try {
+          const consecutiveValidation = await validatePatientConsecutiveSessions(
+            patientId,
+            sessionId,
+            session.day,
+            session.startTime,
+            session.endTime,
+            prisma
+          );
+
+          if (!consecutiveValidation.valid) {
+            return res.status(409).json({ 
+              warning: consecutiveValidation.warning,
+              consecutiveCount: consecutiveValidation.consecutiveCount,
+              requiresConfirmation: true
+            });
+          }
+        } catch (validationError) {
+          console.error('Error during consecutive sessions validation:', validationError);
+          return res.status(500).json({ 
+            error: 'Failed to validate consecutive sessions',
+            details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
+          });
+        }
       }
 
       // Add patient to session using Prisma directly (since we don't have a dedicated repository)
@@ -305,7 +333,7 @@ export const createScheduleRouter = (
   router.put('/sessions/:id/patients', validateUUID(), async (req, res) => {
     try {
       const sessionId = req.params.id;
-      const { patientIds } = req.body;
+      const { patientIds, forceAssign = false } = req.body;
 
       if (!Array.isArray(patientIds)) {
         return res.status(400).json({ error: 'Patient IDs must be an array' });
@@ -316,6 +344,9 @@ export const createScheduleRouter = (
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
+
+      // Store any warnings for consecutive sessions
+      const consecutiveWarnings: Array<{ patientId: string; warning: string; consecutiveCount: number }> = [];
 
       // Validate that each patient is not in another session at the same time
       for (const patientId of patientIds) {
@@ -333,14 +364,42 @@ export const createScheduleRouter = (
             if (!timeConflictValidation.valid) {
               return res.status(400).json({ error: timeConflictValidation.error });
             }
+
+            // Check for consecutive sessions (only if not forcing assignment)
+            if (!forceAssign) {
+              const consecutiveValidation = await validatePatientConsecutiveSessions(
+                patientId,
+                sessionId,
+                session.day,
+                session.startTime,
+                session.endTime,
+                prisma
+              );
+
+              if (!consecutiveValidation.valid) {
+                consecutiveWarnings.push({
+                  patientId,
+                  warning: consecutiveValidation.warning || '',
+                  consecutiveCount: consecutiveValidation.consecutiveCount || 0
+                });
+              }
+            }
           } catch (validationError) {
-            console.error('Error during bulk patient time conflict validation:', validationError);
+            console.error('Error during bulk patient validation:', validationError);
             return res.status(500).json({ 
               error: 'Failed to validate patient assignments',
               details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
             });
           }
         }
+      }
+
+      // If there are consecutive session warnings and not forcing, return them
+      if (consecutiveWarnings.length > 0 && !forceAssign) {
+        return res.status(409).json({ 
+          warnings: consecutiveWarnings,
+          requiresConfirmation: true
+        });
       }
 
       // Use transaction to update all patients at once

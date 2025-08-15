@@ -48,8 +48,9 @@ import {
   Patient 
 } from '../types';
 import ErrorModal from './ErrorModal';
+import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import { validateScheduleConstraints } from '../utils/scheduler';
-import { scheduleService, ApiError } from '../services';
+import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../services';
 import { useActivities } from '../hooks';
 
 interface ScheduleViewProps {
@@ -87,6 +88,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [patientAssignmentDialogOpen, setPatientAssignmentDialogOpen] = useState(false);
   const [assigningSession, setAssigningSession] = useState<Session | null>(null);
   const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
+
+  // Consecutive sessions warning states
+  const [consecutiveWarningOpen, setConsecutiveWarningOpen] = useState(false);
+  const [consecutiveWarnings, setConsecutiveWarnings] = useState<Array<{
+    patientId: string;
+    patientName?: string;
+    warning: string;
+    consecutiveCount: number;
+  }>>([]);
+  const [pendingAssignmentData, setPendingAssignmentData] = useState<{
+    sessionId: string;
+    patientIds: string[];
+  } | null>(null);
 
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
@@ -158,7 +172,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setConfirmDialogOpen(false);
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (!schedule || schedule.sessions.length === 0) {
       setErrorInfo({
         title: 'לא ניתן לייצא',
@@ -168,30 +182,25 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    const headers = ['יום', 'שעת התחלה', 'שעת סיום', 'עובד', 'תפקיד', 'חדר'];
-    const rows = schedule.sessions.map(session => {
-      const employee = employees.find(e => e.id === session.employeeId);
-      const room = rooms.find(r => r.id === session.roomId);
-      
-      return [
-        DAY_LABELS[session.day],
-        session.startTime,
-        session.endTime,
-        employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע',
-        employee ? ROLE_LABELS[employee.role] : 'לא ידוע',
-        room ? room.name : 'לא ידוע'
-      ];
-    });
-
-    const csvContent = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `לוח_זמנים_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+    try {
+      // Import the Excel export function dynamically
+      import('../utils/excelExport').then(({ exportScheduleToExcel }) => {
+        exportScheduleToExcel({
+          sessions: schedule.sessions,
+          employees,
+          rooms,
+          patients,
+          activities
+        });
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      setErrorInfo({
+        title: 'שגיאה בייצוא',
+        message: 'שגיאה בייצוא לקובץ Excel'
+      });
+      setErrorModalOpen(true);
+    }
   };
 
   const handlePrint = () => {
@@ -254,11 +263,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }, 250);
   };
 
-  const handleEditSession = (session: Session) => {
-    setEditingSession(session);
-    setSessionForm(session);
-    setEditDialogOpen(true);
-  };
+  // Currently unused but may be needed for future functionality
+  // const handleEditSession = (session: Session) => {
+  //   setEditingSession(session);
+  //   setSessionForm(session);
+  //   setEditDialogOpen(true);
+  // };
 
   const handleAddSession = () => {
     setEditingSession(null);
@@ -384,17 +394,40 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setPatientAssignmentDialogOpen(true);
   };
 
-  const handleSavePatientAssignment = async () => {
+  const handleSavePatientAssignment = async (forceAssign: boolean = false) => {
     if (!assigningSession) return;
 
     try {
       // Filter out empty selections
       const filteredPatients = selectedPatients.filter(id => id !== '');
-      await scheduleService.updateSessionPatients(assigningSession.id, filteredPatients);
+      await scheduleService.updateSessionPatients(assigningSession.id, filteredPatients, forceAssign);
       await setSchedule(); // Refresh the schedule from the server
       setPatientAssignmentDialogOpen(false);
+      
+      // Clear any pending data
+      setPendingAssignmentData(null);
     } catch (error) {
       console.error('Error updating session patients:', error);
+      
+      // Handle consecutive sessions warning
+      if (error instanceof ConsecutiveSessionsWarning) {
+        // Create enriched warnings with patient names
+        const enrichedWarnings = error.warnings.map((warning: { patientId: string; warning: string; consecutiveCount: number }) => {
+          const patient = patients.find(p => p.id === warning.patientId);
+          return {
+            ...warning,
+            patientName: patient ? `${patient.firstName} ${patient.lastName}` : undefined
+          };
+        });
+        
+        setConsecutiveWarnings(enrichedWarnings);
+        setPendingAssignmentData({
+          sessionId: assigningSession.id,
+          patientIds: selectedPatients.filter(id => id !== '')
+        });
+        setConsecutiveWarningOpen(true);
+        return;
+      }
       
       // Show specific error message if available, otherwise show generic message
       let errorMessage = 'שגיאה בעדכון השיוך מטופלים';
@@ -424,6 +457,49 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     const newSelectedPatients = [...selectedPatients];
     newSelectedPatients[index] = patientId;
     setSelectedPatients(newSelectedPatients);
+  };
+
+  const handleConsecutiveWarningConfirm = async () => {
+    if (!pendingAssignmentData) return;
+    
+    setConsecutiveWarningOpen(false);
+    
+    try {
+      await scheduleService.updateSessionPatients(
+        pendingAssignmentData.sessionId, 
+        pendingAssignmentData.patientIds, 
+        true // Force assign
+      );
+      await setSchedule(); // Refresh the schedule from the server
+      setPatientAssignmentDialogOpen(false);
+      setPendingAssignmentData(null);
+    } catch (error) {
+      console.error('Error force updating session patients:', error);
+      
+      // Show error if force assignment also fails
+      let errorMessage = 'שגיאה בעדכון השיוך מטופלים';
+      let errorDetails = '';
+      
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+        errorDetails = error.details || '';
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setErrorInfo({
+        title: 'שגיאה בשיוך מטופלים',
+        message: errorMessage,
+        details: errorDetails
+      });
+      setErrorModalOpen(true);
+    }
+  };
+
+  const handleConsecutiveWarningCancel = () => {
+    setConsecutiveWarningOpen(false);
+    setPendingAssignmentData(null);
+    setConsecutiveWarnings([]);
   };
 
   const parseTime = (timeStr: string): Date => {
@@ -1483,10 +1559,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <Button
             variant="outlined"
             startIcon={<Download />}
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
             disabled={!schedule || schedule.sessions.length === 0}
           >
-            ייצא לCSV
+            ייצא ל Excel
           </Button>
           <Button
             variant="outlined"
@@ -1977,11 +2053,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPatientAssignmentDialogOpen(false)}>ביטול</Button>
-          <Button onClick={handleSavePatientAssignment} variant="contained">
+          <Button onClick={() => handleSavePatientAssignment(false)} variant="contained">
             שמור
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Consecutive Sessions Warning Modal */}
+      <ConsecutiveSessionsWarningModal
+        open={consecutiveWarningOpen}
+        onClose={handleConsecutiveWarningCancel}
+        onConfirm={handleConsecutiveWarningConfirm}
+        warnings={consecutiveWarnings}
+      />
 
       {/* Error Modal */}
       <ErrorModal

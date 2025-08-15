@@ -465,3 +465,122 @@ export async function validatePatientTimeConflict(
   }
 }
 
+// Helper function to convert time string to minutes for comparison
+function timeStringToMinutes(timeStr: string): number {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+// Validation function for consecutive sessions without a break
+export async function validatePatientConsecutiveSessions(
+  patientId: string,
+  sessionId: string,
+  day: string,
+  startTime: string,
+  endTime: string,
+  prisma: any // PrismaClient type
+): Promise<{ valid: boolean; warning?: string; consecutiveCount?: number }> {
+  try {
+    console.log('Validating patient consecutive sessions:', { patientId, sessionId, day, startTime, endTime });
+    
+    // Validate input parameters
+    if (!patientId || !sessionId || !day || !startTime || !endTime) {
+      throw new Error('Missing required parameters for patient consecutive sessions validation');
+    }
+    
+    // Find all sessions where this patient is already assigned on the same day
+    const existingSessions = await prisma.session.findMany({
+      where: {
+        day: mapAPIWeekDayToPrisma(day as WeekDay), // Convert API day to Prisma enum
+        sessionPatients: {
+          some: {
+            patientId: patientId
+          }
+        },
+        id: {
+          not: sessionId // Exclude the current session being updated
+        }
+      },
+      include: {
+        employee: true,
+        room: true
+      },
+      orderBy: {
+        startTime: 'asc'
+      }
+    });
+
+    // Add the new session to the list for consecutive analysis
+    const newSession = {
+      id: sessionId,
+      startTime,
+      endTime,
+      day: mapAPIWeekDayToPrisma(day as WeekDay)
+    };
+
+    // Create a combined list of sessions including the new one, sorted by start time
+    const allSessions = [...existingSessions, newSession].sort((a, b) => 
+      timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime)
+    );
+
+    console.log('All sessions for consecutive analysis:', allSessions.length);
+
+    // Find the position of the new session in the sorted list
+    const newSessionIndex = allSessions.findIndex(s => s.id === sessionId);
+    
+    // Count consecutive sessions
+    let consecutiveCount = 1; // Start with the new session itself
+    let currentIndex = newSessionIndex;
+
+    // Check sessions before the new session
+    while (currentIndex > 0) {
+      const currentSession = allSessions[currentIndex];
+      const previousSession = allSessions[currentIndex - 1];
+      
+      const timeDiff = timeStringToMinutes(currentSession.startTime) - timeStringToMinutes(previousSession.endTime);
+      
+      // If the gap between sessions is less than 15 minutes, consider them consecutive
+      if (timeDiff < 15) {
+        consecutiveCount++;
+        currentIndex--;
+      } else {
+        break; // Found a break, stop counting backwards
+      }
+    }
+
+    // Reset currentIndex and check sessions after the new session
+    currentIndex = newSessionIndex;
+    while (currentIndex < allSessions.length - 1) {
+      const currentSession = allSessions[currentIndex];
+      const nextSession = allSessions[currentIndex + 1];
+      
+      const timeDiff = timeStringToMinutes(nextSession.startTime) - timeStringToMinutes(currentSession.endTime);
+      
+      // If the gap between sessions is less than 15 minutes, consider them consecutive
+      if (timeDiff < 15) {
+        consecutiveCount++;
+        currentIndex++;
+      } else {
+        break; // Found a break, stop counting forwards
+      }
+    }
+
+    console.log(`Patient ${patientId} will have ${consecutiveCount} consecutive sessions`);
+
+    // If more than 2 consecutive sessions, return a warning
+    if (consecutiveCount > 2) {
+      return {
+        valid: false,
+        warning: `המטופל יהיה עם ${consecutiveCount} טיפולים רצופים ללא הפסקה. האם אתה בטוח שברצונך להמשיך?`,
+        consecutiveCount
+      };
+    }
+
+    return { valid: true, consecutiveCount };
+    
+  } catch (error) {
+    console.error('Error in validatePatientConsecutiveSessions:', error);
+    throw error; // Re-throw to be handled by the calling function
+  }
+}
+

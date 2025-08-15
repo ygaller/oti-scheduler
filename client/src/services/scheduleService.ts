@@ -44,16 +44,16 @@ export const scheduleService = {
   },
 
   // Session-Patient Assignment
-  async assignPatientToSession(sessionId: string, patientId: string): Promise<Session> {
-    return api.post<Session>(`/schedule/sessions/${sessionId}/patients`, { patientId });
+  async assignPatientToSession(sessionId: string, patientId: string, forceAssign: boolean = false): Promise<Session> {
+    return api.post<Session>(`/schedule/sessions/${sessionId}/patients`, { patientId, forceAssign });
   },
 
   async removePatientFromSession(sessionId: string, patientId: string): Promise<Session> {
     return api.delete<Session>(`/schedule/sessions/${sessionId}/patients/${patientId}`);
   },
 
-  async updateSessionPatients(sessionId: string, patientIds: string[]): Promise<Session> {
-    return api.put<Session>(`/schedule/sessions/${sessionId}/patients`, { patientIds });
+  async updateSessionPatients(sessionId: string, patientIds: string[], forceAssign: boolean = false): Promise<Session> {
+    return api.put<Session>(`/schedule/sessions/${sessionId}/patients`, { patientIds, forceAssign });
   },
 };
 

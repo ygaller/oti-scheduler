@@ -7,9 +7,36 @@ class ApiError extends Error {
   }
 }
 
+class ConsecutiveSessionsWarning extends Error {
+  constructor(
+    public status: number, 
+    public warnings: Array<{ patientId: string; warning: string; consecutiveCount: number }>,
+    public requiresConfirmation: boolean = true
+  ) {
+    super('Consecutive sessions warning');
+    this.name = 'ConsecutiveSessionsWarning';
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+    
+    // Handle consecutive sessions warnings (status 409)
+    if (response.status === 409 && errorData.requiresConfirmation) {
+      if (errorData.warnings) {
+        // Multiple warnings
+        throw new ConsecutiveSessionsWarning(response.status, errorData.warnings);
+      } else if (errorData.warning) {
+        // Single warning
+        throw new ConsecutiveSessionsWarning(response.status, [{
+          patientId: '',
+          warning: errorData.warning,
+          consecutiveCount: errorData.consecutiveCount || 0
+        }]);
+      }
+    }
+    
     throw new ApiError(
       response.status, 
       errorData.error || 'Request failed',
@@ -77,5 +104,5 @@ export const api = {
   },
 };
 
-export { ApiError };
+export { ApiError, ConsecutiveSessionsWarning };
 

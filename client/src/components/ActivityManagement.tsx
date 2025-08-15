@@ -235,7 +235,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
                 onChange={(e) => onShowActiveToggle(e.target.checked)}
               />
             }
-            label="הצג פעילות בלבד"
+            label="הצג פעילים בלבד"
           />
           <Button
             variant="contained"
