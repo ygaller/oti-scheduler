@@ -204,6 +204,16 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
+    // For patient view, check if a patient is selected
+    if (activeTab === 2 && !selectedPatientId) {
+      setErrorInfo({
+        title: 'לא ניתן להדפיס',
+        message: 'יש לבחור מטופל כדי להדפיס את לוח הזמנים שלו'
+      });
+      setErrorModalOpen(true);
+      return;
+    }
+
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -216,8 +226,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    // Generate the printable content
-    const printContent = generatePrintableSchedule();
+    // Generate the printable content based on active tab
+    const printContent = generatePrintableSchedule(activeTab, selectedPatientId);
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -671,6 +681,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         margin-bottom: 30px;
         border-bottom: 2px solid #333;
         padding-bottom: 15px;
+        page-break-after: avoid;
       }
       
       .print-title {
@@ -692,6 +703,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       }
       
       @media print {
+        .print-header {
+          page-break-after: avoid;
+        }
+        
         .schedule-grid {
           grid-template-columns: repeat(5, 1fr);
           gap: 10px;
@@ -832,24 +847,52 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     `;
   };
 
-  const generatePrintableSchedule = (): string => {
+  const generatePrintableSchedule = (tabIndex: number, patientId?: string): string => {
     if (!schedule) return '';
 
-    const sortedEmployees = [...employees].sort((a, b) => 
-      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-    );
+    const tabNames = ['לו״ז טיפולים', 'לו״ז חדרים', 'לו״ז מטופל'];
+    const currentTabName = tabNames[tabIndex] || 'לוח זמנים';
 
     // Generate header
     let html = `
       <div class="print-header">
-        <div class="print-title">לוח זמנים</div>
+        <div class="print-title">${currentTabName}</div>
         <div class="print-date">נוצר ב: ${schedule.generatedAt.toLocaleString('he-IL')}</div>
         <div class="print-date">הודפס ב: ${new Date().toLocaleString('he-IL')}</div>
-      </div>
     `;
 
+    // Add patient name for patient view
+    if (tabIndex === 2 && patientId) {
+      const patient = patients.find(p => p.id === patientId);
+      if (patient) {
+        html += `<div class="print-date">מטופל: ${patient.firstName} ${patient.lastName}</div>`;
+      }
+    }
+
+    html += '</div>';
+
+    // Generate content based on tab
+    if (tabIndex === 2) {
+      // Patient view
+      html += generatePatientPrintContent(patientId);
+    } else if (tabIndex === 1) {
+      // Room view
+      html += generateRoomPrintContent();
+    } else {
+      // Employee view (default)
+      html += generateEmployeePrintContent();
+    }
+
+    return html;
+  };
+
+  const generateEmployeePrintContent = (): string => {
+    const sortedEmployees = [...employees].sort((a, b) => 
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+    );
+
     // Generate schedule grid for all days
-    html += '<div class="schedule-grid">';
+    let html = '<div class="schedule-grid">';
     
     WEEK_DAYS.forEach(day => {
       const daySessions = getSessionsForDay(day);
@@ -875,7 +918,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <div class="session-details">
                 עובד: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
                 תפקיד: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}<br>
-                חדר: ${room ? room.name : 'לא ידוע'}
+                חדר: ${room ? room.name : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ') : ''}
               </div>
             </li>
           `;
@@ -933,6 +976,149 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       html += '</div>';
     }
 
+    html += '</div>';
+
+    return html;
+  };
+
+  const generateRoomPrintContent = (): string => {
+    const sortedRooms = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+
+    // Generate schedule grid for all days
+    let html = '<div class="schedule-grid">';
+    
+    WEEK_DAYS.forEach(day => {
+      const daySessions = getSessionsForDay(day);
+      
+      html += `
+        <div class="day-schedule">
+          <div class="day-header">${DAY_LABELS[day]}</div>
+          <div class="day-content">
+      `;
+      
+      if (daySessions.length === 0) {
+        html += '<div class="no-sessions">אין טיפולים מתוזמנים ליום זה</div>';
+      } else {
+        html += '<ul class="sessions-list">';
+        
+        daySessions.forEach(session => {
+          const employee = employees.find(e => e.id === session.employeeId);
+          const room = rooms.find(r => r.id === session.roomId);
+          
+          html += `
+            <li class="session-item">
+              <div class="session-time">${session.startTime} - ${session.endTime}</div>
+              <div class="session-details">
+                חדר: ${room ? room.name : 'לא ידוע'}<br>
+                עובד: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
+                תפקיד: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ') : ''}
+              </div>
+            </li>
+          `;
+        });
+        
+        html += '</ul>';
+      }
+      
+      html += '</div></div>';
+    });
+    
+    html += '</div>';
+
+    // Generate room statistics section
+    html += `
+      <div class="statistics">
+        <div class="statistics-title">סטטיסטיקות</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <strong>סה"כ טיפולים:</strong> ${getTotalScheduledSessions()}
+          </div>
+    `;
+
+    // Add room statistics
+    sortedRooms.forEach(room => {
+      const sessionCount = schedule?.sessions.filter(s => s.roomId === room.id).length || 0;
+      html += `
+        <div class="stat-item">
+          <strong>${room.name}:</strong><br>
+          ${sessionCount} טיפולים
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    // Add activities if any
+    if (activities.length > 0) {
+      html += `
+        <div class="blocked-periods">
+          <div class="statistics-title">פעילויות שוטפות</div>
+      `;
+      
+      activities.forEach(period => {
+        html += `
+          <div class="blocked-period-item">
+            <strong>${period.name}</strong><br>
+            ${period.defaultStartTime && period.defaultEndTime 
+              ? `שעות ברירת מחדל: ${period.defaultStartTime} - ${period.defaultEndTime}` 
+              : 'שעות מותאמות לפי יום'}
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+    }
+
+    html += '</div>';
+
+    return html;
+  };
+
+  const generatePatientPrintContent = (patientId?: string): string => {
+    if (!patientId) return '<div class="no-sessions">לא נבחר מטופל</div>';
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return '<div class="no-sessions">מטופל לא נמצא</div>';
+
+    // Generate schedule grid for all days - focused on this patient
+    let html = '<div class="schedule-grid">';
+    
+    WEEK_DAYS.forEach(day => {
+      const patientSessions = getPatientSessionsForDay(day, patientId);
+      
+      html += `
+        <div class="day-schedule">
+          <div class="day-header">${DAY_LABELS[day]}</div>
+          <div class="day-content">
+      `;
+      
+      if (patientSessions.length === 0) {
+        html += '<div class="no-sessions">אין טיפולים מתוזמנים ליום זה</div>';
+      } else {
+        html += '<ul class="sessions-list">';
+        
+        patientSessions.forEach(session => {
+          const employee = employees.find(e => e.id === session.employeeId);
+          const room = rooms.find(r => r.id === session.roomId);
+          
+          html += `
+            <li class="session-item">
+              <div class="session-time">${session.startTime} - ${session.endTime}</div>
+              <div class="session-details">
+                מטפל: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
+                טיפול: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}<br>
+                חדר: ${room ? room.name : 'לא ידוע'}
+              </div>
+            </li>
+          `;
+        });
+        
+        html += '</ul>';
+      }
+      
+      html += '</div></div>';
+    });
+    
     html += '</div>';
 
     return html;
