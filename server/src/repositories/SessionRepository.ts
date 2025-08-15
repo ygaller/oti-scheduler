@@ -1,37 +1,58 @@
 import { PrismaClient } from '@prisma/client';
 import { SessionRepository } from './interfaces';
 import { Session, CreateSessionDto, UpdateSessionDto } from '../types';
-import { mapPrismaSessionToAPI, mapAPIWeekDayToPrisma } from '../mappers';
+import { mapPrismaSessionWithPatientsToAPI, mapAPIWeekDayToPrisma } from '../mappers';
 
 export class PrismaSessionRepository implements SessionRepository {
   constructor(private prisma: PrismaClient) {}
 
   async findAll(): Promise<Session[]> {
     const sessions = await this.prisma.session.findMany({
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      },
       orderBy: [
         { day: 'asc' },
         { startTime: 'asc' }
       ]
     });
-    return sessions.map(mapPrismaSessionToAPI);
+    return sessions.map(mapPrismaSessionWithPatientsToAPI);
   }
 
   async findById(id: string): Promise<Session | null> {
     const session = await this.prisma.session.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
     });
-    return session ? mapPrismaSessionToAPI(session) : null;
+    return session ? mapPrismaSessionWithPatientsToAPI(session) : null;
   }
 
   async findByScheduleId(scheduleId: string): Promise<Session[]> {
     const sessions = await this.prisma.session.findMany({
       where: { scheduleId },
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      },
       orderBy: [
         { day: 'asc' },
         { startTime: 'asc' }
       ]
     });
-    return sessions.map(mapPrismaSessionToAPI);
+    return sessions.map(mapPrismaSessionWithPatientsToAPI);
   }
 
   async create(sessionData: CreateSessionDto): Promise<Session> {
@@ -43,9 +64,16 @@ export class PrismaSessionRepository implements SessionRepository {
         day: mapAPIWeekDayToPrisma(sessionData.day),
         startTime: sessionData.startTime,
         endTime: sessionData.endTime,
+      },
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
       }
     });
-    return mapPrismaSessionToAPI(session);
+    return mapPrismaSessionWithPatientsToAPI(session);
   }
 
   async update(id: string, sessionData: UpdateSessionDto): Promise<Session> {
@@ -60,9 +88,16 @@ export class PrismaSessionRepository implements SessionRepository {
     
     const session = await this.prisma.session.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
     });
-    return mapPrismaSessionToAPI(session);
+    return mapPrismaSessionWithPatientsToAPI(session);
   }
 
   async delete(id: string): Promise<void> {

@@ -79,6 +79,7 @@ export interface Session {
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
+  patients?: Patient[]; // Optional array of patients assigned to this session
 }
 
 export interface Schedule {
@@ -142,6 +143,20 @@ export interface CreateActivityDto {
 }
 
 export interface UpdateActivityDto extends Partial<CreateActivityDto> {}
+
+// Session-Patient relationship
+export interface SessionPatient {
+  id: string;
+  sessionId: string;
+  patientId: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface CreateSessionPatientDto {
+  sessionId: string;
+  patientId: string;
+}
 
 // Available colors for rooms and employees (sorted by hex value)
 export const AVAILABLE_COLORS = [

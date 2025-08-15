@@ -78,6 +78,7 @@ export interface Session {
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
+  patients?: Patient[]; // Optional array of patients assigned to this session
 }
 
 export interface Schedule {

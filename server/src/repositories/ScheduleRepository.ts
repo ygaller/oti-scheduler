@@ -1,33 +1,63 @@
 import { PrismaClient } from '@prisma/client';
 import { ScheduleRepository } from './interfaces';
 import { Schedule, Session } from '../types';
-import { mapPrismaScheduleToAPI, mapAPIWeekDayToPrisma } from '../mappers';
+import { mapPrismaScheduleWithPatientsToAPI, mapAPIWeekDayToPrisma } from '../mappers';
 
 export class PrismaScheduleRepository implements ScheduleRepository {
   constructor(private prisma: PrismaClient) {}
 
   async findAll(): Promise<Schedule[]> {
     const schedules = await this.prisma.schedule.findMany({
-      include: { sessions: true },
+      include: { 
+        sessions: {
+          include: {
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      },
       orderBy: { generatedAt: 'desc' }
     });
-    return schedules.map(mapPrismaScheduleToAPI);
+    return schedules.map(mapPrismaScheduleWithPatientsToAPI);
   }
 
   async findById(id: string): Promise<Schedule | null> {
     const schedule = await this.prisma.schedule.findUnique({
       where: { id },
-      include: { sessions: true }
+      include: { 
+        sessions: {
+          include: {
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      }
     });
-    return schedule ? mapPrismaScheduleToAPI(schedule) : null;
+    return schedule ? mapPrismaScheduleWithPatientsToAPI(schedule) : null;
   }
 
   async findActive(): Promise<Schedule | null> {
     const schedule = await this.prisma.schedule.findFirst({
       where: { isActive: true },
-      include: { sessions: true }
+      include: { 
+        sessions: {
+          include: {
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      }
     });
-    return schedule ? mapPrismaScheduleToAPI(schedule) : null;
+    return schedule ? mapPrismaScheduleWithPatientsToAPI(schedule) : null;
   }
 
   async create(sessions: Session[]): Promise<Schedule> {
@@ -45,9 +75,19 @@ export class PrismaScheduleRepository implements ScheduleRepository {
           }))
         }
       },
-      include: { sessions: true }
+      include: { 
+        sessions: {
+          include: {
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      }
     });
-    return mapPrismaScheduleToAPI(schedule);
+    return mapPrismaScheduleWithPatientsToAPI(schedule);
   }
 
   async setActive(id: string): Promise<Schedule> {
@@ -60,10 +100,20 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     const schedule = await this.prisma.schedule.update({
       where: { id },
       data: { isActive: true },
-      include: { sessions: true }
+      include: { 
+        sessions: {
+          include: {
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      }
     });
     
-    return mapPrismaScheduleToAPI(schedule);
+    return mapPrismaScheduleWithPatientsToAPI(schedule);
   }
 
   async delete(id: string): Promise<void> {

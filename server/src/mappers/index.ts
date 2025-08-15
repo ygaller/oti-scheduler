@@ -1,5 +1,5 @@
-import { Employee as PrismaEmployee, Room as PrismaRoom, Session as PrismaSession, Schedule as PrismaSchedule, Role as PrismaRole, WeekDay as PrismaWeekDay } from '@prisma/client';
-import { Employee, Room, Session, Schedule, Role, WeekDay } from '../types';
+import { Employee as PrismaEmployee, Room as PrismaRoom, Session as PrismaSession, Schedule as PrismaSchedule, Role as PrismaRole, WeekDay as PrismaWeekDay, Patient as PrismaPatient, SessionPatient as PrismaSessionPatient } from '@prisma/client';
+import { Employee, Room, Session, Schedule, Role, WeekDay, Patient } from '../types';
 
 // Role mapping
 const PRISMA_TO_API_ROLE: Record<PrismaRole, Role> = {
@@ -63,6 +63,18 @@ export const mapPrismaRoomToAPI = (prismaRoom: PrismaRoom): Room => {
   };
 };
 
+// Patient mappers
+export const mapPrismaPatientToAPI = (prismaPatient: PrismaPatient): Patient => {
+  return {
+    id: prismaPatient.id,
+    firstName: prismaPatient.firstName,
+    lastName: prismaPatient.lastName,
+    color: prismaPatient.color,
+    therapyRequirements: prismaPatient.therapyRequirements as Patient['therapyRequirements'],
+    isActive: prismaPatient.isActive,
+  };
+};
+
 // Session mappers
 export const mapPrismaSessionToAPI = (prismaSession: PrismaSession): Session => {
   return {
@@ -75,6 +87,23 @@ export const mapPrismaSessionToAPI = (prismaSession: PrismaSession): Session => 
   };
 };
 
+// Session mapper with patients
+export const mapPrismaSessionWithPatientsToAPI = (
+  prismaSession: PrismaSession & { 
+    sessionPatients: (PrismaSessionPatient & { patient: PrismaPatient })[] 
+  }
+): Session => {
+  return {
+    id: prismaSession.id,
+    employeeId: prismaSession.employeeId,
+    roomId: prismaSession.roomId,
+    day: PRISMA_TO_API_WEEKDAY[prismaSession.day],
+    startTime: prismaSession.startTime,
+    endTime: prismaSession.endTime,
+    patients: prismaSession.sessionPatients.map(sp => mapPrismaPatientToAPI(sp.patient)),
+  };
+};
+
 export const mapAPIWeekDayToPrisma = (weekDay: WeekDay): PrismaWeekDay => {
   return API_TO_PRISMA_WEEKDAY[weekDay];
 };
@@ -84,6 +113,21 @@ export const mapPrismaScheduleToAPI = (prismaSchedule: PrismaSchedule & { sessio
   return {
     id: prismaSchedule.id,
     sessions: prismaSchedule.sessions.map(mapPrismaSessionToAPI),
+    generatedAt: prismaSchedule.generatedAt,
+  };
+};
+
+// Schedule mapper with sessions that include patients
+export const mapPrismaScheduleWithPatientsToAPI = (
+  prismaSchedule: PrismaSchedule & { 
+    sessions: (PrismaSession & { 
+      sessionPatients: (PrismaSessionPatient & { patient: PrismaPatient })[] 
+    })[] 
+  }
+): Schedule => {
+  return {
+    id: prismaSchedule.id,
+    sessions: prismaSchedule.sessions.map(mapPrismaSessionWithPatientsToAPI),
     generatedAt: prismaSchedule.generatedAt,
   };
 };

@@ -31,7 +31,8 @@ import {
   Download, 
   Add,
   Print,
-  Warning
+  Warning,
+  Delete
 } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { 
@@ -280,6 +281,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     } catch (error) {
       console.error('Error saving session:', error);
       alert('שגיאה בשמירת הטיפול');
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!editingSession) return;
+
+    try {
+      await scheduleService.deleteSession(editingSession.id);
+      await setSchedule(); // Refresh the schedule from the server
+      setEditDialogOpen(false);
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      alert('שגיאה במחיקת הטיפול');
     }
   };
 
@@ -809,6 +823,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             <Typography variant="caption" display="block">
                               {getRoomName(session.roomId)}
                             </Typography>
+                            {/* Display patients or missing patient warning */}
+                            {session.patients && session.patients.length > 0 ? (
+                              session.patients.map(patient => (
+                                <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
+                                  {patient.firstName} {patient.lastName}
+                                </Typography>
+                              ))
+                            ) : (
+                              <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
+                                חסר מטופל
+                              </Typography>
+                            )}
                           </Box>
                         </TableCell>
                       );
@@ -930,6 +956,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             <Typography variant="caption" display="block">
                               {getEmployeeName(session.employeeId)}
                             </Typography>
+                            {/* Display patients or missing patient warning */}
+                            {session.patients && session.patients.length > 0 ? (
+                              session.patients.map(patient => (
+                                <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
+                                  {patient.firstName} {patient.lastName}
+                                </Typography>
+                              ))
+                            ) : (
+                              <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
+                                חסר מטופל
+                              </Typography>
+                            )}
                           </Box>
                         </TableCell>
                       );
@@ -1182,85 +1220,130 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       {/* Edit/Add Session Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingSession ? 'עריכת טיפול' : 'הוספת טיפול חדש'}
+          {editingSession ? 'מחיקת טיפול' : 'הוספת טיפול חדש'}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControl fullWidth>
-              <InputLabel>יום</InputLabel>
-              <Select
-                value={sessionForm.day || 'sunday'}
-                label="יום"
-                onChange={(e) => setSessionForm(prev => ({ ...prev, day: e.target.value as WeekDay }))}
-              >
-                {WEEK_DAYS.map(day => (
-                  <MenuItem key={day} value={day}>{DAY_LABELS[day]}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <Box display="flex" gap={2}>
-              <TimePicker
-                label="שעת התחלה"
-                value={sessionForm.startTime ? parseTime(sessionForm.startTime) : null}
-                onChange={(newValue) => setSessionForm(prev => ({ 
-                  ...prev, 
-                  startTime: formatTime(newValue) 
-                }))}
-                ampm={false}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
+          {editingSession ? (
+            // Show session details for deletion
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                פרטי הטיפול למחיקה:
+              </Typography>
               
-              <TimePicker
-                label="שעת סיום"
-                value={sessionForm.endTime ? parseTime(sessionForm.endTime) : null}
-                onChange={(newValue) => setSessionForm(prev => ({ 
-                  ...prev, 
-                  endTime: formatTime(newValue) 
-                }))}
-                ampm={false}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
+              <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="body2" gutterBottom>
+                  <strong>יום:</strong> {DAY_LABELS[editingSession.day]}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>שעות:</strong> {editingSession.startTime} - {editingSession.endTime}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>עובד:</strong> {getEmployeeName(editingSession.employeeId)}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>חדר:</strong> {getRoomName(editingSession.roomId)}
+                </Typography>
+                {editingSession.patients && editingSession.patients.length > 0 && (
+                  <Typography variant="body2" gutterBottom>
+                    <strong>מטופלים:</strong> {editingSession.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
+                  </Typography>
+                )}
+              </Box>
+              
+              <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+                האם אתה בטוח שברצונך למחוק את הטיפול? פעולה זו אינה ניתנת לביטול.
+              </Typography>
             </Box>
-            
-            <FormControl fullWidth>
-              <InputLabel>עובד</InputLabel>
-              <Select
-                value={sessionForm.employeeId || ''}
-                label="עובד"
-                onChange={(e) => setSessionForm(prev => ({ ...prev, employeeId: e.target.value }))}
-              >
-                {[...employees].filter(employee => employee.isActive).sort((a, b) => 
-                  `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-                ).map(employee => (
-                  <MenuItem key={employee.id} value={employee.id}>
-                    {employee.firstName} {employee.lastName} - {ROLE_LABELS[employee.role]}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <FormControl fullWidth>
-              <InputLabel>חדר</InputLabel>
-              <Select
-                value={sessionForm.roomId || ''}
-                label="חדר"
-                onChange={(e) => setSessionForm(prev => ({ ...prev, roomId: e.target.value }))}
-              >
-                {[...rooms].filter(room => room.isActive).sort((a, b) => a.name.localeCompare(b.name, 'he')).map(room => (
-                  <MenuItem key={room.id} value={room.id}>
-                    {room.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
+          ) : (
+            // Show form fields for adding new session
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel>יום</InputLabel>
+                <Select
+                  value={sessionForm.day || 'sunday'}
+                  label="יום"
+                  onChange={(e) => setSessionForm(prev => ({ ...prev, day: e.target.value as WeekDay }))}
+                >
+                  {WEEK_DAYS.map(day => (
+                    <MenuItem key={day} value={day}>{DAY_LABELS[day]}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              <Box display="flex" gap={2}>
+                <TimePicker
+                  label="שעת התחלה"
+                  value={sessionForm.startTime ? parseTime(sessionForm.startTime) : null}
+                  onChange={(newValue) => setSessionForm(prev => ({ 
+                    ...prev, 
+                    startTime: formatTime(newValue) 
+                  }))}
+                  ampm={false}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+                
+                <TimePicker
+                  label="שעת סיום"
+                  value={sessionForm.endTime ? parseTime(sessionForm.endTime) : null}
+                  onChange={(newValue) => setSessionForm(prev => ({ 
+                    ...prev, 
+                    endTime: formatTime(newValue) 
+                  }))}
+                  ampm={false}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Box>
+              
+              <FormControl fullWidth>
+                <InputLabel>עובד</InputLabel>
+                <Select
+                  value={sessionForm.employeeId || ''}
+                  label="עובד"
+                  onChange={(e) => setSessionForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                >
+                  {[...employees].filter(employee => employee.isActive).sort((a, b) => 
+                    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                  ).map(employee => (
+                    <MenuItem key={employee.id} value={employee.id}>
+                      {employee.firstName} {employee.lastName} - {ROLE_LABELS[employee.role]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              <FormControl fullWidth>
+                <InputLabel>חדר</InputLabel>
+                <Select
+                  value={sessionForm.roomId || ''}
+                  label="חדר"
+                  onChange={(e) => setSessionForm(prev => ({ ...prev, roomId: e.target.value }))}
+                >
+                  {[...rooms].filter(room => room.isActive).sort((a, b) => a.name.localeCompare(b.name, 'he')).map(room => (
+                    <MenuItem key={room.id} value={room.id}>
+                      {room.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>ביטול</Button>
-          <Button onClick={handleSaveSession} variant="contained">
-            {editingSession ? 'עדכן' : 'הוסף'}
-          </Button>
+          {editingSession ? (
+            <Button 
+              onClick={handleDeleteSession} 
+              variant="contained" 
+              color="error"
+              startIcon={<Delete />}
+            >
+              מחק טיפול
+            </Button>
+          ) : (
+            <Button onClick={handleSaveSession} variant="contained">
+              הוסף
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
