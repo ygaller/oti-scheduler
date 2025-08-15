@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { 
   EmployeeRepository, 
   PatientRepository,
@@ -22,7 +23,8 @@ export const createApiRouter = (
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
   configRepo: SystemConfigRepository,
-  activityRepo: ActivityRepository
+  activityRepo: ActivityRepository,
+  prisma: PrismaClient
 ): Router => {
   const router = Router();
 
@@ -30,7 +32,7 @@ export const createApiRouter = (
   router.use('/employees', createEmployeeRouter(employeeRepo));
   router.use('/patients', createPatientRouter(patientRepo));
   router.use('/rooms', createRoomRouter(roomRepo));
-  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo));
+  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo, prisma));
   router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, patientRepo, activityRepo));
   router.use('/activities', createActivityRouter(activityRepo));
 

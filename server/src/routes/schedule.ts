@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, ActivityRepository } from '../repositories';
 import { generateScheduleWithActivities, validateScheduleConstraints } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
@@ -10,7 +11,8 @@ export const createScheduleRouter = (
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
   configRepo: SystemConfigRepository,
-  activityRepo: ActivityRepository
+  activityRepo: ActivityRepository,
+  prisma: PrismaClient
 ): Router => {
   const router = Router();
 
@@ -205,6 +207,118 @@ export const createScheduleRouter = (
       } else {
         res.status(500).json({ error: 'Failed to delete session' });
       }
+    }
+  });
+
+  // POST /api/schedule/sessions/:id/patients - Assign patient to session
+  router.post('/sessions/:id/patients', validateUUID(), async (req, res) => {
+    try {
+      const sessionId = req.params.id;
+      const { patientId } = req.body;
+
+      if (!patientId) {
+        return res.status(400).json({ error: 'Patient ID is required' });
+      }
+
+      // Check if session exists
+      const session = await sessionRepo.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Add patient to session using Prisma directly (since we don't have a dedicated repository)
+      await prisma.sessionPatient.create({
+        data: {
+          sessionId,
+          patientId
+        }
+      });
+
+      // Return the updated session with patients
+      const updatedSession = await sessionRepo.findById(sessionId);
+      res.json(updatedSession);
+    } catch (error) {
+      console.error('Error assigning patient to session:', error);
+      
+      // Handle unique constraint violation (patient already assigned)
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        res.status(400).json({ error: 'Patient is already assigned to this session' });
+      } else {
+        res.status(500).json({ error: 'Failed to assign patient to session' });
+      }
+    }
+  });
+
+  // DELETE /api/schedule/sessions/:id/patients/:patientId - Remove patient from session
+  router.delete('/sessions/:id/patients/:patientId', validateUUID(), async (req, res) => {
+    try {
+      const sessionId = req.params.id;
+      const patientId = req.params.patientId;
+
+      // Remove patient from session using Prisma directly
+      await prisma.sessionPatient.delete({
+        where: {
+          sessionId_patientId: {
+            sessionId,
+            patientId
+          }
+        }
+      });
+
+      // Return the updated session with patients
+      const updatedSession = await sessionRepo.findById(sessionId);
+      res.json(updatedSession);
+    } catch (error) {
+      console.error('Error removing patient from session:', error);
+      
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+        res.status(404).json({ error: 'Patient assignment not found' });
+      } else {
+        res.status(500).json({ error: 'Failed to remove patient from session' });
+      }
+    }
+  });
+
+  // PUT /api/schedule/sessions/:id/patients - Update all patients for a session
+  router.put('/sessions/:id/patients', validateUUID(), async (req, res) => {
+    try {
+      const sessionId = req.params.id;
+      const { patientIds } = req.body;
+
+      if (!Array.isArray(patientIds)) {
+        return res.status(400).json({ error: 'Patient IDs must be an array' });
+      }
+
+      // Check if session exists
+      const session = await sessionRepo.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Use transaction to update all patients at once
+      await prisma.$transaction(async (tx) => {
+        // Remove all existing assignments
+        await tx.sessionPatient.deleteMany({
+          where: { sessionId }
+        });
+
+        // Add new assignments
+        if (patientIds.length > 0) {
+          await tx.sessionPatient.createMany({
+            data: patientIds.map((patientId: string) => ({
+              sessionId,
+              patientId
+            }))
+          });
+        }
+      });
+
+      // Return the updated session with patients
+      const updatedSession = await sessionRepo.findById(sessionId);
+      res.json(updatedSession);
+    } catch (error) {
+      console.error('Error updating session patients:', error);
+      res.status(500).json({ error: 'Failed to update session patients' });
     }
   });
 

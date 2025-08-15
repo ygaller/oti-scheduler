@@ -80,6 +80,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     details?: string;
   }>({ title: '', message: '' });
 
+  // Patient assignment states
+  const [patientAssignmentDialogOpen, setPatientAssignmentDialogOpen] = useState(false);
+  const [assigningSession, setAssigningSession] = useState<Session | null>(null);
+  const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
+
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
 
@@ -297,6 +302,44 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   };
 
+  const handleSessionClick = (session: Session) => {
+    setAssigningSession(session);
+    const currentPatients = session.patients?.map(p => p.id) || [];
+    // Ensure at least one empty slot for adding patients
+    setSelectedPatients(currentPatients.length > 0 ? currentPatients : ['']);
+    setPatientAssignmentDialogOpen(true);
+  };
+
+  const handleSavePatientAssignment = async () => {
+    if (!assigningSession) return;
+
+    try {
+      // Filter out empty selections
+      const filteredPatients = selectedPatients.filter(id => id !== '');
+      await scheduleService.updateSessionPatients(assigningSession.id, filteredPatients);
+      await setSchedule(); // Refresh the schedule from the server
+      setPatientAssignmentDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating session patients:', error);
+      alert('שגיאה בעדכון השיוך מטופלים');
+    }
+  };
+
+  const handleAddPatientSlot = () => {
+    setSelectedPatients([...selectedPatients, '']);
+  };
+
+  const handleRemovePatientSlot = (index: number) => {
+    const newSelectedPatients = selectedPatients.filter((_, i) => i !== index);
+    setSelectedPatients(newSelectedPatients);
+  };
+
+  const handlePatientChange = (index: number, patientId: string) => {
+    const newSelectedPatients = [...selectedPatients];
+    newSelectedPatients[index] = patientId;
+    setSelectedPatients(newSelectedPatients);
+  };
+
   const parseTime = (timeStr: string): Date => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date();
@@ -326,8 +369,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     return room ? room.name : 'לא ידוע';
   };
 
-  // Generate therapy requirement chips data
-  const generateTherapyRequirementChips = () => {
+  // Generate unassigned therapy requirement chips data
+  const generateUnassignedTherapyChips = () => {
     const chips: Array<{
       id: string;
       patientName: string;
@@ -342,16 +385,37 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     activePatients.forEach(patient => {
       const patientName = `${patient.firstName} ${patient.lastName}`;
       
+      // Count assigned sessions for this patient by role
+      const assignedSessionsByRole: Record<string, number> = {};
+      
+      if (schedule) {
+        schedule.sessions.forEach(session => {
+          // Only count sessions where this patient is assigned
+          if (session.patients?.some(p => p.id === patient.id)) {
+            const employee = employees.find(e => e.id === session.employeeId);
+            if (employee) {
+              assignedSessionsByRole[employee.role] = (assignedSessionsByRole[employee.role] || 0) + 1;
+            }
+          }
+        });
+      }
+      
       // Iterate through each therapy requirement for this patient
-      Object.entries(patient.therapyRequirements || {}).forEach(([role, amount]) => {
-        if (amount > 0) { // Only include requirements with positive amounts
-          chips.push({
-            id: `${patient.id}-${role}`,
-            patientName,
-            therapyType: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role,
-            amount,
-            patientColor: patient.color
-          });
+      Object.entries(patient.therapyRequirements || {}).forEach(([role, requiredAmount]) => {
+        if (requiredAmount > 0) {
+          const assignedAmount = assignedSessionsByRole[role] || 0;
+          const unassignedAmount = Math.max(0, requiredAmount - assignedAmount);
+          
+          // Only show chip if there are unassigned sessions
+          if (unassignedAmount > 0) {
+            chips.push({
+              id: `${patient.id}-${role}`,
+              patientName,
+              therapyType: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role,
+              amount: unassignedAmount,
+              patientColor: patient.color
+            });
+          }
         }
       });
     });
@@ -753,7 +817,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               </TableCell>
               {sortedEmployees.map(employee => (
                 <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
-                  {employee.firstName} {employee.lastName}
+                  <div>{employee.firstName} {employee.lastName}</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#666' }}>
+                    ({ROLE_LABELS[employee.role]})
+                  </div>
                 </TableCell>
               ))}
             </TableRow>
@@ -814,7 +881,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                               filter: 'brightness(0.8)'
                             }
                           }}
-                          onClick={() => handleEditSession(session)}
+                          onClick={() => handleSessionClick(session)}
                         >
                           <Box>
                             <Typography variant="caption" display="block">
@@ -947,7 +1014,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                               filter: 'brightness(0.8)'
                             }
                           }}
-                          onClick={() => handleEditSession(session)}
+                          onClick={() => handleSessionClick(session)}
                         >
                           <Box>
                             <Typography variant="caption" display="block">
@@ -1094,15 +1161,15 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </CardContent>
           </Card>
 
-          {/* Therapy Requirements Section */}
-          {patients.length > 0 && generateTherapyRequirementChips().length > 0 && (
+          {/* Unassigned Therapy Requirements Section */}
+          {patients.length > 0 && generateUnassignedTherapyChips().length > 0 && (
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" component="h2" mb={2}>
-                  דרישות טיפול למטופלים
+                  טיפולים ללא השמה
                 </Typography>
                 <Box display="flex" flexWrap="wrap" gap={1}>
-                  {generateTherapyRequirementChips().map(chip => (
+                  {generateUnassignedTherapyChips().map(chip => (
                     <Chip
                       key={chip.id}
                       label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
@@ -1344,6 +1411,103 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               הוסף
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Patient Assignment Dialog */}
+      <Dialog open={patientAssignmentDialogOpen} onClose={() => setPatientAssignmentDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          השמת מטופלים לטיפול
+        </DialogTitle>
+        <DialogContent>
+          {assigningSession && (
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                פרטי הטיפול:
+              </Typography>
+              
+              <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="body2" gutterBottom>
+                  <strong>יום:</strong> {DAY_LABELS[assigningSession.day]}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>שעות:</strong> {assigningSession.startTime} - {assigningSession.endTime}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>עובד:</strong> {getEmployeeName(assigningSession.employeeId)}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>חדר:</strong> {getRoomName(assigningSession.roomId)}
+                </Typography>
+              </Box>
+
+              <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
+                מטופלים:
+              </Typography>
+
+              {selectedPatients.map((patientId, index) => (
+                <Box key={index} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <FormControl fullWidth>
+                    <InputLabel>מטופל {index + 1}</InputLabel>
+                    <Select
+                      value={patientId}
+                      label={`מטופל ${index + 1}`}
+                      onChange={(e) => handlePatientChange(index, e.target.value)}
+                    >
+                      <MenuItem value="">ללא מטופל</MenuItem>
+                      {patients.filter(patient => patient.isActive).sort((a, b) => 
+                        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                      ).map(patient => (
+                        <MenuItem key={patient.id} value={patient.id}>
+                          {patient.firstName} {patient.lastName}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleRemovePatientSlot(index)}
+                    disabled={selectedPatients.length === 1}
+                    sx={{ minWidth: 'auto', px: 2 }}
+                  >
+                    הסר
+                  </Button>
+                </Box>
+              ))}
+
+              <Button
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={handleAddPatientSlot}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                הוסף מטופל
+              </Button>
+
+              <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Delete />}
+                  onClick={() => {
+                    setPatientAssignmentDialogOpen(false);
+                    setEditingSession(assigningSession);
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  מחק טיפול
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPatientAssignmentDialogOpen(false)}>ביטול</Button>
+          <Button onClick={handleSavePatientAssignment} variant="contained">
+            שמור
+          </Button>
         </DialogActions>
       </Dialog>
 

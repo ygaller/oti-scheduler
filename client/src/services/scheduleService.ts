@@ -42,5 +42,18 @@ export const scheduleService = {
   async deleteSession(id: string): Promise<void> {
     return api.delete(`/schedule/sessions/${id}`);
   },
+
+  // Session-Patient Assignment
+  async assignPatientToSession(sessionId: string, patientId: string): Promise<Session> {
+    return api.post<Session>(`/schedule/sessions/${sessionId}/patients`, { patientId });
+  },
+
+  async removePatientFromSession(sessionId: string, patientId: string): Promise<Session> {
+    return api.delete<Session>(`/schedule/sessions/${sessionId}/patients/${patientId}`);
+  },
+
+  async updateSessionPatients(sessionId: string, patientIds: string[]): Promise<Session> {
+    return api.put<Session>(`/schedule/sessions/${sessionId}/patients`, { patientIds });
+  },
 };
 

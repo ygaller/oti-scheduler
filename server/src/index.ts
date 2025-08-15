@@ -89,7 +89,7 @@ async function startServer() {
     const activityRepo = new PrismaActivityRepository(prisma);
     
     // Setup API routes
-    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo));
+    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo, prisma));
     app.use('/api/auth', createAuthRouter(userRepo));
     
     // Default route

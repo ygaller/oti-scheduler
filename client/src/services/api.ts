@@ -59,7 +59,7 @@ export const api = {
     return handleResponse<T>(response);
   },
 
-  async delete(endpoint: string): Promise<void> {
+  async delete<T = void>(endpoint: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
     });
@@ -67,6 +67,13 @@ export const api = {
       const errorData = await response.json().catch(() => ({ error: 'Network error' }));
       throw new ApiError(response.status, errorData.error || 'Delete failed', errorData.details);
     }
+    
+    // If the response has content, parse it as JSON, otherwise return undefined
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    return undefined as T;
   },
 };
 
