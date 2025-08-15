@@ -1,5 +1,4 @@
 {
-  "googleClientId": "YOUR_GOOGLE_CLIENT_ID_HERE",
   "apiUrl": "http://localhost:3001/api",
   "isDevelopment": true
 }

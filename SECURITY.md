@@ -34,10 +34,7 @@ This application automatically generates and manages JWT secrets, eliminating th
 
 ### Environment Variables
 
-**Required:**
-```env
-GOOGLE_CLIENT_ID=your-google-client-id
-```
+**None required for authentication** - JWT secrets are auto-generated!
 
 **Optional (for custom database):**
 ```env
@@ -79,28 +76,12 @@ const token = await ElectronAuthService.getToken();
 | **Token Storage (Web)** | 🔒 Medium | localStorage (standard web security) |
 | **Network Transport** | 🔒 High | HTTPS + Bearer token headers |
 
-## 📊 Security Info Endpoint
+## 📊 Security Status
 
-Check security status:
-```bash
-curl http://localhost:3001/api/auth/security-info
-```
-
-Response:
-```json
-{
-  "jwtSecret": {
-    "exists": true,
-    "length": 128,
-    "isSecure": true,
-    "path": "jwt.secret"
-  },
-  "googleOAuth": {
-    "configured": true,
-    "clientIdLength": 72
-  }
-}
-```
+JWT secrets are automatically managed by the system:
+- Secrets are generated automatically when the server starts
+- No manual configuration required
+- Secrets are stored securely with proper file permissions
 
 ## 🚀 Setup Instructions
 
@@ -109,22 +90,14 @@ Response:
 # No JWT_SECRET needed!
 cd server
 cp env.example .env
-# Edit .env and add your GOOGLE_CLIENT_ID
 npm run dev
 ```
 
 ### 2. Production Electron
 ```bash
 # JWT secrets auto-generated in user data directory
-# Just ensure GOOGLE_CLIENT_ID is set
+# No additional configuration needed!
 ```
-
-### 3. Google OAuth Setup
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create OAuth 2.0 Client ID
-3. Add authorized origins: `http://localhost:3000`
-4. Add redirect URIs: `http://localhost:3000/auth/callback`
-5. Copy Client ID to your `.env` files
 
 ## 🧹 Secret Management
 

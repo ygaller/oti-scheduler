@@ -110,7 +110,7 @@ model Session {
   id         String   @id @default(uuid())
   employeeId String   @map("employee_id")
   roomId     String   @map("room_id")
-  scheduleId String?  @map("schedule_id") // Optional - sessions can exist without a schedule
+  scheduleId String   @map("schedule_id") // Required - sessions must belong to a schedule
   day        WeekDay
   startTime  String   @map("start_time") // Store as "HH:mm" format
   endTime    String   @map("end_time")   // Store as "HH:mm" format
@@ -120,7 +120,7 @@ model Session {
   // Relations
   employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   room            Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  schedule        Schedule?       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule        Schedule        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   sessionPatients SessionPatient[]
   
   @@map("sessions")

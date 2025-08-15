@@ -121,6 +121,17 @@ export const createScheduleRouter = (
     try {
       const sessionData: CreateSessionDto = req.body;
       
+      // Validate that there is an active schedule before creating sessions
+      const activeSchedule = await scheduleRepo.findActive();
+      if (!activeSchedule) {
+        return res.status(400).json({ 
+          error: 'Cannot create session: No active schedule found. Please generate a schedule first.' 
+        });
+      }
+      
+      // Associate the new session with the active schedule
+      sessionData.scheduleId = activeSchedule.id!; // activeSchedule.id is guaranteed to exist here
+      
       // Validate the session constraints
       const employees = await employeeRepo.findAll();
       const rooms = await roomRepo.findAll();
@@ -151,6 +162,8 @@ export const createScheduleRouter = (
   router.put('/sessions/:id', validateUUID(), async (req, res) => {
     try {
       const sessionData: UpdateSessionDto = req.body;
+      
+      // Note: scheduleId is immutable and not part of UpdateSessionDto
       
       // If we're updating time/day/employee/room, validate constraints
       if (sessionData.startTime || sessionData.endTime || sessionData.day || 
@@ -426,6 +439,49 @@ export const createScheduleRouter = (
     } catch (error) {
       console.error('Error updating session patients:', error);
       res.status(500).json({ error: 'Failed to update session patients' });
+    }
+  });
+
+  // POST /api/schedule/fix-orphaned-sessions - Fix orphaned sessions by assigning them to active schedule
+  router.post('/fix-orphaned-sessions', async (req, res) => {
+    try {
+      const activeSchedule = await scheduleRepo.findActive();
+      if (!activeSchedule) {
+        return res.status(400).json({ 
+          error: 'No active schedule found. Please generate a schedule first.' 
+        });
+      }
+
+      // Find all sessions without a scheduleId (orphaned sessions)
+      const allSessions = await sessionRepo.findAll();
+      const orphanedSessions = allSessions.filter(session => !session.scheduleId);
+      
+      if (orphanedSessions.length === 0) {
+        return res.json({ 
+          message: 'No orphaned sessions found',
+          fixedCount: 0
+        });
+      }
+
+      // Update orphaned sessions to belong to the active schedule
+      // Since scheduleId is immutable via UpdateSessionDto, we need to use direct database update
+      const updatePromises = orphanedSessions.map(session => 
+        prisma.session.update({
+          where: { id: session.id },
+          data: { scheduleId: activeSchedule.id }
+        })
+      );
+      
+      await Promise.all(updatePromises);
+
+      res.json({ 
+        message: `Successfully assigned ${orphanedSessions.length} orphaned sessions to active schedule`,
+        fixedCount: orphanedSessions.length,
+        fixedSessionIds: orphanedSessions.map(s => s.id)
+      });
+    } catch (error) {
+      console.error('Error fixing orphaned sessions:', error);
+      res.status(500).json({ error: 'Failed to fix orphaned sessions' });
     }
   });
 

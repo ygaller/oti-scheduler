@@ -76,6 +76,7 @@ export interface Session {
   id: string;
   employeeId: string;
   roomId: string;
+  scheduleId?: string; // Optional reference to parent schedule
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
@@ -125,13 +126,15 @@ export interface UpdatePatientDto extends Partial<CreatePatientDto> {}
 export interface CreateSessionDto {
   employeeId: string;
   roomId: string;
-  scheduleId?: string;
+  scheduleId: string; // Required - sessions must belong to a schedule
   day: WeekDay;
   startTime: string;
   endTime: string;
 }
 
-export interface UpdateSessionDto extends Partial<CreateSessionDto> {}
+export interface UpdateSessionDto extends Partial<Omit<CreateSessionDto, 'scheduleId'>> {
+  // scheduleId is immutable after creation - sessions cannot be moved between schedules
+}
 
 export interface CreateActivityDto {
   name: string;

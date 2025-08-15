@@ -14,8 +14,10 @@
 ## ✨ תכונות
 
 - **ניהול עובדים**: הוספה, עריכה ומחיקה של עובדים עם הגדרות שעות עבודה מותאמות אישית
+- **ניהול מטופלים**: הוספה, עריכה ומחיקה של מטופלים עם דרישות טיפול מותאמות וקידוד צבעים
 - **ניהול חדרי טיפול**: ניהול חדרי הטיפול הזמינים
-- **יצירת לוח זמנים אוטומטי**: אלגוריתם חכם ליצירת לוח זמנים תוך התחשבות באילוצים
+- **ניהול פעילויות**: הגדרת חסימות זמן וחלונות זמן אסורים לתיזמון
+- **יצירת לוח זמנים אוטומטי**: אלגוריתם חכם ליצירת לוח זמנים תוך התחשבות באילוצים ופעילויות
 - **הגדרות מערכת**: קביעת זמני ארוחות ומפגשים
 - **איפוס נתונים**: אפשרות לאיפוס מלא של המערכת
 - **מסד נתונים משובץ**: PostgreSQL משובץ עם אפשרות חיבור למסד נתונים חיצוני
@@ -41,13 +43,16 @@ scheduling/
 │   │   ├── components/   # רכיבי React
 │   │   ├── hooks/        # React hooks מותאמים
 │   │   ├── services/     # שירותי API
+│   │   ├── utils/        # כלים עזר וייצוא נתונים
 │   │   └── types.ts      # הגדרות TypeScript
 ├── server/          # שרת API
 │   ├── src/
 │   │   ├── database/     # הגדרות מסד נתונים
 │   │   ├── repositories/ # שכבת גישה לנתונים
 │   │   ├── routes/       # נתיבי API
-│   │   └── types/        # הגדרות TypeScript
+│   │   ├── types/        # הגדרות TypeScript
+│   │   └── utils/        # כלים עזר ותיקוף
+│   ├── tests/            # בדיקות API מקיפות
 │   └── prisma/           # סכמת מסד נתונים
 ├── electron/        # יישום שולחן עבודה
 │   ├── main.js           # תהליך ראשי של Electron
@@ -62,7 +67,7 @@ scheduling/
 
 ### דרישות מוקדמות
 
-- Node.js (גרסה 16 ומעלה)
+- Node.js (גרסה 18 ומעלה)
 - npm או yarn
 
 ### התקנת תלויות
@@ -87,19 +92,40 @@ cd ../client && npm install
 
 ### הפעלת המערכת
 
+#### במצב PostgreSQL משובץ (מומלץ)
+
+המערכת מגיעה עם PostgreSQL משובץ כברירת מחדל - אין צורך בהתקנה נוספת של מסד נתונים:
+
 ```bash
-# הפעלת השרת והלקוח במקביל בפקודה אחת
+# הפעלת השרת והלקוח במקביל עם PostgreSQL משובץ
 npm run dev
 ```
 
 או באופן נפרד:
 
 ```bash
-# הפעלת השרת בלבד
+# הפעלת השרת עם PostgreSQL משובץ
 npm run server:dev
 
 # הפעלת הלקוח בלבד (בטרמינל נפרד)
 npm run client:dev
+```
+
+**דרישות למצב משובץ:**
+- PostgreSQL מותקן במערכת (בדרך כלל באמצעות brew ב-macOS או apt/yum ב-Linux)
+- הפורט נקבע דינמית על ידי המערכת
+- נתונים נשמרים בתיקייה מקומית
+
+**התקנת PostgreSQL:**
+```bash
+# macOS
+brew install postgresql
+
+# Ubuntu/Debian
+sudo apt install postgresql
+
+# CentOS/RHEL
+sudo yum install postgresql
 ```
 
 ### גישה ליישום
@@ -163,13 +189,38 @@ npm run dist:all
 
 ## 🗄 מסד הנתונים
 
-### PostgreSQL משובץ
+### PostgreSQL משובץ (ברירת מחדל)
 
-המערכת משתמשת ב-PostgreSQL משובץ כברירת מחדל. מסד הנתונים מתחיל אוטומטית עם השרת ונשמר בתיקייה מקומית.
+המערכת משתמשת ב-PostgreSQL משובץ כברירת מחדל. מסד הנתונים:
+- מתחיל אוטומטית עם השרת על פורט זמין
+- נשמר בתיקייה מקומית (למשל: `~/.oti-scheduler/data`)
+- כולל ניהול אוטומטי של migrations
+- מספק יציבות וביצועים טובים
+- **אין צורך בהגדרת קבצי .env למצב זה**
 
-### הגדרת מסד נתונים חיצוני
+#### הפעלה במצב משובץ
 
-ליצירת קובץ `.env` בתיקיית `server/`:
+```bash
+# פשוט הפעל את המערכת - PostgreSQL יתחיל אוטומטית
+npm run dev
+```
+
+או:
+
+```bash
+# יצירת קובץ .env בתיקיית server/ (אופציונלי)
+cd server
+cp env.example .env
+```
+
+הקובץ `server/env.example` כבר מוגדר למצב משובץ:
+```env
+DB_TYPE=embedded  # זה המצב כברירת מחדל
+```
+
+### מסד נתונים חיצוני
+
+במידה ואתה רוצה להשתמש במסד נתונים PostgreSQL חיצוני, צור קובץ `.env` בתיקיית `server/`:
 
 ```env
 DB_TYPE=remote
@@ -181,10 +232,12 @@ DB_PASSWORD=postgres
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling"
 ```
 
+**הערה**: במצב משובץ, הפורט נקבע דינמית ולא ניתן להגדירו מראש.
+
 ### טעינת נתונים לדוגמה
 
 ```bash
-npm run db:seed
+npm run server:db:seed
 ```
 
 ## 📡 API Endpoints
@@ -201,15 +254,28 @@ npm run db:seed
 - `PUT /api/rooms/:id` - עדכון חדר
 - `DELETE /api/rooms/:id` - מחיקת חדר
 
+### מטופלים
+- `GET /api/patients` - קבלת כל המטופלים
+- `POST /api/patients` - יצירת מטופל חדש
+- `PUT /api/patients/:id` - עדכון מטופל
+- `DELETE /api/patients/:id` - מחיקת מטופל
+
+### פעילויות וחסימות זמן
+- `GET /api/activities` - קבלת כל הפעילויות
+- `POST /api/activities` - יצירת פעילות חדשה
+- `PUT /api/activities/:id` - עדכון פעילות
+- `DELETE /api/activities/:id` - מחיקת פעילות
+
 ### לוח זמנים
-- `GET /api/schedule/config` - קבלת הגדרות זמנים
-- `PUT /api/schedule/config` - עדכון הגדרות זמנים
 - `POST /api/schedule/generate` - יצירת לוח זמנים חדש
 - `GET /api/schedule/active` - קבלת לוח הזמנים הפעיל
+- `GET /api/schedule/all` - קבלת כל לוחות הזמנים
+- `PUT /api/schedule/:id/activate` - הפעלת לוח זמנים ספציפי
 
 ### מערכת
 - `GET /api/system/status` - סטטוס המערכת
 - `POST /api/system/reset` - איפוס כל הנתונים
+- `GET /api/health` - בדיקת בריאות השרת
 
 ## 📱 הפצה ומיתוג
 
@@ -247,10 +313,38 @@ npm run electron:pack
 
 ### בדיקות
 
+#### בדיקות הלקוח
 ```bash
 # הרצת בדיקות הלקוח
 npm run client:test
 ```
+
+#### בדיקות השרת
+```bash
+# הרצת כל בדיקות השרת
+cd server && npm test
+
+# הרצה במצב watch
+cd server && npm run test:watch
+
+# בדיקות עם כיסוי קוד
+cd server && npm run test:coverage
+
+# בדיקות עבור CI
+cd server && npm run test:ci
+```
+
+#### מסד נתונים לבדיקות
+הבדיקות משתמשות במסד נתונים נפרד (`scheduling_test`) כדי לא להפריע לנתוני הפיתוח:
+- הגדרה אוטומטית לפני כל הבדיקות
+- ניקוי בין בדיקות
+- הרס אוטומטי בסיום הבדיקות
+
+#### דוחות כיסוי קוד
+דוחות כיסוי הקוד נוצרים בתיקייה `server/coverage/`:
+- `coverage/index.html` - דוח HTML
+- `coverage/lcov.info` - פורמט LCOV
+- `coverage/coverage-final.json` - פורמט JSON
 
 ### עבודה עם מסד הנתונים
 
@@ -263,18 +357,39 @@ cd server && npm run db:generate
 
 # פתיחת Prisma Studio
 cd server && npm run db:studio
+
+# טעינת נתונים לדוגמה
+cd server && npm run db:seed
 ```
 
 ## 🔧 הגדרות
 
 ### משתני סביבה
 
-קובץ `server/.env`:
+#### מצב PostgreSQL משובץ (ברירת מחדל)
+
+**אין צורך ביצירת קובץ .env** - המערכת תעבוד מיד עם PostgreSQL משובץ.
+
+אם תרצה להתאים הגדרות, תוכל ליצור קובץ `server/.env` על בסיס `server/env.example`:
 
 ```env
-# הגדרות מסד נתונים
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling"
+# הגדרות מסד נתונים משובץ (ברירת מחדל)
 DB_TYPE=embedded
+
+# הגדרות שרת
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+```
+
+#### מצב מסד נתונים חיצוני
+
+קובץ `server/.env` למסד נתונים חיצוני:
+
+```env
+# הגדרות מסד נתונים חיצוני
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling"
+DB_TYPE=remote
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=scheduling
@@ -287,8 +402,8 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
 # הגדרות Electron (מוגדרות אוטומטית על ידי האפליקציה)
-ELECTRON=true
-USER_DATA_PATH=/path/to/electron/userData
+ELECTRON=false
+USER_DATA_PATH=
 ```
 
 ## 📋 רישיון

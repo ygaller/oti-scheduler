@@ -82,7 +82,7 @@ CREATE TABLE "sessions" (
     "id" TEXT NOT NULL,
     "employee_id" TEXT NOT NULL,
     "room_id" TEXT NOT NULL,
-    "schedule_id" TEXT,
+    "schedule_id" TEXT NOT NULL,
     "day" "WeekDay" NOT NULL,
     "start_time" TEXT NOT NULL,
     "end_time" TEXT NOT NULL,
