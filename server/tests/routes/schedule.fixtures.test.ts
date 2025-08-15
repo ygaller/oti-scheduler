@@ -310,7 +310,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     });
 
     it('should return 404 for non-existent schedule (fixture test)', async () => {
-      const nonExistentId = 'non-existent-schedule-id';
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
       
       const response = await request(app)
         .put(`/api/schedule/${nonExistentId}/activate`)
@@ -346,7 +346,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     });
 
     it('should return 404 for non-existent schedule (fixture test)', async () => {
-      const nonExistentId = 'non-existent-schedule-id';
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
       
       const response = await request(app)
         .delete(`/api/schedule/${nonExistentId}`)

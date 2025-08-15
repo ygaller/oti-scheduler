@@ -10,6 +10,14 @@ dotenv.config({ path: path.join(__dirname, '..', envPath) });
 let prisma: PrismaClient;
 
 beforeAll(async () => {
+  // Skip database setup for fixture tests (which use mock repositories)
+  // Check if we're running fixture tests by looking at the test file name
+  const testFile = expect.getState()?.testPath || '';
+  if (testFile.includes('fixtures')) {
+    console.log('Skipping database setup for fixture tests...');
+    return;
+  }
+  
   console.log('Initializing test database...');
   
   if (process.env.NODE_ENV === 'test') {
@@ -46,6 +54,12 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  // Skip database cleanup for fixture tests
+  const testFile = expect.getState()?.testPath || '';
+  if (testFile.includes('fixtures')) {
+    return;
+  }
+  
   // Clean up database before each test
   try {
     await prisma.session.deleteMany();
@@ -65,6 +79,12 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  // Skip database cleanup for fixture tests
+  const testFile = expect.getState()?.testPath || '';
+  if (testFile.includes('fixtures')) {
+    return;
+  }
+  
   // Clean up and close database connection
   try {
     await prisma.session.deleteMany();

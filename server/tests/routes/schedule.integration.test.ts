@@ -383,7 +383,8 @@ describe('Schedule API Integration Tests', () => {
       const roomResponse = await request(app).post('/api/rooms').send(room);
 
       // Generate a schedule first (required for session creation)
-      await request(app).post('/api/schedule/generate').expect(201);
+      const scheduleResponse = await request(app).post('/api/schedule/generate').expect(201);
+      const initialSessionCount = scheduleResponse.body.sessions.length;
 
       const sessionData = {
         employeeId: employeeResponse.body.id,
@@ -411,10 +412,15 @@ describe('Schedule API Integration Tests', () => {
       expect(response.body.startTime).toBe(sessionData.startTime);
       expect(response.body.endTime).toBe(sessionData.endTime);
 
-      // Verify database persistence
+      // Verify database persistence - should have initial sessions + 1 new session
       const sessionsInDb = await prisma.session.findMany();
-      expect(sessionsInDb).toHaveLength(1);
-      expect(sessionsInDb[0].id).toBe(response.body.id);
+      expect(sessionsInDb).toHaveLength(initialSessionCount + 1);
+      
+      // Verify the new session was created correctly
+      const newSession = sessionsInDb.find(s => s.id === response.body.id);
+      expect(newSession).toBeDefined();
+      expect(newSession!.employeeId).toBe(sessionData.employeeId);
+      expect(newSession!.roomId).toBe(sessionData.roomId);
     });
 
     it('should get all sessions via API', async () => {

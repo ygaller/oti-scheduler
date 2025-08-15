@@ -114,5 +114,61 @@ export class PrismaSessionRepository implements SessionRepository {
       where: { scheduleId }
     });
   }
+
+  async addPatient(sessionId: string, patientId: string): Promise<Session> {
+    // Create the session-patient relationship
+    await this.prisma.sessionPatient.create({
+      data: {
+        sessionId,
+        patientId
+      }
+    });
+
+    // Return the updated session with patients
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    return mapPrismaSessionWithPatientsToAPI(session);
+  }
+
+  async removePatient(sessionId: string, patientId: string): Promise<Session> {
+    // Remove the session-patient relationship
+    await this.prisma.sessionPatient.deleteMany({
+      where: {
+        sessionId,
+        patientId
+      }
+    });
+
+    // Return the updated session with patients
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    return mapPrismaSessionWithPatientsToAPI(session);
+  }
 }
 

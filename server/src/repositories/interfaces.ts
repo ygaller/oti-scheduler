@@ -39,6 +39,8 @@ export interface SessionRepository {
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
   deleteByScheduleId(scheduleId: string): Promise<void>;
+  addPatient(sessionId: string, patientId: string): Promise<Session>;
+  removePatient(sessionId: string, patientId: string): Promise<Session>;
 }
 
 export interface ScheduleRepository {
