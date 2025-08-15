@@ -30,7 +30,8 @@ import {
   CalendarToday, 
   Download, 
   Add,
-  Print 
+  Print,
+  Warning
 } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { 
@@ -69,11 +70,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [sessionForm, setSessionForm] = useState<Partial<Session>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Get blocked periods for display
   const { blockedPeriods } = useBlockedPeriods(true); // Only active ones
 
-  const handleGenerateSchedule = async () => {
+  const handleGenerateScheduleClick = () => {
     console.log('Generate schedule button clicked!');
     
     if (employees.length === 0 || rooms.length === 0) {
@@ -81,7 +83,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
+    // Show confirmation dialog
+    setConfirmDialogOpen(true);
+  };
+
+  const handleGenerateScheduleConfirm = async () => {
+    setConfirmDialogOpen(false);
     setIsGenerating(true);
+    
     try {
       console.log('Calling scheduleService.generate()...');
       const newSchedule = await scheduleService.generate();
@@ -106,6 +115,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleGenerateScheduleCancel = () => {
+    setConfirmDialogOpen(false);
   };
 
   const handleExportCSV = () => {
@@ -630,7 +643,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     if (blockedPeriods.length > 0) {
       html += `
         <div class="blocked-periods">
-          <div class="statistics-title">תקופות חסומות</div>
+          <div class="statistics-title">פעילויות שוטפות</div>
       `;
       
       blockedPeriods.forEach(period => {
@@ -897,7 +910,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <Button
             variant="contained"
             startIcon={isGenerating ? <CircularProgress size={16} /> : <CalendarToday />}
-            onClick={handleGenerateSchedule}
+            onClick={handleGenerateScheduleClick}
             disabled={employees.length === 0 || rooms.length === 0 || isGenerating}
           >
             {isGenerating ? 'יוצר לוח זמנים...' : 'צור לוח זמנים'}
@@ -1038,6 +1051,35 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Typography>
         </Paper>
       )}
+
+      {/* Schedule Generation Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onClose={handleGenerateScheduleCancel} maxWidth="sm">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning color="warning" />
+          אזהרה - יצירת לוח זמנים חדש
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            יצירת לוח זמנים חדש תמחק את לוח הזמנים הנוכחי ותחליף אותו בלוח זמנים חדש.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            פעולה זו אינה ניתנת לביטול. האם אתה בטוח שברצונך להמשיך?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleGenerateScheduleCancel} color="inherit">
+            ביטול
+          </Button>
+          <Button 
+            onClick={handleGenerateScheduleConfirm} 
+            variant="contained" 
+            color="warning"
+            autoFocus
+          >
+            כן, צור לוח זמנים חדש
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit/Add Session Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>

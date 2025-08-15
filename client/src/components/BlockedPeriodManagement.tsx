@@ -341,17 +341,17 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
         <Paper sx={{ p: 4, textAlign: 'center', mt: 3 }}>
           <ScheduleIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            אין תקופות חסומות
+            אין פעילויות שוטפות
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            הוסף תקופות חסומות כדי לנהל זמנים שבהם לא ניתן לתזמן טיפולים
+            הוסף פעילויות שוטפות כדי לנהל זמנים שבהם לא ניתן לתזמן טיפולים
           </Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
           >
-            הוסף תקופה חסומה ראשונה
+            הוסף פעילות שוטפת ראשונה
           </Button>
         </Paper>
       )}

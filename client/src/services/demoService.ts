@@ -1,5 +1,5 @@
-import { Employee, Room, AVAILABLE_COLORS } from '../types';
-import { employeeService, roomService, scheduleService } from './index';
+import { Employee, Room, Patient, CreateBlockedPeriodDto, AVAILABLE_COLORS } from '../types';
+import { employeeService, roomService, scheduleService, patientService, blockedPeriodService } from './index';
 
 const demoEmployees: Omit<Employee, 'id' | 'isActive'>[] = [
   {
@@ -51,8 +51,83 @@ const demoRooms: Omit<Room, 'id' | 'isActive'>[] = [
   { name: 'חדר תקשורת', color: AVAILABLE_COLORS[14] }
 ];
 
+const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
+  {
+    firstName: 'אמיר',
+    lastName: 'רוזן',
+    color: AVAILABLE_COLORS[2],
+    therapyRequirements: {
+      'occupational-therapist': 2,
+      'speech-therapist': 1
+    }
+  },
+  {
+    firstName: 'דנה',
+    lastName: 'ברק',
+    color: AVAILABLE_COLORS[6],
+    therapyRequirements: {
+      'physiotherapist': 3,
+      'occupational-therapist': 1
+    }
+  },
+  {
+    firstName: 'נועם',
+    lastName: 'ישראלי',
+    color: AVAILABLE_COLORS[9],
+    therapyRequirements: {
+      'speech-therapist': 2,
+      'art-therapist': 1
+    }
+  },
+  {
+    firstName: 'מיכל',
+    lastName: 'אדמון',
+    color: AVAILABLE_COLORS[12],
+    therapyRequirements: {
+      'occupational-therapist': 1,
+      'physiotherapist': 2,
+      'social-worker': 1
+    }
+  },
+  {
+    firstName: 'עידו',
+    lastName: 'מורג',
+    color: AVAILABLE_COLORS[15],
+    therapyRequirements: {
+      'speech-therapist': 3
+    }
+  }
+];
+
+const demoBlockedPeriods: CreateBlockedPeriodDto[] = [
+  {
+    name: 'ארוחת בוקר',
+    color: AVAILABLE_COLORS[4],
+    defaultStartTime: '08:00',
+    defaultEndTime: '08:30',
+    dayOverrides: {},
+    isActive: true
+  },
+  {
+    name: 'פגישת צוות',
+    color: AVAILABLE_COLORS[7],
+    defaultStartTime: '09:00',
+    defaultEndTime: '09:15',
+    dayOverrides: {},
+    isActive: true
+  },
+  {
+    name: 'ארוחת צהריים',
+    color: AVAILABLE_COLORS[11],
+    defaultStartTime: '12:00',
+    defaultEndTime: '13:00',
+    dayOverrides: {},
+    isActive: true
+  }
+];
+
 export const demoService = {
-  async loadDemoData(): Promise<{ employees: Employee[]; rooms: Room[] }> {
+  async loadDemoData(): Promise<{ employees: Employee[]; rooms: Room[]; patients: Patient[] }> {
     try {
       // Create employees
       const createdEmployees = await Promise.all(
@@ -62,6 +137,16 @@ export const demoService = {
       // Create rooms
       const createdRooms = await Promise.all(
         demoRooms.map(room => roomService.create(room))
+      );
+
+      // Create patients
+      const createdPatients = await Promise.all(
+        demoPatients.map(patient => patientService.create(patient))
+      );
+
+      // Create blocked periods
+      await Promise.all(
+        demoBlockedPeriods.map(blockedPeriod => blockedPeriodService.create(blockedPeriod))
       );
 
       // Set default schedule configuration
@@ -75,7 +160,8 @@ export const demoService = {
 
       return {
         employees: createdEmployees,
-        rooms: createdRooms
+        rooms: createdRooms,
+        patients: createdPatients
       };
     } catch (error) {
       console.error('Error loading demo data:', error);

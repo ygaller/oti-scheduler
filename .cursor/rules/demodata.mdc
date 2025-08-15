@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+When changing the data structures always make sure to update the demo data and demo data creation. Also update the delete all data button behavior.

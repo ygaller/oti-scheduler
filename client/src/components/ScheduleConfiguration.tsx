@@ -103,7 +103,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
           הגדרות מערכת הזמנים
         </Typography>
         <Box display="flex" gap={2}>
-          {process.env.NODE_ENV === 'development' && (
+          {(process.env.NODE_ENV === 'development' || !process.env.NODE_ENV || window.location.hostname === 'localhost') && (
             <Button
               variant="contained"
               color="primary"
@@ -146,7 +146,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
 
       {demoSuccess && (
         <Alert severity="success" sx={{ mb: 3 }} onClose={() => setDemoSuccess(false)}>
-          נתוני הדמו נוצרו בהצלחה! נוספו 3 עובדים ו-4 חדרי טיפול למערכת.
+          נתוני הדמו נוצרו בהצלחה! נוספו 3 עובדים, 5 מטופלים, 4 חדרי טיפול ו-3 פעילויות שוטפות למערכת.
         </Alert>
       )}
 

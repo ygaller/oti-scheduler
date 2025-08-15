@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository } from '../repositories';
+import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, PatientRepository, BlockedPeriodRepository } from '../repositories';
 
 export const createSystemRouter = (
   employeeRepo: EmployeeRepository,
   roomRepo: RoomRepository,
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
-  configRepo: SystemConfigRepository
+  configRepo: SystemConfigRepository,
+  patientRepo: PatientRepository,
+  blockedPeriodRepo: BlockedPeriodRepository
 ): Router => {
   const router = Router();
 
@@ -25,8 +27,14 @@ export const createSystemRouter = (
       await employeeRepo.deleteAll();
       console.log('Deleted all employees');
       
+      await patientRepo.deleteAll();
+      console.log('Deleted all patients');
+      
       await roomRepo.deleteAll();
       console.log('Deleted all rooms');
+      
+      await blockedPeriodRepo.deleteAll();
+      console.log('Deleted all blocked periods');
       
       await configRepo.deleteAll();
       console.log('Deleted all system config');

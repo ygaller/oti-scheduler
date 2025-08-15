@@ -31,7 +31,7 @@ export const createApiRouter = (
   router.use('/patients', createPatientRouter(patientRepo));
   router.use('/rooms', createRoomRouter(roomRepo));
   router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo));
-  router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo));
+  router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, patientRepo, blockedPeriodRepo));
   router.use('/blocked-periods', createBlockedPeriodRouter(blockedPeriodRepo));
 
   // Health check endpoint
