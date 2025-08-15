@@ -329,11 +329,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setSelectedPatients([...selectedPatients, '']);
   };
 
-  const handleRemovePatientSlot = (index: number) => {
-    const newSelectedPatients = selectedPatients.filter((_, i) => i !== index);
-    setSelectedPatients(newSelectedPatients);
-  };
-
   const handlePatientChange = (index: number, patientId: string) => {
     const newSelectedPatients = [...selectedPatients];
     newSelectedPatients[index] = patientId;
@@ -420,7 +415,73 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       });
     });
 
-    return chips;
+    // Sort chips by patient name, then by therapy type
+    return chips.sort((a, b) => {
+      if (a.patientName !== b.patientName) {
+        return a.patientName.localeCompare(b.patientName, 'he');
+      }
+      return a.therapyType.localeCompare(b.therapyType, 'he');
+    });
+  };
+
+  // Generate therapy above minimum requirement chips data
+  const generateAboveMinimumTherapyChips = () => {
+    const chips: Array<{
+      id: string;
+      patientName: string;
+      therapyType: string;
+      amount: number;
+      patientColor: string;
+    }> = [];
+
+    // Get only active patients
+    const activePatients = patients.filter(patient => patient.isActive);
+
+    activePatients.forEach(patient => {
+      const patientName = `${patient.firstName} ${patient.lastName}`;
+      
+      // Count assigned sessions for this patient by role
+      const assignedSessionsByRole: Record<string, number> = {};
+      
+      if (schedule) {
+        schedule.sessions.forEach(session => {
+          // Only count sessions where this patient is assigned
+          if (session.patients?.some(p => p.id === patient.id)) {
+            const employee = employees.find(e => e.id === session.employeeId);
+            if (employee) {
+              assignedSessionsByRole[employee.role] = (assignedSessionsByRole[employee.role] || 0) + 1;
+            }
+          }
+        });
+      }
+      
+      // Iterate through each therapy requirement for this patient
+      Object.entries(patient.therapyRequirements || {}).forEach(([role, requiredAmount]) => {
+        if (requiredAmount > 0) {
+          const assignedAmount = assignedSessionsByRole[role] || 0;
+          const excessAmount = assignedAmount - requiredAmount;
+          
+          // Only show chip if there are excess sessions (above minimum)
+          if (excessAmount > 0) {
+            chips.push({
+              id: `${patient.id}-${role}-excess`,
+              patientName,
+              therapyType: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role,
+              amount: excessAmount,
+              patientColor: patient.color
+            });
+          }
+        }
+      });
+    });
+
+    // Sort chips by patient name, then by therapy type
+    return chips.sort((a, b) => {
+      if (a.patientName !== b.patientName) {
+        return a.patientName.localeCompare(b.patientName, 'he');
+      }
+      return a.therapyType.localeCompare(b.therapyType, 'he');
+    });
   };
 
   const getTotalScheduledSessions = () => {
@@ -1162,29 +1223,70 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Card>
 
           {/* Unassigned Therapy Requirements Section */}
-          {patients.length > 0 && generateUnassignedTherapyChips().length > 0 && (
+          {patients.length > 0 && (
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" component="h2" mb={2}>
                   טיפולים ללא השמה
                 </Typography>
                 <Box display="flex" flexWrap="wrap" gap={1}>
-                  {generateUnassignedTherapyChips().map(chip => (
-                    <Chip
-                      key={chip.id}
-                      label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        borderColor: chip.patientColor,
-                        color: chip.patientColor,
-                        backgroundColor: `${chip.patientColor}15`,
-                        '&:hover': {
-                          backgroundColor: `${chip.patientColor}25`,
-                        }
-                      }}
-                    />
-                  ))}
+                  {generateUnassignedTherapyChips().length > 0 ? (
+                    generateUnassignedTherapyChips().map(chip => (
+                      <Chip
+                        key={chip.id}
+                        label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          borderColor: chip.patientColor,
+                          color: chip.patientColor,
+                          backgroundColor: `${chip.patientColor}15`,
+                          '&:hover': {
+                            backgroundColor: `${chip.patientColor}25`,
+                          }
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      כל הטיפולים הנדרשים הוקצו למטופלים
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Above Minimum Therapy Requirements Section */}
+          {patients.length > 0 && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" component="h2" mb={2}>
+                  טיפולים מעבר למינימום
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {generateAboveMinimumTherapyChips().length > 0 ? (
+                    generateAboveMinimumTherapyChips().map(chip => (
+                      <Chip
+                        key={chip.id}
+                        label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          borderColor: chip.patientColor,
+                          color: chip.patientColor,
+                          backgroundColor: `${chip.patientColor}15`,
+                          '&:hover': {
+                            backgroundColor: `${chip.patientColor}25`,
+                          }
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      אין מטופלים עם טיפולים מעבר למינימום הנדרש
+                    </Typography>
+                  )}
                 </Box>
               </CardContent>
             </Card>
@@ -1464,16 +1566,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       ))}
                     </Select>
                   </FormControl>
-                  
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => handleRemovePatientSlot(index)}
-                    disabled={selectedPatients.length === 1}
-                    sx={{ minWidth: 'auto', px: 2 }}
-                  >
-                    הסר
-                  </Button>
                 </Box>
               ))}
 
