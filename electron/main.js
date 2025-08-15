@@ -35,7 +35,7 @@ const createWindow = async () => {
         enableRemoteModule: false,
         preload: path.join(__dirname, 'preload.js')
       },
-      icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
+      icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'oti-icon.ico' : 'oti-icon.png'),
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       show: false // Don't show until ready
     });
