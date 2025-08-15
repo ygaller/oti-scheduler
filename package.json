@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "main": "electron/main.js",
-  "homepage": "./",
+  "homepage": "https://github.com/ygaller/oti-scheduler#readme",
   "description": "מערכת לתיזמון עובדי גן ילדים המאפשרת יצירת לוח זמנים אוטומטי עם אילוצים ותכונות ניהול מתקדמות.",
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
@@ -38,8 +38,7 @@
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
-    "wait-on": "^7.2.0",
-    "electron-icon-builder": "^2.0.1"
+    "wait-on": "^7.2.0"
   },
   "repository": {
     "type": "git",
@@ -57,7 +56,6 @@
   "bugs": {
     "url": "https://github.com/ygaller/oti-scheduler/issues"
   },
-  "homepage": "https://github.com/ygaller/oti-scheduler#readme",
   "build": {
     "appId": "com.oti.scheduling-app",
     "productName": "oti-scheduler",
@@ -95,7 +93,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },
@@ -104,7 +105,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },

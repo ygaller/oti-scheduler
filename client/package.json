@@ -20,7 +20,6 @@
     "@types/react-dom": "^19.1.7",
     "@types/react-router-dom": "^5.3.3",
     "date-fns": "^4.1.0",
-
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.0",
@@ -32,10 +31,10 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "GENERATE_SOURCEMAP=false react-scripts start",
-    "start:https": "HTTPS=true GENERATE_SOURCEMAP=false react-scripts start",
-    "start:ssl": "HTTPS=true SSL_CRT_FILE=ssl/localhost.pem SSL_KEY_FILE=ssl/localhost-key.pem GENERATE_SOURCEMAP=false react-scripts start",
-    "build": "GENERATE_SOURCEMAP=false react-scripts build",
+    "start": "cross-env GENERATE_SOURCEMAP=false react-scripts start",
+    "start:https": "cross-env HTTPS=true GENERATE_SOURCEMAP=false react-scripts start",
+    "start:ssl": "cross-env HTTPS=true SSL_CRT_FILE=ssl/localhost.pem SSL_KEY_FILE=ssl/localhost-key.pem GENERATE_SOURCEMAP=false react-scripts start",
+    "build": "cross-env GENERATE_SOURCEMAP=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -58,13 +57,14 @@
     ]
   },
   "devDependencies": {
-    "@types/stylis": "^4.2.7"
+    "@types/stylis": "^4.2.7",
+    "cross-env": "^10.0.0"
   },
   "overrides": {
     "nth-check": "^2.1.1",
     "postcss": "^8.5.6",
     "svgo": "^3.3.2",
-    "webpack-dev-server": "^4.15.1"
+    "webpack-dev-server": "^5.2.1"
   },
   "description": "מערכת לתיזמון עובדי גן ילדים המאפשרת יצירת לוח זמנים אוטומטי עם אילוצים ותכונות ניהול מתקדמות.",
   "main": "index.js",
