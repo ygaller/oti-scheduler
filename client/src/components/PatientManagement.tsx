@@ -22,7 +22,7 @@ import {
   Tooltip
 } from '@mui/material';
 import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
-import { Patient, TherapyRequirements, Role, ROLE_LABELS, getRandomColor } from '../types';
+import { Patient, Role, ROLE_LABELS, getRandomColor } from '../types';
 import { patientService } from '../services';
 import ColorPicker from './ColorPicker';
 

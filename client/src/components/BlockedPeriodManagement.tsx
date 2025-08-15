@@ -220,7 +220,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
-          שעות חסומות
+        פעילויות שוטפות
         </Typography>
         <Box display="flex" gap={2} alignItems="center">
           <FormControlLabel
@@ -237,7 +237,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
           >
-            הוסף קטגוריה
+            הוסף פעילות שוטפת
           </Button>
         </Box>
       </Box>
@@ -280,7 +280,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
 
                 <Box mb={2}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    <strong>זמן ברירת מחדל:</strong>
+                    <strong>שעות יומיות:</strong>
                   </Typography>
                   {blockedPeriod.defaultStartTime && blockedPeriod.defaultEndTime ? (
                     <Typography variant="body2">
@@ -296,7 +296,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                 {Object.keys(blockedPeriod.dayOverrides).length > 0 && (
                   <Box mb={2}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      <strong>חריגות יומיות:</strong>
+                      <strong>שעות בימים ספציפיים:</strong>
                     </Typography>
                     {Object.entries(blockedPeriod.dayOverrides).map(([day, override]) => (
                       override && (
@@ -359,7 +359,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
       {/* Dialog for creating/editing blocked periods */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {isEditing ? 'ערוך עשות חסומות' : 'הגדר שעות חסומות'}
+          {isEditing ? 'ערוך פעילויות שוטפות' : 'הגדר פעילויות שוטפות'}
         </DialogTitle>
         <DialogContent>
           {error && (
@@ -370,7 +370,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
 
           <Box display="flex" flexDirection="column" gap={3} pt={1}>
             <TextField
-              label="שם הקטגוריה"
+              label="שם הפעילות"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               fullWidth

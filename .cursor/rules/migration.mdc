@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Migrations should only be applied to the embedded postgres. There is no external postgres to migrate.

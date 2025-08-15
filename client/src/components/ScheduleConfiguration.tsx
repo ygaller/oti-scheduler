@@ -40,7 +40,6 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
     blockedPeriods,
     loading: blockedPeriodsLoading,
     error: blockedPeriodsError,
-    refetch: refetchBlockedPeriods,
     createBlockedPeriod,
     updateBlockedPeriod,
     setBlockedPeriodActive,

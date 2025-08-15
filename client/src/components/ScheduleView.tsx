@@ -553,8 +553,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
     );
 
-    const sortedRooms = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'he'));
-
     // Generate header
     let html = `
       <div class="print-header">
