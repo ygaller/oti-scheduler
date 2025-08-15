@@ -398,6 +398,7 @@ function AppContent() {
                         <ScheduleView 
                           employees={employees} 
                           rooms={rooms} 
+                          patients={patients}
                           schedule={schedule}
                           setSchedule={refreshSchedule} 
                         />

@@ -43,7 +43,8 @@ import {
   WEEK_DAYS,
   WeekDay,
   ROLE_LABELS,
-  Activity 
+  Activity,
+  Patient 
 } from '../types';
 import { validateScheduleConstraints } from '../utils/scheduler';
 import { scheduleService, ApiError } from '../services';
@@ -53,6 +54,7 @@ import ErrorModal from './ErrorModal';
 interface ScheduleViewProps {
   employees: Employee[];
   rooms: Room[];
+  patients: Patient[];
   schedule: Schedule | null;
   setSchedule: () => Promise<void>;
 }
@@ -60,6 +62,7 @@ interface ScheduleViewProps {
 const ScheduleView: React.FC<ScheduleViewProps> = ({
   employees,
   rooms,
+  patients,
   schedule,
   setSchedule
 }) => {
@@ -307,6 +310,39 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const getRoomName = (roomId: string) => {
     const room = rooms.find(r => r.id === roomId);
     return room ? room.name : 'לא ידוע';
+  };
+
+  // Generate therapy requirement chips data
+  const generateTherapyRequirementChips = () => {
+    const chips: Array<{
+      id: string;
+      patientName: string;
+      therapyType: string;
+      amount: number;
+      patientColor: string;
+    }> = [];
+
+    // Get only active patients
+    const activePatients = patients.filter(patient => patient.isActive);
+
+    activePatients.forEach(patient => {
+      const patientName = `${patient.firstName} ${patient.lastName}`;
+      
+      // Iterate through each therapy requirement for this patient
+      Object.entries(patient.therapyRequirements || {}).forEach(([role, amount]) => {
+        if (amount > 0) { // Only include requirements with positive amounts
+          chips.push({
+            id: `${patient.id}-${role}`,
+            patientName,
+            therapyType: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role,
+            amount,
+            patientColor: patient.color
+          });
+        }
+      });
+    });
+
+    return chips;
   };
 
   const getTotalScheduledSessions = () => {
@@ -1020,7 +1056,34 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </CardContent>
           </Card>
 
-
+          {/* Therapy Requirements Section */}
+          {patients.length > 0 && generateTherapyRequirementChips().length > 0 && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" component="h2" mb={2}>
+                  דרישות טיפול למטופלים
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {generateTherapyRequirementChips().map(chip => (
+                    <Chip
+                      key={chip.id}
+                      label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        borderColor: chip.patientColor,
+                        color: chip.patientColor,
+                        backgroundColor: `${chip.patientColor}15`,
+                        '&:hover': {
+                          backgroundColor: `${chip.patientColor}25`,
+                        }
+                      }}
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
 
           <Box sx={{ mb: 2 }}>
             <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
