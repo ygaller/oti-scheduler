@@ -16,8 +16,9 @@ import { Delete as DeleteIcon, Warning as WarningIcon, DataObject as DemoIcon } 
 
 import { systemService } from '../services';
 import { demoService } from '../services/demoService';
-import { useActivities } from '../hooks';
+import { useActivities, useRoles } from '../hooks';
 import ActivityManagement from './ActivityManagement';
+import RoleManagement from './RoleManagement';
 
 interface ScheduleConfigurationProps {
   onDataChange?: () => Promise<void>; // Callback to refresh data after demo load
@@ -32,6 +33,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
   const [demoError, setDemoError] = useState<string | null>(null);
   const [demoSuccess, setDemoSuccess] = useState(false);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [showActiveOnlyRoles, setShowActiveOnlyRoles] = useState(true);
 
   // Use the blocked periods hook
   const {
@@ -43,6 +45,18 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
     setActivityActive,
     deleteActivity
   } = useActivities(false); // Include inactive for management
+
+  // Use the roles hook
+  const {
+    roles,
+    loading: rolesLoading,
+    error: rolesError,
+    createRole,
+    updateRole,
+    setRoleActive,
+    deleteRole,
+    getEmployeeCount
+  } = useRoles(false); // Include inactive for management
 
 
   const handleResetData = async () => {
@@ -137,32 +151,58 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
 
       {demoSuccess && (
         <Alert severity="success" sx={{ mb: 3 }} onClose={() => setDemoSuccess(false)}>
-          נתוני הדמו נוצרו בהצלחה! נוספו 3 עובדים, 5 מטופלים, 4 חדרי טיפול ו-3 פעילויות שוטפות למערכת.
+          נתוני הדמו נוצרו בהצלחה! נוספו 5 תפקידים, 3 עובדים, 5 מטופלים, 4 חדרי טיפול ו-3 פעילויות שוטפות למערכת.
         </Alert>
       )}
 
-      {/* New Flexible Blocked Periods Management */}
-      {activitiesError && (
+      {/* Role Management */}
+      {rolesError && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {activitiesError}
+          {rolesError}
         </Alert>
       )}
 
-      {activitiesLoading ? (
+      {rolesLoading ? (
         <Box display="flex" justifyContent="center" p={4}>
           <CircularProgress />
         </Box>
       ) : (
-                        <ActivityManagement
-                  activities={activities}
-                  onCreateActivity={createActivity}
-                  onUpdateActivity={updateActivity}
-                  onSetActivityActive={setActivityActive}
-                  onDeleteActivity={deleteActivity}
-                  showActiveOnly={showActiveOnly}
-                  onShowActiveToggle={setShowActiveOnly}
-                />
+        <RoleManagement
+          roles={roles}
+          onCreateRole={createRole}
+          onUpdateRole={updateRole}
+          onSetRoleActive={setRoleActive}
+          onDeleteRole={deleteRole}
+          onGetEmployeeCount={getEmployeeCount}
+          showActiveOnly={showActiveOnlyRoles}
+          onShowActiveToggle={setShowActiveOnlyRoles}
+        />
       )}
+
+      {/* Flexible Blocked Periods Management */}
+      <Box sx={{ mt: 4 }}>
+        {activitiesError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {activitiesError}
+          </Alert>
+        )}
+
+        {activitiesLoading ? (
+          <Box display="flex" justifyContent="center" p={4}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <ActivityManagement
+            activities={activities}
+            onCreateActivity={createActivity}
+            onUpdateActivity={updateActivity}
+            onSetActivityActive={setActivityActive}
+            onDeleteActivity={deleteActivity}
+            showActiveOnly={showActiveOnly}
+            onShowActiveToggle={setShowActiveOnly}
+          />
+        )}
+      </Box>
 
       {process.env.NODE_ENV === 'development' && (
         <Box mt={3}>
@@ -174,7 +214,9 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
               צירת נתוני דמו תוסיף למערכת:
             </Typography>
             <Box component="ul" sx={{ mt: 1, mb: 2, color: 'text.secondary' }}>
+              <Typography component="li" variant="body2">5 תפקידים בתחומי התמחות שונים</Typography>
               <Typography component="li" variant="body2">3 עובדים עם תחומי התמחות שונים</Typography>
+              <Typography component="li" variant="body2">5 מטופלים עם דרישות טיפול</Typography>
               <Typography component="li" variant="body2">4 חדרי טיפול מוכנים לשימוש</Typography>
               <Typography component="li" variant="body2">הגדרות זמנים מתאימות</Typography>
             </Box>

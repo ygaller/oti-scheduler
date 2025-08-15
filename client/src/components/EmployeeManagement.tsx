@@ -27,8 +27,9 @@ import {
 } from '@mui/material';
 import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { Employee, Role, ROLE_LABELS, DAY_LABELS, WEEK_DAYS, getRandomColor } from '../types';
+import { Employee, DAY_LABELS, WEEK_DAYS, getRandomColor, getRoleName } from '../types';
 import { employeeService } from '../services';
+import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';
 
 interface EmployeeManagementProps {
@@ -44,11 +45,15 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: '',
     lastName: '',
-    role: 'occupational-therapist',
+    roleId: '',
     weeklySessionsCount: 10,
     workingHours: {},
     color: ''
   });
+
+  // Get roles for the dropdown
+  const { getActiveRoles } = useRoles();
+  const activeRoles = getActiveRoles();
 
   const handleOpenDialog = (employee?: Employee) => {
     if (employee) {
@@ -59,7 +64,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
       setFormData({
         firstName: '',
         lastName: '',
-        role: 'occupational-therapist',
+        roleId: activeRoles.length > 0 ? activeRoles[0].id : '',
         weeklySessionsCount: 10,
         workingHours: {},
         color: getRandomColor()
@@ -75,13 +80,13 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
   };
 
   const handleSave = async () => {
-    if (!formData.firstName || !formData.lastName) return;
+    if (!formData.firstName || !formData.lastName || !formData.roleId) return;
 
     try {
-      const employeeData: Omit<Employee, 'id' | 'isActive'> = {
+      const employeeData: Omit<Employee, 'id' | 'isActive' | 'role'> = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        role: formData.role || 'occupational-therapist',
+        roleId: formData.roleId,
         weeklySessionsCount: formData.weeklySessionsCount || 10,
         workingHours: formData.workingHours || {},
         color: formData.color || getRandomColor()
@@ -199,7 +204,14 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableRow key={employee.id} sx={{ opacity: employee.isActive ? 1 : 0.6 }}>
                 <TableCell>{employee.firstName}</TableCell>
                 <TableCell>{employee.lastName}</TableCell>
-                <TableCell>{ROLE_LABELS[employee.role]}</TableCell>
+                <TableCell>
+                  <Chip 
+                    label={getRoleName(employee.role, employee.roleId)} 
+                    color="primary"
+                    variant="outlined"
+                    size="small" 
+                  />
+                </TableCell>
                 <TableCell>{employee.weeklySessionsCount}</TableCell>
                 <TableCell>
                   <Box display="flex" gap={1} flexWrap="wrap">
@@ -276,12 +288,13 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <FormControl fullWidth>
                 <InputLabel>תפקיד</InputLabel>
                 <Select
-                  value={formData.role || 'occupational-therapist'}
+                  value={formData.roleId || ''}
                   label="תפקיד"
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as Role }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
+                  required
                 >
-                  {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                    <MenuItem key={value} value={value}>{label}</MenuItem>
+                  {activeRoles.map((role) => (
+                    <MenuItem key={role.id} value={role.id}>{role.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>

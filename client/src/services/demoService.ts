@@ -1,48 +1,8 @@
-import { Employee, Room, Patient, CreateActivityDto, AVAILABLE_COLORS } from '../types';
-import { employeeService, roomService, patientService, activityService } from './index';
+import { Employee, Room, Patient, CreateEmployeeDto, CreateActivityDto, AVAILABLE_COLORS } from '../types';
+import { employeeService, roomService, patientService, activityService, roleService } from './index';
 
-const demoEmployees: Omit<Employee, 'id' | 'isActive'>[] = [
-  {
-    firstName: 'שרה',
-    lastName: 'כהן',
-    role: 'occupational-therapist',
-    weeklySessionsCount: 12,
-    workingHours: {
-      sunday: { startTime: '08:00', endTime: '16:00' },
-      monday: { startTime: '08:00', endTime: '16:00' },
-      tuesday: { startTime: '08:00', endTime: '16:00' },
-      wednesday: { startTime: '08:00', endTime: '14:00' },
-      thursday: { startTime: '08:00', endTime: '16:00' }
-    },
-    color: AVAILABLE_COLORS[0]
-  },
-  {
-    firstName: 'דוד',
-    lastName: 'לוי',
-    role: 'speech-therapist',
-    weeklySessionsCount: 10,
-    workingHours: {
-      sunday: { startTime: '09:00', endTime: '17:00' },
-      monday: { startTime: '09:00', endTime: '17:00' },
-      tuesday: { startTime: '09:00', endTime: '17:00' },
-      wednesday: { startTime: '09:00', endTime: '15:00' },
-      thursday: { startTime: '09:00', endTime: '17:00' }
-    },
-    color: AVAILABLE_COLORS[3]
-  },
-  {
-    firstName: 'מירי',
-    lastName: 'אברהם',
-    role: 'physiotherapist',
-    weeklySessionsCount: 8,
-    workingHours: {
-      sunday: { startTime: '08:30', endTime: '15:30' },
-      tuesday: { startTime: '08:30', endTime: '15:30' },
-      thursday: { startTime: '08:30', endTime: '15:30' }
-    },
-    color: AVAILABLE_COLORS[8]
-  }
-];
+// This demo service is deprecated - use the server-side seed data instead
+// The roleId references will need to be dynamically fetched from the role service
 
 const demoRooms: Omit<Room, 'id' | 'isActive'>[] = [
   { name: 'חדר טיפול 1', color: AVAILABLE_COLORS[1] },
@@ -51,14 +11,15 @@ const demoRooms: Omit<Room, 'id' | 'isActive'>[] = [
   { name: 'חדר תקשורת', color: AVAILABLE_COLORS[14] }
 ];
 
+// Demo patients now use role string keys instead of role enum values
 const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
   {
     firstName: 'אמיר',
     lastName: 'רוזן',
     color: AVAILABLE_COLORS[2],
     therapyRequirements: {
-      'occupational-therapist': 2,
-      'speech-therapist': 1
+      'role_5': 2, // ריפוי בעיסוק
+      'role_4': 1  // קלינאות תקשורת
     }
   },
   {
@@ -66,8 +27,8 @@ const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
     lastName: 'ברק',
     color: AVAILABLE_COLORS[6],
     therapyRequirements: {
-      'physiotherapist': 3,
-      'occupational-therapist': 1
+      'role_3': 3, // פיזיותרפיה
+      'role_5': 1  // ריפוי בעיסוק
     }
   },
   {
@@ -75,8 +36,8 @@ const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
     lastName: 'ישראלי',
     color: AVAILABLE_COLORS[9],
     therapyRequirements: {
-      'speech-therapist': 2,
-      'art-therapist': 1
+      'role_4': 2, // קלינאות תקשורת
+      'role_1': 1  // טיפול בהבעה ויציאה
     }
   },
   {
@@ -84,9 +45,9 @@ const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
     lastName: 'אדמון',
     color: AVAILABLE_COLORS[12],
     therapyRequirements: {
-      'occupational-therapist': 1,
-      'physiotherapist': 2,
-      'social-worker': 1
+      'role_5': 1, // ריפוי בעיסוק
+      'role_3': 2, // פיזיותרפיה
+      'role_2': 1  // עבודה סוציאלית
     }
   },
   {
@@ -94,7 +55,7 @@ const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
     lastName: 'מורג',
     color: AVAILABLE_COLORS[15],
     therapyRequirements: {
-      'speech-therapist': 3
+      'role_4': 3 // קלינאות תקשורת
     }
   }
 ];
@@ -132,9 +93,60 @@ const demoActivities: CreateActivityDto[] = [
 export const demoService = {
   async loadDemoData(): Promise<{ employees: Employee[]; rooms: Room[]; patients: Patient[] }> {
     try {
+      // Get available roles first
+      const roles = await roleService.getAll();
+      const roleMap = new Map(roles.map(role => [role.name, role.id]));
+
+      // Map demo employees to use roleId from the fetched roles
+      const employeesToCreate: CreateEmployeeDto[] = [
+        {
+          firstName: 'שרה',
+          lastName: 'כהן',
+          roleId: roleMap.get('ריפוי בעיסוק') || roles[0]?.id || '',
+          isActive: true,
+          weeklySessionsCount: 12,
+          workingHours: {
+            sunday: { startTime: '08:00', endTime: '16:00' },
+            monday: { startTime: '08:00', endTime: '16:00' },
+            tuesday: { startTime: '08:00', endTime: '16:00' },
+            wednesday: { startTime: '08:00', endTime: '14:00' },
+            thursday: { startTime: '08:00', endTime: '16:00' }
+          },
+          color: AVAILABLE_COLORS[0]
+        },
+        {
+          firstName: 'דוד',
+          lastName: 'לוי',
+          roleId: roleMap.get('קלינאות תקשורת') || roles[1]?.id || '',
+          isActive: true,
+          weeklySessionsCount: 10,
+          workingHours: {
+            sunday: { startTime: '09:00', endTime: '17:00' },
+            monday: { startTime: '09:00', endTime: '17:00' },
+            tuesday: { startTime: '09:00', endTime: '17:00' },
+            wednesday: { startTime: '09:00', endTime: '15:00' },
+            thursday: { startTime: '09:00', endTime: '17:00' }
+          },
+          color: AVAILABLE_COLORS[3]
+        },
+        {
+          firstName: 'מירי',
+          lastName: 'אברהם',
+          roleId: roleMap.get('פיזיותרפיה') || roles[2]?.id || '',
+          isActive: true,
+          weeklySessionsCount: 8,
+          workingHours: {
+            sunday: { startTime: '08:30', endTime: '15:30' },
+            tuesday: { startTime: '08:30', endTime: '15:30' },
+            thursday: { startTime: '08:30', endTime: '15:30' }
+          },
+          color: AVAILABLE_COLORS[8]
+        }
+      ];
+
       // Create employees
       const createdEmployees = await Promise.all(
-        demoEmployees.map(employee => employeeService.create(employee))
+        employeesToCreate.map(employee => employeeService.create(employee))
       );
 
       // Create rooms
@@ -151,8 +163,6 @@ export const demoService = {
       await Promise.all(
         demoActivities.map(activity => activityService.create(activity))
       );
-
-      // Config is no longer needed - activities are used instead
 
       return {
         employees: createdEmployees,

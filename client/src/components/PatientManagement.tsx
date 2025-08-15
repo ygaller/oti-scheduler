@@ -22,8 +22,9 @@ import {
   Tooltip
 } from '@mui/material';
 import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
-import { Patient, Role, ROLE_LABELS, getRandomColor } from '../types';
+import { Patient, getRandomColor } from '../types';
 import { patientService } from '../services';
+import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';
 
 interface PatientManagementProps {
@@ -40,34 +41,36 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
     firstName: '',
     lastName: '',
     color: '',
-    therapyRequirements: Object.keys(ROLE_LABELS).reduce((acc, role) => ({
-      ...acc,
-      [role]: 0
-    }), {})
+    therapyRequirements: {}
   });
+
+  // Get roles for therapy requirements
+  const { getActiveRoles, getRoleByStringKey } = useRoles();
+  const activeRoles = getActiveRoles();
 
   const handleOpenDialog = (patient?: Patient) => {
     if (patient) {
       setEditingPatient(patient);
-      // Ensure all roles are present with their values or 0
-      const allRoles = Object.keys(ROLE_LABELS).reduce((acc, role) => ({
+      // Ensure all active role string keys are present with their values or 0
+      const allRoleRequirements = activeRoles.reduce((acc, role) => ({
         ...acc,
-        [role]: patient.therapyRequirements?.[role] || 0
+        [role.roleStringKey]: patient.therapyRequirements?.[role.roleStringKey] || 0
       }), {});
       setFormData({
         ...patient,
-        therapyRequirements: allRoles
+        therapyRequirements: allRoleRequirements
       });
     } else {
       setEditingPatient(null);
+      const emptyTherapyRequirements = activeRoles.reduce((acc, role) => ({
+        ...acc,
+        [role.roleStringKey]: 0
+      }), {});
       setFormData({
         firstName: '',
         lastName: '',
         color: getRandomColor(),
-        therapyRequirements: Object.keys(ROLE_LABELS).reduce((acc, role) => ({
-          ...acc,
-          [role]: 0
-        }), {})
+        therapyRequirements: emptyTherapyRequirements
       });
     }
     setDialogOpen(true);
@@ -86,7 +89,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
       // Filter out 0 values from therapy requirements
       const filteredTherapyRequirements = Object.entries(formData.therapyRequirements || {})
         .filter(([_, sessions]) => sessions > 0)
-        .reduce((acc, [role, sessions]) => ({ ...acc, [role]: sessions }), {});
+        .reduce((acc, [roleStringKey, sessions]) => ({ ...acc, [roleStringKey]: sessions }), {});
 
       const patientData: Omit<Patient, 'id' | 'isActive'> = {
         firstName: formData.firstName,
@@ -124,21 +127,21 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
     await setPatients(!checked); // If showing active only, don't include inactive
   };
 
-  const handleTherapyRequirementChange = (role: Role, value: string) => {
+  const handleTherapyRequirementChange = (roleStringKey: string, value: string) => {
     const numValue = parseInt(value) || 0;
     setFormData(prev => ({
       ...prev,
       therapyRequirements: {
         ...prev.therapyRequirements,
-        [role]: numValue
+        [roleStringKey]: numValue
       }
     }));
   };
 
-  const removeTherapyRequirement = (role: Role) => {
+  const removeTherapyRequirement = (roleStringKey: string) => {
     setFormData(prev => {
       const newRequirements = { ...prev.therapyRequirements };
-      delete newRequirements[role];
+      delete newRequirements[roleStringKey];
       return {
         ...prev,
         therapyRequirements: newRequirements
@@ -195,14 +198,24 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
                   <Box display="flex" gap={1} flexWrap="wrap">
                     {Object.entries(patient.therapyRequirements || {})
                       .filter(([_, sessions]) => sessions > 0)
-                      .map(([role, sessions]) => (
-                        <Chip
-                          key={role}
-                          label={`${ROLE_LABELS[role as Role]}: ${sessions}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      ))}
+                      .map(([roleStringKey, sessions]) => {
+                        const role = getRoleByStringKey(roleStringKey);
+                        return (
+                          <Chip
+                            key={roleStringKey}
+                            label={`${role ? role.name : roleStringKey}: ${sessions}`}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        );
+                      })
+                    }
+                    {Object.keys(patient.therapyRequirements || {}).length === 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        אין דרישות טיפול
+                      </Typography>
+                    )}
                   </Box>
                 </TableCell>
                 <TableCell>
@@ -270,26 +283,26 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
             {/* Therapy Requirements */}
             <Box>
               <Typography variant="h6" sx={{ mb: 2 }}>דרישות טיפול</Typography>
-              {Object.entries(ROLE_LABELS).map(([role, label]) => (
-                <Box key={role} sx={{ mb: 2 }}>
+              {activeRoles.map((role) => (
+                <Box key={role.id} sx={{ mb: 2 }}>
                   <Box display="flex" alignItems="center" gap={2}>
                     <Typography variant="body1" sx={{ minWidth: '150px' }}>
-                      {label}
+                      {role.name}
                     </Typography>
                     <TextField
                       type="number"
                       label="מינימום טיפולים"
                       size="small"
-                      value={formData.therapyRequirements?.[role] ?? 0}
-                      onChange={(e) => handleTherapyRequirementChange(role as Role, e.target.value)}
+                      value={formData.therapyRequirements?.[role.roleStringKey] ?? 0}
+                      onChange={(e) => handleTherapyRequirementChange(role.roleStringKey, e.target.value)}
                       inputProps={{ min: 0, max: 20 }}
                       sx={{ width: '150px' }}
                     />
-                    {(formData.therapyRequirements?.[role] ?? 0) > 0 && (
+                    {(formData.therapyRequirements?.[role.roleStringKey] ?? 0) > 0 && (
                       <Button
                         size="small"
                         color="secondary"
-                        onClick={() => removeTherapyRequirement(role as Role)}
+                        onClick={() => removeTherapyRequirement(role.roleStringKey)}
                       >
                         הסר
                       </Button>

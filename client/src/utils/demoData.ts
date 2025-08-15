@@ -1,11 +1,14 @@
 import { Employee, Patient, Room, AVAILABLE_COLORS } from '../types';
 
+// This demo data is deprecated - use the server-side seed data instead
+// The following data structures do not match the new role system
+
 export const createDemoEmployees = (): Employee[] => [
   {
     id: 'emp1',
     firstName: 'שרה',
     lastName: 'כהן',
-    role: 'occupational-therapist',
+    roleId: 'role-id-placeholder', // This needs to be fetched from role service
     weeklySessionsCount: 12,
     workingHours: {
       sunday: { startTime: '08:00', endTime: '16:00' },
@@ -21,7 +24,7 @@ export const createDemoEmployees = (): Employee[] => [
     id: 'emp2',
     firstName: 'דוד',
     lastName: 'לוי',
-    role: 'speech-therapist',
+    roleId: 'role-id-placeholder', // This needs to be fetched from role service
     weeklySessionsCount: 10,
     workingHours: {
       sunday: { startTime: '09:00', endTime: '17:00' },
@@ -37,7 +40,7 @@ export const createDemoEmployees = (): Employee[] => [
     id: 'emp3',
     firstName: 'מירי',
     lastName: 'אברהם',
-    role: 'physiotherapist',
+    roleId: 'role-id-placeholder', // This needs to be fetched from role service
     weeklySessionsCount: 8,
     workingHours: {
       sunday: { startTime: '08:30', endTime: '15:30' },
@@ -56,8 +59,8 @@ export const createDemoPatients = (): Patient[] => [
     lastName: 'רוזן',
     color: AVAILABLE_COLORS[2],
     therapyRequirements: {
-      'occupational-therapist': 2,
-      'speech-therapist': 1
+      'role_5': 2, // ריפוי בעיסוק
+      'role_4': 1  // קלינאות תקשורת
     },
     isActive: true
   },
@@ -67,8 +70,8 @@ export const createDemoPatients = (): Patient[] => [
     lastName: 'ברק',
     color: AVAILABLE_COLORS[6],
     therapyRequirements: {
-      'physiotherapist': 3,
-      'occupational-therapist': 1
+      'role_3': 3, // פיזיותרפיה
+      'role_5': 1  // ריפוי בעיסוק
     },
     isActive: true
   },
@@ -78,8 +81,8 @@ export const createDemoPatients = (): Patient[] => [
     lastName: 'ישראלי',
     color: AVAILABLE_COLORS[9],
     therapyRequirements: {
-      'speech-therapist': 2,
-      'art-therapist': 1
+      'role_4': 2, // קלינאות תקשורת
+      'role_1': 1  // טיפול בהבעה ויציאה
     },
     isActive: true
   },
@@ -89,9 +92,9 @@ export const createDemoPatients = (): Patient[] => [
     lastName: 'אדמון',
     color: AVAILABLE_COLORS[11],
     therapyRequirements: {
-      'occupational-therapist': 1,
-      'physiotherapist': 2,
-      'social-worker': 1
+      'role_5': 1, // ריפוי בעיסוק
+      'role_3': 2, // פיזיותרפיה
+      'role_2': 1  // עבודה סוציאלית
     },
     isActive: true
   },
@@ -101,7 +104,7 @@ export const createDemoPatients = (): Patient[] => [
     lastName: 'מורג',
     color: AVAILABLE_COLORS[13],
     therapyRequirements: {
-      'speech-therapist': 3
+      'role_4': 3 // קלינאות תקשורת
     },
     isActive: true
   }

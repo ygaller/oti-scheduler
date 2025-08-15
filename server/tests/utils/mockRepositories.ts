@@ -4,7 +4,8 @@ import {
   RoomRepository, 
   PatientRepository, 
   ActivityRepository,
-  SessionRepository 
+  SessionRepository,
+  RoleRepository
 } from '../../src/repositories/interfaces';
 import { 
   Schedule, 
@@ -13,8 +14,11 @@ import {
   Room, 
   Patient, 
   Activity, 
+  Role,
   CreateEmployeeDto, 
-  CreateRoomDto 
+  CreateRoomDto,
+  CreateRoleDto,
+  UpdateRoleDto
 } from '../../src/types';
 
 const generateTestUUID = (): string => {
@@ -495,3 +499,106 @@ export class MockSessionRepository implements SessionRepository {
     this.sessions = [...sessions];
   }
 }
+
+export class MockRoleRepository implements RoleRepository {
+  private roles: Role[] = [];
+  private employeeCounts: Record<string, number> = {};
+  private roleCounter = 1;
+
+  async findAll(includeInactive?: boolean): Promise<Role[]> {
+    const filtered = includeInactive ? this.roles : this.roles.filter(r => r.isActive);
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async findById(id: string): Promise<Role | null> {
+    return this.roles.find(r => r.id === id) || null;
+  }
+
+  async findByName(name: string): Promise<Role | null> {
+    return this.roles.find(r => r.name === name) || null;
+  }
+
+  async findByRoleStringKey(roleStringKey: string): Promise<Role | null> {
+    return this.roles.find(r => r.roleStringKey === roleStringKey) || null;
+  }
+
+  async create(data: CreateRoleDto): Promise<Role> {
+    const role: Role = {
+      id: generateTestUUID(),
+      name: data.name,
+      roleStringKey: `role_${this.roleCounter++}`,
+      isActive: data.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.roles.push(role);
+    return role;
+  }
+
+  async update(id: string, data: UpdateRoleDto): Promise<Role | null> {
+    const roleIndex = this.roles.findIndex(r => r.id === id);
+    if (roleIndex === -1) return null;
+
+    const role = this.roles[roleIndex];
+    const updatedRole = {
+      ...role,
+      ...data,
+      updatedAt: new Date()
+    };
+    
+    this.roles[roleIndex] = updatedRole;
+    return updatedRole;
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<Role | null> {
+    return this.update(id, { isActive });
+  }
+
+  async delete(id: string): Promise<{ success: boolean; error?: string }> {
+    const employeeCount = this.employeeCounts[id] || 0;
+    
+    if (employeeCount > 0) {
+      return {
+        success: false,
+        error: `לא ניתן למחוק תפקיד שמוקצה ל-${employeeCount} עובד${employeeCount > 1 ? 'ים' : ''}. יש להסיר את התפקיד מכל העובדים לפני המחיקה.`
+      };
+    }
+
+    const roleIndex = this.roles.findIndex(r => r.id === id);
+    if (roleIndex === -1) {
+      return { success: false, error: 'Role not found' };
+    }
+
+    this.roles.splice(roleIndex, 1);
+    return { success: true };
+  }
+
+  async getEmployeeCount(roleId: string): Promise<number> {
+    return this.employeeCounts[roleId] || 0;
+  }
+
+  // Helper methods for testing
+  clear(): void {
+    this.roles = [];
+    this.employeeCounts = {};
+    this.roleCounter = 1;
+  }
+
+  setRoles(roles: Role[]): void {
+    this.roles = [...roles];
+  }
+
+  setEmployeeCount(roleId: string, count: number): void {
+    this.employeeCounts[roleId] = count;
+  }
+}
+
+// Export singleton instances for tests
+export const mockScheduleRepo = new MockScheduleRepository();
+export const mockEmployeeRepo = new MockEmployeeRepository();
+export const mockRoomRepo = new MockRoomRepository();
+export const mockPatientRepo = new MockPatientRepository();
+export const mockActivityRepo = new MockActivityRepository();
+export const mockSessionRepo = new MockSessionRepository();
+export const mockRoleRepo = new MockRoleRepository();

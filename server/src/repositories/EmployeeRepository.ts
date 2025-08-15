@@ -9,39 +9,43 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
   async findAll(includeInactive = false): Promise<Employee[]> {
     const employees = await this.prisma.employee.findMany({
       where: includeInactive ? {} : { isActive: true } as any,
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
+      include: {
+        role: true
+      }
     });
     return employees.map(mapPrismaEmployeeToAPI);
   }
 
   async findById(id: string): Promise<Employee | null> {
     const employee = await this.prisma.employee.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        role: true
+      }
     });
     return employee ? mapPrismaEmployeeToAPI(employee) : null;
   }
 
   async create(employeeData: CreateEmployeeDto): Promise<Employee> {
-    // Validate that role exists and can be mapped
-    if (!employeeData.role) {
-      throw new Error('Role is required');
-    }
-    
-    const prismaRole = mapAPIRoleToPrisma(employeeData.role);
-    if (!prismaRole) {
-      throw new Error(`Invalid role: ${employeeData.role}`);
+    // Validate that roleId is provided
+    if (!employeeData.roleId) {
+      throw new Error('Role ID is required');
     }
 
     const employee = await this.prisma.employee.create({
       data: {
         firstName: employeeData.firstName,
         lastName: employeeData.lastName,
-        role: prismaRole,
+        roleId: employeeData.roleId,
         workingHours: employeeData.workingHours as any,
         weeklySessionsCount: employeeData.weeklySessionsCount,
         color: employeeData.color,
         isActive: employeeData.isActive ?? true,
-      } as any
+      },
+      include: {
+        role: true // Include the role in the response
+      }
     });
     return mapPrismaEmployeeToAPI(employee);
   }
@@ -51,7 +55,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     
     if (employeeData.firstName !== undefined) updateData.firstName = employeeData.firstName;
     if (employeeData.lastName !== undefined) updateData.lastName = employeeData.lastName;
-    if (employeeData.role !== undefined) updateData.role = mapAPIRoleToPrisma(employeeData.role);
+    if (employeeData.roleId !== undefined) updateData.roleId = employeeData.roleId;
     if (employeeData.workingHours !== undefined) updateData.workingHours = employeeData.workingHours as any;
     if (employeeData.weeklySessionsCount !== undefined) updateData.weeklySessionsCount = employeeData.weeklySessionsCount;
     if (employeeData.color !== undefined) updateData.color = employeeData.color;
@@ -59,7 +63,10 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     
     const employee = await this.prisma.employee.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: {
+        role: true // Include the role in the response
+      }
     });
     return mapPrismaEmployeeToAPI(employee);
   }

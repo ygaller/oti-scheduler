@@ -1,15 +1,24 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('OCCUPATIONAL_THERAPIST', 'SPEECH_THERAPIST', 'PHYSIOTHERAPIST', 'SOCIAL_WORKER', 'ART_THERAPIST');
-
--- CreateEnum
 CREATE TYPE "WeekDay" AS ENUM ('SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY');
+
+-- CreateTable
+CREATE TABLE "roles" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "role_string_key" TEXT NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "employees" (
     "id" TEXT NOT NULL,
     "first_name" TEXT NOT NULL,
     "last_name" TEXT NOT NULL,
-    "role" "Role" NOT NULL,
+    "role_id" TEXT NOT NULL,
     "weekly_sessions_count" INTEGER NOT NULL,
     "working_hours" JSONB NOT NULL,
     "color" TEXT NOT NULL DEFAULT '#845ec2',
@@ -103,14 +112,17 @@ CREATE TABLE "session_patients" (
     CONSTRAINT "session_patients_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateIndex
+CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
 
-
-
+-- CreateIndex
+CREATE UNIQUE INDEX "roles_role_string_key_key" ON "roles"("role_string_key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "session_patients_session_id_patient_id_key" ON "session_patients"("session_id", "patient_id");
 
-
+-- AddForeignKey
+ALTER TABLE "employees" ADD CONSTRAINT "employees_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE CASCADE;

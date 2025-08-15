@@ -4,7 +4,6 @@ export { PrismaPatientRepository } from './PatientRepository';
 export { PrismaRoomRepository } from './RoomRepository';
 export { PrismaSessionRepository } from './SessionRepository';
 export { PrismaScheduleRepository } from './ScheduleRepository';
-
-
 export { PrismaActivityRepository } from './ActivityRepository';
+export { PrismaRoleRepository } from './RoleRepository';
 

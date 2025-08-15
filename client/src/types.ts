@@ -1,9 +1,12 @@
-export type Role = 
-  | 'occupational-therapist'
-  | 'speech-therapist' 
-  | 'physiotherapist'
-  | 'social-worker'
-  | 'art-therapist';
+// Role entity - now a proper database entity instead of an enum
+export interface Role {
+  id: string;
+  name: string;
+  roleStringKey: string; // e.g., "role_1", "role_2", etc.
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 export interface WorkingHours {
   startTime: string; // HH:mm format
@@ -14,7 +17,8 @@ export interface Employee {
   id: string;
   firstName: string;
   lastName: string;
-  role: Role;
+  roleId: string;
+  role?: Role; // Optional populated role object
   workingHours: {
     sunday?: WorkingHours;
     monday?: WorkingHours;
@@ -28,7 +32,7 @@ export interface Employee {
 }
 
 export interface TherapyRequirements {
-  [role: string]: number; // Role as key, minimum sessions as value
+  [roleStringKey: string]: number; // Role string key as key, minimum sessions as value
 }
 
 export interface Patient {
@@ -87,12 +91,15 @@ export interface Schedule {
   generatedAt: Date;
 }
 
-export const ROLE_LABELS: Record<Role, string> = {
-  'occupational-therapist': 'ריפוי בעיסוק',
-  'speech-therapist': 'קלינאות תקשורת',
-  'physiotherapist': 'פיזיותרפיה',
-  'social-worker': 'עבודה סוציאלית',
-  'art-therapist': 'טיפול בהבעה ויציאה'
+// Helper function to get role name from role object or fallback to roleStringKey
+export const getRoleName = (role: Role | undefined, roleStringKey?: string): string => {
+  if (role) {
+    return role.name;
+  }
+  if (roleStringKey) {
+    return roleStringKey; // Fallback to role string key if role object not available
+  }
+  return 'תפקיד לא ידוע';
 };
 
 export const DAY_LABELS = {
@@ -130,6 +137,23 @@ export const getRandomColor = (): string => {
   return AVAILABLE_COLORS[Math.floor(Math.random() * AVAILABLE_COLORS.length)];
 };
 
+// DTOs for Employee creation
+export interface CreateEmployeeDto {
+  firstName: string;
+  lastName: string;
+  roleId: string;
+  workingHours: {
+    sunday?: WorkingHours;
+    monday?: WorkingHours;
+    tuesday?: WorkingHours;
+    wednesday?: WorkingHours;
+    thursday?: WorkingHours;
+  };
+  weeklySessionsCount: number;
+  color: string;
+  isActive?: boolean;
+}
+
 // DTOs for Blocked Periods
 export interface CreateActivityDto {
   name: string;
@@ -142,3 +166,11 @@ export interface CreateActivityDto {
 }
 
 export interface UpdateActivityDto extends Partial<CreateActivityDto> {}
+
+// Role CRUD DTOs
+export interface CreateRoleDto {
+  name: string;
+  isActive?: boolean;
+}
+
+export interface UpdateRoleDto extends Partial<CreateRoleDto> {}

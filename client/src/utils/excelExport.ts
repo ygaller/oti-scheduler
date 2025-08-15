@@ -1,5 +1,5 @@
 import * as XLSX from 'sheetjs-style';
-import { Session, Employee, Room, Patient, Activity, DAY_LABELS, ROLE_LABELS, WeekDay, WEEK_DAYS } from '../types';
+import { Session, Employee, Room, Patient, Activity, DAY_LABELS, getRoleName, WeekDay, WEEK_DAYS } from '../types';
 
 interface ExcelExportOptions {
   sessions: Session[];
@@ -403,7 +403,7 @@ function createPatientScheduleWorksheet(patient: Patient, options: ExcelExportOp
           session.startTime,
           session.endTime,
           employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע',
-          employee ? ROLE_LABELS[employee.role] : 'לא ידוע',
+          employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע',
           room ? room.name : 'לא ידוע'
         ]);
       });

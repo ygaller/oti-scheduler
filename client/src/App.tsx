@@ -265,10 +265,10 @@ function AppContent() {
               {/* Main content */}
                   <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
+                      <Tab label="הגדרות" />
                       <Tab label="עובדים" />
                       <Tab label="מטופלים" />
                       <Tab label="חדרי טיפול" />
-                      <Tab label="הגדרות" />
                       <Tab label="לוח זמנים" />
                     </Tabs>
                   </Box>
@@ -280,30 +280,6 @@ function AppContent() {
                   ) : (
                     <>
                       {activeTab === 0 && (
-                        <EmployeeManagement 
-                          employees={employees} 
-                          setEmployees={refreshEmployees}
-                          setEmployeeActive={setEmployeeActive}
-                        />
-                      )}
-                      
-                      {activeTab === 1 && (
-                        <PatientManagement 
-                          patients={patients} 
-                          setPatients={refreshPatients}
-                          setPatientActive={setPatientActive}
-                        />
-                      )}
-                      
-                      {activeTab === 2 && (
-                        <RoomManagement 
-                          rooms={rooms} 
-                          setRooms={refreshRooms}
-                          setRoomActive={setRoomActive}
-                        />
-                      )}
-                      
-                      {activeTab === 3 && (
                         <>
                           <ScheduleConfiguration 
                             onDataChange={async () => {
@@ -331,6 +307,30 @@ function AppContent() {
                             </Typography>
                           </Box>
                         </>
+                      )}
+                      
+                      {activeTab === 1 && (
+                        <EmployeeManagement 
+                          employees={employees} 
+                          setEmployees={refreshEmployees}
+                          setEmployeeActive={setEmployeeActive}
+                        />
+                      )}
+                      
+                      {activeTab === 2 && (
+                        <PatientManagement 
+                          patients={patients} 
+                          setPatients={refreshPatients}
+                          setPatientActive={setPatientActive}
+                        />
+                      )}
+                      
+                      {activeTab === 3 && (
+                        <RoomManagement 
+                          rooms={rooms} 
+                          setRooms={refreshRooms}
+                          setRoomActive={setRoomActive}
+                        />
                       )}
                       
                       {activeTab === 4 && (

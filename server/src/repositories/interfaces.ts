@@ -1,4 +1,4 @@
-import { Employee, Patient, Room, Session, Schedule, Activity, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateActivityDto, UpdateActivityDto } from '../types';
+import { Employee, Patient, Room, Session, Schedule, Activity, Role, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateActivityDto, UpdateActivityDto, CreateRoleDto, UpdateRoleDto } from '../types';
 
 export interface EmployeeRepository {
   findAll(includeInactive?: boolean): Promise<Employee[]>;
@@ -63,5 +63,17 @@ export interface ActivityRepository {
   setActive(id: string, isActive: boolean): Promise<Activity>;
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
+}
+
+export interface RoleRepository {
+  findAll(includeInactive?: boolean): Promise<Role[]>;
+  findById(id: string): Promise<Role | null>;
+  findByName(name: string): Promise<Role | null>;
+  findByRoleStringKey(roleStringKey: string): Promise<Role | null>;
+  create(role: CreateRoleDto): Promise<Role>;
+  update(id: string, role: UpdateRoleDto): Promise<Role | null>;
+  setActive(id: string, isActive: boolean): Promise<Role | null>;
+  delete(id: string): Promise<{ success: boolean; error?: string }>;
+  getEmployeeCount(roleId: string): Promise<number>;
 }
 

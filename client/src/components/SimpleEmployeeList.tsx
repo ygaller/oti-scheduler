@@ -10,7 +10,7 @@ import {
   Button
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
-import { Employee, ROLE_LABELS } from '../types';
+import { Employee, getRoleName } from '../types';
 
 interface SimpleEmployeeListProps {
   employees: Employee[];
@@ -50,7 +50,7 @@ const SimpleEmployeeList: React.FC<SimpleEmployeeListProps> = ({ employees, onRe
                   secondary={
                     <Box>
                       <Chip 
-                        label={ROLE_LABELS[employee.role]} 
+                        label={getRoleName(employee.role, employee.roleId)} 
                         size="small" 
                         sx={{ mr: 1 }}
                       />

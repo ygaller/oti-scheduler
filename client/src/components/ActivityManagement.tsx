@@ -224,7 +224,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
+        <Typography variant="h5" component="h2">
         פעילויות שוטפות
         </Typography>
         <Box display="flex" gap={2} alignItems="center">

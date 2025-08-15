@@ -1,10 +1,12 @@
-// Re-export types from the client to maintain compatibility
-export type Role = 
-  | 'occupational-therapist'
-  | 'speech-therapist' 
-  | 'physiotherapist'
-  | 'social-worker'
-  | 'art-therapist';
+// Role entity - now a proper database entity instead of an enum
+export interface Role {
+  id: string;
+  name: string;
+  roleStringKey: string; // e.g., "role_1", "role_2", etc.
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface WorkingHours {
   startTime: string; // HH:mm format
@@ -15,7 +17,8 @@ export interface Employee {
   id: string;
   firstName: string;
   lastName: string;
-  role: Role;
+  roleId: string;
+  role?: Role; // Optional populated role object
   workingHours: {
     sunday?: WorkingHours;
     monday?: WorkingHours;
@@ -29,7 +32,7 @@ export interface Employee {
 }
 
 export interface TherapyRequirements {
-  [role: string]: number; // Role as key, minimum sessions as value
+  [roleStringKey: string]: number; // Role string key as key, minimum sessions as value
 }
 
 export interface Patient {
@@ -96,7 +99,7 @@ export type WeekDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday'
 export interface CreateEmployeeDto {
   firstName: string;
   lastName: string;
-  role: Role;
+  roleId: string;
   workingHours: Employee['workingHours'];
   weeklySessionsCount: number;
   color: string;
@@ -147,6 +150,14 @@ export interface CreateActivityDto {
 }
 
 export interface UpdateActivityDto extends Partial<CreateActivityDto> {}
+
+// Role CRUD DTOs
+export interface CreateRoleDto {
+  name: string;
+  isActive?: boolean;
+}
+
+export interface UpdateRoleDto extends Partial<CreateRoleDto> {}
 
 // Session-Patient relationship
 export interface SessionPatient {

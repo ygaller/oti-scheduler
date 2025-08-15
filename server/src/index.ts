@@ -9,13 +9,50 @@ import {
   PrismaRoomRepository, 
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
-
-
-  PrismaActivityRepository
+  PrismaActivityRepository,
+  PrismaRoleRepository
 } from './repositories';
 import { createApiRouter } from './routes';
+import { RoleRepository } from './repositories/interfaces';
 
-
+// Ensure default roles exist in the database
+async function ensureDefaultRoles(roleRepo: RoleRepository): Promise<void> {
+  try {
+    console.log('🔍 Checking for default roles...');
+    
+    // Check if any roles exist
+    const existingRoles = await roleRepo.findAll(true); // Include inactive
+    
+    if (existingRoles.length === 0) {
+      console.log('📝 Creating default roles...');
+      
+      // Default roles in alphabetical order (Hebrew)
+      const defaultRoles = [
+        'טיפול בהבעה ויציאה',
+        'עבודה סוציאלית', 
+        'פיזיותרפיה',
+        'קלינאות תקשורת',
+        'ריפוי בעיסוק'
+      ];
+      
+      // Create roles with generated role string keys
+      for (let i = 0; i < defaultRoles.length; i++) {
+        const role = await roleRepo.create({
+          name: defaultRoles[i],
+          isActive: true
+        });
+        console.log(`✅ Created default role: ${role.name} (${role.roleStringKey})`);
+      }
+      
+      console.log(`🎉 Successfully created ${defaultRoles.length} default roles!`);
+    } else {
+      console.log(`✅ Found ${existingRoles.length} existing roles, skipping default role creation`);
+    }
+  } catch (error) {
+    console.error('❌ Error ensuring default roles:', error);
+    // Don't throw - let the server continue even if role creation fails
+  }
+}
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -80,12 +117,14 @@ async function startServer() {
     const roomRepo = new PrismaRoomRepository(prisma);
     const scheduleRepo = new PrismaScheduleRepository(prisma);
     const sessionRepo = new PrismaSessionRepository(prisma);
-
-
     const activityRepo = new PrismaActivityRepository(prisma);
+    const roleRepo = new PrismaRoleRepository(prisma);
+    
+    // Ensure default roles exist
+    await ensureDefaultRoles(roleRepo);
     
     // Setup API routes
-    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, prisma));
+    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, roleRepo, prisma));
 
     
     // Default route
@@ -97,6 +136,7 @@ async function startServer() {
           employees: '/api/employees',
           patients: '/api/patients',
           rooms: '/api/rooms',
+          roles: '/api/roles',
           schedule: '/api/schedule',
           system: '/api/system',
           activities: '/api/activities',

@@ -1,9 +1,19 @@
-import { CreateEmployeeDto, CreateRoomDto, Role, Activity, Patient, Session, Schedule, WeekDay } from '../../src/types';
+import { CreateEmployeeDto, CreateRoomDto, CreateRoleDto, Role, Activity, Patient, Session, Schedule, WeekDay } from '../../src/types';
+
+export const createRoleFixture = (overrides: Partial<CreateRoleDto & { id?: string; roleStringKey?: string }> = {}): Role => ({
+  id: overrides.id || generateTestUUID(),
+  name: 'ריפוי בעיסוק',
+  roleStringKey: overrides.roleStringKey || 'role_1',
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides
+});
 
 export const createEmployeeFixture = (overrides: Partial<CreateEmployeeDto> = {}): CreateEmployeeDto => ({
   firstName: 'John',
   lastName: 'Doe',
-  role: 'occupational-therapist' as Role,
+  roleId: generateTestUUID(),
   workingHours: {
     sunday: { startTime: '08:00', endTime: '16:00' },
     monday: { startTime: '08:00', endTime: '16:00' },
@@ -26,12 +36,32 @@ export const createRoomFixture = (overrides: Partial<CreateRoomDto> = {}): Creat
 
 
 
-export const employeeRoles: Role[] = [
-  'occupational-therapist',
-  'speech-therapist',
-  'physiotherapist',
-  'social-worker',
-  'art-therapist'
+export const createMockRoles = (): Role[] => [
+  createRoleFixture({
+    id: generateTestUUID(),
+    name: 'ריפוי בעיסוק',
+    roleStringKey: 'role_1'
+  }),
+  createRoleFixture({
+    id: generateTestUUID(),
+    name: 'קלינאות תקשורת',
+    roleStringKey: 'role_2'
+  }),
+  createRoleFixture({
+    id: generateTestUUID(),
+    name: 'פיזיותרפיה',
+    roleStringKey: 'role_3'
+  }),
+  createRoleFixture({
+    id: generateTestUUID(),
+    name: 'עבודה סוציאלית',
+    roleStringKey: 'role_4'
+  }),
+  createRoleFixture({
+    id: generateTestUUID(),
+    name: 'טיפול בהבעה ויציאה',
+    roleStringKey: 'role_5'
+  })
 ];
 
 export const validWorkingHours = {
@@ -48,8 +78,8 @@ export const createPatientFixture = (overrides: Partial<Patient> = {}): Patient 
   lastName: 'Patient',
   color: '#ff5733',
   therapyRequirements: {
-    'occupational-therapist': 2,
-    'physiotherapist': 1
+    'role_1': 2,
+    'role_3': 1
   },
   isActive: true,
   ...overrides
@@ -95,25 +125,25 @@ export const createScheduleFixture = (overrides: Partial<Schedule> = {}): Schedu
 });
 
 // Mock data sets for comprehensive testing
-export const createMockEmployees = (): CreateEmployeeDto[] => [
+export const createMockEmployees = (roleIds: string[] = []): CreateEmployeeDto[] => [
   createEmployeeFixture({
     firstName: 'Alice',
     lastName: 'Smith',
-    role: 'occupational-therapist',
+    roleId: roleIds[0] || generateTestUUID(),
     weeklySessionsCount: 5,
     color: '#845ec2'
   }),
   createEmployeeFixture({
     firstName: 'Bob',
     lastName: 'Johnson',
-    role: 'physiotherapist',
+    roleId: roleIds[2] || generateTestUUID(),
     weeklySessionsCount: 3,
     color: '#4e9f3d'
   }),
   createEmployeeFixture({
     firstName: 'Carol',
     lastName: 'Davis',
-    role: 'speech-therapist',
+    roleId: roleIds[1] || generateTestUUID(),
     weeklySessionsCount: 2,
     color: '#d65db1'
   })
@@ -130,16 +160,16 @@ export const createMockPatients = (): Patient[] => [
     firstName: 'John',
     lastName: 'Doe',
     therapyRequirements: {
-      'occupational-therapist': 2,
-      'physiotherapist': 1
+      'role_1': 2,
+      'role_3': 1
     }
   }),
   createPatientFixture({
     firstName: 'Jane',
     lastName: 'Smith',
     therapyRequirements: {
-      'speech-therapist': 2,
-      'occupational-therapist': 1
+      'role_2': 2,
+      'role_1': 1
     }
   })
 ];

@@ -43,10 +43,11 @@ import {
   DAY_LABELS, 
   WEEK_DAYS,
   WeekDay,
-  ROLE_LABELS,
+  getRoleName,
   Activity,
   Patient 
 } from '../types';
+import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import { validateScheduleConstraints } from '../utils/scheduler';
@@ -104,6 +105,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
+  const { getRoleByStringKey } = useRoles();
 
   // Set default selected patient to first active patient
   React.useEffect(() => {
@@ -555,8 +557,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           // Only count sessions where this patient is assigned
           if (session.patients?.some(p => p.id === patient.id)) {
             const employee = employees.find(e => e.id === session.employeeId);
-            if (employee) {
-              assignedSessionsByRole[employee.role] = (assignedSessionsByRole[employee.role] || 0) + 1;
+            if (employee && employee.role?.roleStringKey) {
+              assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
             }
           }
         });
@@ -573,7 +575,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             chips.push({
               id: `${patient.id}-${role}`,
               patientName,
-              therapyType: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role,
+              therapyType: getRoleByStringKey(role)?.name || role,
               amount: unassignedAmount,
               patientColor: patient.color
             });
@@ -615,8 +617,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           // Only count sessions where this patient is assigned
           if (session.patients?.some(p => p.id === patient.id)) {
             const employee = employees.find(e => e.id === session.employeeId);
-            if (employee) {
-              assignedSessionsByRole[employee.role] = (assignedSessionsByRole[employee.role] || 0) + 1;
+            if (employee && employee.role?.roleStringKey) {
+              assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
             }
           }
         });
@@ -633,7 +635,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             chips.push({
               id: `${patient.id}-${role}-excess`,
               patientName,
-              therapyType: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role,
+              therapyType: getRoleByStringKey(role)?.name || role,
               amount: excessAmount,
               patientColor: patient.color
             });
@@ -993,7 +995,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <div class="session-time">${session.startTime} - ${session.endTime}</div>
               <div class="session-details">
                 עובד: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
-                תפקיד: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}<br>
+                תפקיד: ${employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}<br>
                 חדר: ${room ? room.name : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ') : ''}
               </div>
             </li>
@@ -1087,7 +1089,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <div class="session-details">
                 חדר: ${room ? room.name : 'לא ידוע'}<br>
                 עובד: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
-                תפקיד: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ') : ''}
+                תפקיד: ${employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ') : ''}
               </div>
             </li>
           `;
@@ -1182,7 +1184,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <div class="session-time">${session.startTime} - ${session.endTime}</div>
               <div class="session-details">
                 מטפל: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
-                טיפול: ${employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}<br>
+                טיפול: ${employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}<br>
                 חדר: ${room ? room.name : 'לא ידוע'}
               </div>
             </li>
@@ -1249,7 +1251,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   מטפל: {employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  טיפול: {employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}
+                  טיפול: {employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   חדר: {room ? room.name : 'לא ידוע'}
@@ -1284,7 +1286,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
                   <div>{employee.firstName} {employee.lastName}</div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#666' }}>
-                    ({ROLE_LABELS[employee.role]})
+                    ({getRoleName(employee.role, employee.roleId)})
                   </div>
                 </TableCell>
               ))}
@@ -1953,7 +1955,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
                   ).map(employee => (
                     <MenuItem key={employee.id} value={employee.id}>
-                      {employee.firstName} {employee.lastName} - {ROLE_LABELS[employee.role]}
+                      {employee.firstName} {employee.lastName} - {getRoleName(employee.role, employee.roleId)}
                     </MenuItem>
                   ))}
                 </Select>
