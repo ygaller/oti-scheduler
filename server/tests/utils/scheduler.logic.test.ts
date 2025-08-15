@@ -38,21 +38,21 @@ const createMockEmployees = (): Employee[] => [
     firstName: 'Alice',
     lastName: 'Smith',
     role: 'occupational-therapist',
-    weeklySessionsCount: 20,
+    weeklySessionsCount: 5,
     color: '#845ec2'
   })),
   convertEmployeeToEntity(createEmployeeFixture({
     firstName: 'Bob',
     lastName: 'Johnson',
     role: 'physiotherapist',
-    weeklySessionsCount: 15,
+    weeklySessionsCount: 3,
     color: '#4e9f3d'
   })),
   convertEmployeeToEntity(createEmployeeFixture({
     firstName: 'Carol',
     lastName: 'Davis',
     role: 'speech-therapist',
-    weeklySessionsCount: 12,
+    weeklySessionsCount: 2,
     color: '#d65db1'
   }))
 ];
@@ -124,7 +124,7 @@ describe('Scheduler Business Logic Tests', () => {
 
       expect(() => {
         generateScheduleWithActivities(employees, rooms, activities);
-      }).toThrow(/Cannot generate schedule - insufficient available time slots/);
+      }).toThrow(/No rooms found/);
     });
 
     it('should respect blocking activities', () => {

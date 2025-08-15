@@ -377,6 +377,13 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
       // Pre-populate with employee and room
       const employee = await mockEmployeeRepo.create(createEmployeeFixture());
       const room = await mockRoomRepo.create(createRoomFixture());
+      
+      // Create an active schedule first
+      const activeSchedule = await mockScheduleRepo.create({
+        sessions: [],
+        generatedAt: new Date(),
+        isActive: true
+      });
 
       const sessionData = {
         employeeId: employee.id,
@@ -407,6 +414,13 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     let session1: Session, session2: Session;
 
     beforeEach(async () => {
+      // Create an active schedule first
+      const activeSchedule = await mockScheduleRepo.create({
+        sessions: [],
+        generatedAt: new Date(),
+        isActive: true
+      });
+
       // Create test employees
       employee1 = await mockEmployeeRepo.create(createEmployeeFixture({
         firstName: 'Alice',
@@ -439,14 +453,16 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
         roomId: room1.id,
         day: 'monday',
         startTime: '10:00',
-        endTime: '11:00'
+        endTime: '11:00',
+        scheduleId: activeSchedule.id
       });
       session2 = await mockSessionRepo.create({
         employeeId: employee2.id,
         roomId: room2.id,
         day: 'monday',
         startTime: '10:30',
-        endTime: '11:30'
+        endTime: '11:30',
+        scheduleId: activeSchedule.id
       });
     });
 

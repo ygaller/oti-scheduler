@@ -17,6 +17,14 @@ import {
   CreateRoomDto 
 } from '../../src/types';
 
+const generateTestUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export class MockScheduleRepository implements ScheduleRepository {
   private schedules: Schedule[] = [];
   private idCounter = 1;
@@ -33,16 +41,30 @@ export class MockScheduleRepository implements ScheduleRepository {
     return this.schedules.find(s => s.isActive) || null;
   }
 
-  async create(sessions: Session[]): Promise<Schedule> {
+  async create(sessionsOrScheduleData: Session[] | Partial<Schedule>): Promise<Schedule> {
     // Deactivate all existing schedules
     this.schedules.forEach(s => s.isActive = false);
 
-    const schedule: Schedule = {
-      id: `schedule-${this.idCounter++}`,
-      sessions: sessions.map(s => ({ ...s, id: s.id || `session-${Date.now()}-${Math.random()}` })),
-      generatedAt: new Date(),
-      isActive: true
-    };
+    let schedule: Schedule;
+    
+    if (Array.isArray(sessionsOrScheduleData)) {
+      // Called with sessions array (normal schedule generation)
+      schedule = {
+        id: generateTestUUID(),
+        sessions: sessionsOrScheduleData.map(s => ({ ...s, id: s.id || generateTestUUID() })),
+        generatedAt: new Date(),
+        isActive: true
+      };
+    } else {
+      // Called with schedule data (for testing)
+      schedule = {
+        id: generateTestUUID(),
+        sessions: [],
+        generatedAt: new Date(),
+        isActive: true,
+        ...sessionsOrScheduleData
+      };
+    }
     
     this.schedules.push(schedule);
     return { ...schedule };
@@ -99,7 +121,7 @@ export class MockEmployeeRepository implements EmployeeRepository {
 
   async create(employee: CreateEmployeeDto): Promise<Employee> {
     const newEmployee: Employee = {
-      id: `employee-${this.idCounter++}`,
+      id: generateTestUUID(),
       ...employee,
       isActive: employee.isActive ?? true
     };
@@ -164,7 +186,7 @@ export class MockRoomRepository implements RoomRepository {
 
   async create(room: CreateRoomDto): Promise<Room> {
     const newRoom: Room = {
-      id: `room-${this.idCounter++}`,
+      id: generateTestUUID(),
       ...room,
       isActive: room.isActive ?? true
     };
@@ -229,7 +251,7 @@ export class MockPatientRepository implements PatientRepository {
 
   async create(patient: Omit<Patient, 'id'>): Promise<Patient> {
     const newPatient: Patient = {
-      id: `patient-${this.idCounter++}`,
+      id: generateTestUUID(),
       ...patient,
       isActive: patient.isActive ?? true
     };
@@ -294,7 +316,7 @@ export class MockActivityRepository implements ActivityRepository {
 
   async create(activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>): Promise<Activity> {
     const newActivity: Activity = {
-      id: `activity-${this.idCounter++}`,
+      id: generateTestUUID(),
       createdAt: new Date(),
       updatedAt: new Date(),
       ...activity,
@@ -366,7 +388,7 @@ export class MockSessionRepository implements SessionRepository {
 
   async create(session: Omit<Session, 'id'>): Promise<Session> {
     const newSession: Session = {
-      id: `session-${this.idCounter++}`,
+      id: generateTestUUID(),
       patients: [],
       ...session
     };

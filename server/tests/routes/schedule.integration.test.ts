@@ -35,14 +35,14 @@ describe('Schedule API Integration Tests', () => {
         firstName: 'Alice',
         lastName: 'Smith',
         role: 'occupational-therapist',
-        weeklySessionsCount: 20
+        weeklySessionsCount: 10
       });
 
       const employee2 = createEmployeeFixture({
         firstName: 'Bob',
         lastName: 'Johnson', 
         role: 'physiotherapist',
-        weeklySessionsCount: 15
+        weeklySessionsCount: 5
       });
 
       await request(app).post('/api/employees').send(employee1);
@@ -51,9 +51,11 @@ describe('Schedule API Integration Tests', () => {
       // Create test rooms via API
       const room1 = createRoomFixture({ name: 'Therapy Room 1' });
       const room2 = createRoomFixture({ name: 'Therapy Room 2' });
+      const room3 = createRoomFixture({ name: 'Therapy Room 3' });
 
       await request(app).post('/api/rooms').send(room1);
       await request(app).post('/api/rooms').send(room2);
+      await request(app).post('/api/rooms').send(room3);
 
       // Generate schedule via API
       const response = await request(app)

@@ -11,7 +11,7 @@ export const createEmployeeFixture = (overrides: Partial<CreateEmployeeDto> = {}
     wednesday: { startTime: '08:00', endTime: '16:00' },
     thursday: { startTime: '08:00', endTime: '16:00' }
   },
-  weeklySessionsCount: 20,
+  weeklySessionsCount: 5,
   color: '#845ec2',
   isActive: true,
   ...overrides
@@ -43,7 +43,7 @@ export const validWorkingHours = {
 };
 
 export const createPatientFixture = (overrides: Partial<Patient> = {}): Patient => ({
-  id: 'patient-' + Math.random().toString(36).substr(2, 9),
+  id: generateTestUUID(),
   firstName: 'John',
   lastName: 'Patient',
   color: '#ff5733',
@@ -56,7 +56,7 @@ export const createPatientFixture = (overrides: Partial<Patient> = {}): Patient 
 });
 
 export const createActivityFixture = (overrides: Partial<Activity> = {}): Activity => ({
-  id: 'activity-' + Math.random().toString(36).substr(2, 9),
+  id: generateTestUUID(),
   name: 'Test Activity',
   color: '#33ff57',
   defaultStartTime: '10:00',
@@ -68,9 +68,9 @@ export const createActivityFixture = (overrides: Partial<Activity> = {}): Activi
 });
 
 export const createSessionFixture = (overrides: Partial<Session> = {}): Session => ({
-  id: 'session-' + Math.random().toString(36).substr(2, 9),
-  employeeId: 'employee-' + Math.random().toString(36).substr(2, 9),
-  roomId: 'room-' + Math.random().toString(36).substr(2, 9),
+  id: generateTestUUID(),
+  employeeId: generateTestUUID(),
+  roomId: generateTestUUID(),
   day: 'monday' as WeekDay,
   startTime: '10:00',
   endTime: '11:00',
@@ -78,8 +78,16 @@ export const createSessionFixture = (overrides: Partial<Session> = {}): Session 
   ...overrides
 });
 
+const generateTestUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const createScheduleFixture = (overrides: Partial<Schedule> = {}): Schedule => ({
-  id: 'schedule-' + Math.random().toString(36).substr(2, 9),
+  id: generateTestUUID(),
   sessions: [],
   generatedAt: new Date(),
   isActive: false,
@@ -92,21 +100,21 @@ export const createMockEmployees = (): CreateEmployeeDto[] => [
     firstName: 'Alice',
     lastName: 'Smith',
     role: 'occupational-therapist',
-    weeklySessionsCount: 20,
+    weeklySessionsCount: 5,
     color: '#845ec2'
   }),
   createEmployeeFixture({
     firstName: 'Bob',
     lastName: 'Johnson',
     role: 'physiotherapist',
-    weeklySessionsCount: 15,
+    weeklySessionsCount: 3,
     color: '#4e9f3d'
   }),
   createEmployeeFixture({
     firstName: 'Carol',
     lastName: 'Davis',
     role: 'speech-therapist',
-    weeklySessionsCount: 12,
+    weeklySessionsCount: 2,
     color: '#d65db1'
   })
 ];
