@@ -56,7 +56,7 @@ export interface DayTimeOverride {
   [key: string]: TimeRange | null; // null means use default or no override for this day
 }
 
-export interface BlockedPeriod {
+export interface Activity {
   id: string;
   name: string;
   color: string;
@@ -144,7 +144,7 @@ export const getRandomColor = (): string => {
 };
 
 // DTOs for Blocked Periods
-export interface CreateBlockedPeriodDto {
+export interface CreateActivityDto {
   name: string;
   color: string;
   defaultStartTime?: string | null;
@@ -154,4 +154,4 @@ export interface CreateBlockedPeriodDto {
   isActive?: boolean;
 }
 
-export interface UpdateBlockedPeriodDto extends Partial<CreateBlockedPeriodDto> {}
+export interface UpdateActivityDto extends Partial<CreateActivityDto> {}

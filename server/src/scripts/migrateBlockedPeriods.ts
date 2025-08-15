@@ -1,21 +1,21 @@
 import { initializeDatabase } from '../database/connection';
 import { PrismaSystemConfigRepository } from '../repositories/SystemConfigRepository';
-import { PrismaBlockedPeriodRepository } from '../repositories/BlockedPeriodRepository';
+import { PrismaActivityRepository } from '../repositories/ActivityRepository';
 import { ScheduleConfig } from '../types';
 
 async function migrateBlockedPeriods() {
-  console.log('🔄 Starting blocked periods migration...');
+  console.log('🔄 Starting activities migration...');
   
   // Initialize database connection
   const { prisma } = await initializeDatabase();
   const configRepo = new PrismaSystemConfigRepository(prisma);
-  const blockedPeriodRepo = new PrismaBlockedPeriodRepository(prisma);
+  const activityRepo = new PrismaActivityRepository(prisma);
 
   try {
     // Check if migration has already been run
-    const existingBlockedPeriods = await blockedPeriodRepo.findAll(true);
-    if (existingBlockedPeriods.length > 0) {
-      console.log('⚠️  Blocked periods already exist. Skipping migration.');
+    const existingActivities = await activityRepo.findAll(true);
+    if (existingActivities.length > 0) {
+      console.log('⚠️  Activities already exist. Skipping migration.');
       return;
     }
 
@@ -28,8 +28,8 @@ async function migrateBlockedPeriods() {
 
     console.log('📊 Found schedule config:', JSON.stringify(config, null, 2));
 
-    // Create blocked periods from the config
-    const blockedPeriodsToCreate = [
+    // Create activities from the config
+    const activitiesToCreate = [
       {
         name: 'ארוחת בוקר',
         color: '#ff9671', // Orange for breakfast
@@ -59,10 +59,10 @@ async function migrateBlockedPeriods() {
       }
     ];
 
-    // Create the blocked periods
-    for (const blockedPeriodData of blockedPeriodsToCreate) {
-      const created = await blockedPeriodRepo.create(blockedPeriodData);
-      console.log(`✅ Created blocked period: ${created.name} (${created.defaultStartTime} - ${created.defaultEndTime})`);
+    // Create the activities
+    for (const activityData of activitiesToCreate) {
+      const created = await activityRepo.create(activityData);
+      console.log(`✅ Created activity: ${created.name} (${created.defaultStartTime} - ${created.defaultEndTime})`);
     }
 
     console.log('🎉 Migration completed successfully!');

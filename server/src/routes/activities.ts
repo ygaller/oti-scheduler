@@ -1,44 +1,44 @@
 import { Router, Request, Response } from 'express';
-import { BlockedPeriodRepository } from '../repositories/interfaces';
-import { CreateBlockedPeriodDto, UpdateBlockedPeriodDto } from '../types';
+import { ActivityRepository } from '../repositories/interfaces';
+import { CreateActivityDto, UpdateActivityDto } from '../types';
 import { AVAILABLE_COLORS } from '../types';
 
-export const createBlockedPeriodRouter = (blockedPeriodRepo: BlockedPeriodRepository): Router => {
+export const createActivityRouter = (activityRepo: ActivityRepository): Router => {
   const router = Router();
 
-  // GET /api/blocked-periods - Get all blocked periods
+  // GET /api/activities - Get all activities
   router.get('/', async (req: Request, res: Response) => {
     try {
       const includeInactive = req.query.includeInactive === 'true';
-      const blockedPeriods = await blockedPeriodRepo.findAll(includeInactive);
-      res.json(blockedPeriods);
+      const activities = await activityRepo.findAll(includeInactive);
+      res.json(activities);
     } catch (error) {
-      console.error('Error fetching blocked periods:', error);
+      console.error('Error fetching activities:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // GET /api/blocked-periods/:id - Get a specific blocked period
+  // GET /api/activities/:id - Get a specific activity
   router.get('/:id', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const blockedPeriod = await blockedPeriodRepo.findById(id);
+      const activity = await activityRepo.findById(id);
       
-      if (!blockedPeriod) {
-        return res.status(404).json({ error: 'Blocked period not found' });
+      if (!activity) {
+        return res.status(404).json({ error: 'Activity not found' });
       }
       
-      res.json(blockedPeriod);
+      res.json(activity);
     } catch (error) {
-      console.error('Error fetching blocked period:', error);
+      console.error('Error fetching activity:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // POST /api/blocked-periods - Create a new blocked period
+  // POST /api/activities - Create a new activity
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const dto: CreateBlockedPeriodDto = {
+      const dto: CreateActivityDto = {
         name: req.body.name,
         color: req.body.color || AVAILABLE_COLORS[Math.floor(Math.random() * AVAILABLE_COLORS.length)],
         defaultStartTime: req.body.defaultStartTime || null,
@@ -62,19 +62,19 @@ export const createBlockedPeriodRouter = (blockedPeriodRepo: BlockedPeriodReposi
         return res.status(400).json({ error: 'Invalid default end time format. Use HH:mm' });
       }
 
-      const blockedPeriod = await blockedPeriodRepo.create(dto);
-      res.status(201).json(blockedPeriod);
+      const activity = await activityRepo.create(dto);
+      res.status(201).json(activity);
     } catch (error) {
-      console.error('Error creating blocked period:', error);
+      console.error('Error creating activity:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // PUT /api/blocked-periods/:id - Update a blocked period
+  // PUT /api/activities/:id - Update an activity
   router.put('/:id', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const dto: UpdateBlockedPeriodDto = {};
+      const dto: UpdateActivityDto = {};
 
       // Only include fields that were provided
       if (req.body.name !== undefined) dto.name = req.body.name;
@@ -99,18 +99,18 @@ export const createBlockedPeriodRouter = (blockedPeriodRepo: BlockedPeriodReposi
         return res.status(400).json({ error: 'Invalid default end time format. Use HH:mm' });
       }
 
-      const blockedPeriod = await blockedPeriodRepo.update(id, dto);
-      res.json(blockedPeriod);
+      const activity = await activityRepo.update(id, dto);
+      res.json(activity);
     } catch (error: any) {
-      console.error('Error updating blocked period:', error);
+      console.error('Error updating activity:', error);
       if (error.code === 'P2025') {
-        return res.status(404).json({ error: 'Blocked period not found' });
+        return res.status(404).json({ error: 'Activity not found' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // PATCH /api/blocked-periods/:id/active - Toggle active status
+  // PATCH /api/activities/:id/active - Toggle active status
   router.patch('/:id/active', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -120,27 +120,27 @@ export const createBlockedPeriodRouter = (blockedPeriodRepo: BlockedPeriodReposi
         return res.status(400).json({ error: 'isActive must be a boolean' });
       }
 
-      const blockedPeriod = await blockedPeriodRepo.setActive(id, isActive);
-      res.json(blockedPeriod);
+      const activity = await activityRepo.setActive(id, isActive);
+      res.json(activity);
     } catch (error: any) {
-      console.error('Error updating blocked period status:', error);
+      console.error('Error updating activity status:', error);
       if (error.code === 'P2025') {
-        return res.status(404).json({ error: 'Blocked period not found' });
+        return res.status(404).json({ error: 'Activity not found' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // DELETE /api/blocked-periods/:id - Delete a blocked period
+  // DELETE /api/activities/:id - Delete an activity
   router.delete('/:id', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      await blockedPeriodRepo.delete(id);
+      await activityRepo.delete(id);
       res.status(204).send();
     } catch (error: any) {
-      console.error('Error deleting blocked period:', error);
+      console.error('Error deleting activity:', error);
       if (error.code === 'P2025') {
-        return res.status(404).json({ error: 'Blocked period not found' });
+        return res.status(404).json({ error: 'Activity not found' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }

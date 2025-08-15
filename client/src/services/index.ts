@@ -4,5 +4,5 @@ export { patientService } from './patientService';
 export { roomService } from './roomService';
 export { scheduleService } from './scheduleService';
 export { systemService, type SystemStatus } from './systemService';
-export { blockedPeriodService } from './blockedPeriodService';
+export { activityService } from './activityService';
 

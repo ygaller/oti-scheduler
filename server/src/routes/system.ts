@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, PatientRepository, BlockedPeriodRepository } from '../repositories';
+import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, PatientRepository, ActivityRepository } from '../repositories';
 
 export const createSystemRouter = (
   employeeRepo: EmployeeRepository,
@@ -8,7 +8,7 @@ export const createSystemRouter = (
   sessionRepo: SessionRepository,
   configRepo: SystemConfigRepository,
   patientRepo: PatientRepository,
-  blockedPeriodRepo: BlockedPeriodRepository
+  activityRepo: ActivityRepository
 ): Router => {
   const router = Router();
 
@@ -40,10 +40,10 @@ export const createSystemRouter = (
       
       // Only try to delete blocked periods if the table exists
       try {
-        await blockedPeriodRepo.deleteAll();
-        console.log('Deleted all blocked periods');
-      } catch (blockedPeriodError) {
-        console.log('Skipped blocked periods deletion - table may not exist yet');
+        await activityRepo.deleteAll();
+        console.log('Deleted all activities');
+      } catch (activityError) {
+        console.log('Skipped activities deletion - table may not exist yet');
       }
       
       await configRepo.deleteAll();

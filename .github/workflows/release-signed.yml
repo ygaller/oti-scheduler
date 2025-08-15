@@ -112,6 +112,7 @@ jobs:
         shell: powershell
 
       - name: List build artifacts
+        shell: bash
         run: ls -la dist-electron/
 
       - name: Upload signed macOS artifacts

@@ -1,9 +1,9 @@
-import { Employee, Room, Session, WeekDay, WEEK_DAYS, BlockedPeriod, ScheduleConfig } from '../types';
+import { Employee, Room, Session, WeekDay, WEEK_DAYS, Activity, ScheduleConfig } from '../types';
 
 // Helper function to get the effective time range for a blocked period on a specific day
-function getBlockedPeriodTimeForDay(blockedPeriod: BlockedPeriod, day: WeekDay): { startTime: string; endTime: string } | null {
+function getActivityTimeForDay(activity: Activity, day: WeekDay): { startTime: string; endTime: string } | null {
   // Check if there's a day-specific override
-  const dayOverride = blockedPeriod.dayOverrides[day];
+  const dayOverride = activity.dayOverrides[day];
   
   if (dayOverride !== undefined) {
     // If the override is explicitly null, this day is not blocked
@@ -15,10 +15,10 @@ function getBlockedPeriodTimeForDay(blockedPeriod: BlockedPeriod, day: WeekDay):
   }
   
   // Use default time if both are available
-  if (blockedPeriod.defaultStartTime && blockedPeriod.defaultEndTime) {
+  if (activity.defaultStartTime && activity.defaultEndTime) {
     return {
-      startTime: blockedPeriod.defaultStartTime,
-      endTime: blockedPeriod.defaultEndTime
+      startTime: activity.defaultStartTime,
+      endTime: activity.defaultEndTime
     };
   }
   
@@ -42,14 +42,14 @@ interface EmployeeScheduleState {
 class ScheduleGenerator {
   private employees: Employee[];
   private rooms: Room[];
-  private blockedPeriods: BlockedPeriod[];
+  private activities: Activity[];
   private sessions: Session[] = [];
   private employeeStates: Map<string, EmployeeScheduleState> = new Map();
 
-  constructor(employees: Employee[], rooms: Room[], blockedPeriods: BlockedPeriod[]) {
+  constructor(employees: Employee[], rooms: Room[], activities: Activity[]) {
     this.employees = employees;
     this.rooms = rooms;
-    this.blockedPeriods = blockedPeriods.filter(bp => bp.isActive);
+    this.activities = activities.filter(activity => activity.isActive);
     this.initializeEmployeeStates();
   }
 
@@ -263,13 +263,13 @@ class ScheduleGenerator {
   }
 
   private isTimeSlotBlocked(day: WeekDay, startTime: string, endTime: string): boolean {
-    return this.blockedPeriods.some(blockedPeriod => {
-      // Only check blocked periods that are set to block scheduling
-      if (!blockedPeriod.isBlocking) {
+    return this.activities.some(activity => {
+      // Only check activities that are set to block scheduling
+      if (!activity.isBlocking) {
         return false;
       }
       
-      const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, day);
+      const periodTime = getActivityTimeForDay(activity, day);
       if (!periodTime) {
         return false; // No blocking for this day
       }
@@ -296,8 +296,8 @@ export function generateSchedule(
   rooms: Room[],
   config: ScheduleConfig
 ): Session[] {
-  // Convert old config to blocked periods
-  const blockedPeriods: BlockedPeriod[] = [
+  // Convert old config to activities
+  const activities: Activity[] = [
     {
       id: 'legacy-breakfast',
       name: 'ארוחת בוקר',
@@ -330,16 +330,16 @@ export function generateSchedule(
     }
   ];
   
-  return generateScheduleWithBlockedPeriods(employees, rooms, blockedPeriods);
+  return generateScheduleWithActivities(employees, rooms, activities);
 }
 
-// New function that uses BlockedPeriod[]
-export function generateScheduleWithBlockedPeriods(
+// New function that uses Activity[]
+export function generateScheduleWithActivities(
   employees: Employee[],
   rooms: Room[],
-  blockedPeriods: BlockedPeriod[]
+  activities: Activity[]
 ): Session[] {
-  const generator = new ScheduleGenerator(employees, rooms, blockedPeriods);
+  const generator = new ScheduleGenerator(employees, rooms, activities);
   return generator.generateSchedule();
 }
 
@@ -390,8 +390,8 @@ export function validateScheduleConstraints(
     return { valid: false, error: 'העובד תפוס בזמן זה' };
   }
 
-  // Check blocked periods - convert legacy config
-  const legacyBlockedPeriods: BlockedPeriod[] = [
+  // Check activities - convert legacy config
+  const legacyActivities: Activity[] = [
     {
       id: 'legacy-breakfast',
       name: 'ארוחת בוקר',
@@ -424,16 +424,16 @@ export function validateScheduleConstraints(
     }
   ];
 
-  return validateScheduleConstraintsWithBlockedPeriods(session, allSessions, employees, rooms, legacyBlockedPeriods);
+  return validateScheduleConstraintsWithActivities(session, allSessions, employees, rooms, legacyActivities);
 }
 
-// New validation function that uses BlockedPeriod[]
-export function validateScheduleConstraintsWithBlockedPeriods(
+// New validation function that uses Activity[]
+export function validateScheduleConstraintsWithActivities(
   session: Session,
   allSessions: Session[],
   employees: Employee[],
   rooms: Room[],
-  blockedPeriods: BlockedPeriod[]
+  activities: Activity[]
 ): { valid: boolean; error?: string } {
   const employee = employees.find(e => e.id === session.employeeId);
   const room = rooms.find(r => r.id === session.roomId);
@@ -475,10 +475,10 @@ export function validateScheduleConstraintsWithBlockedPeriods(
     return { valid: false, error: 'העובד תפוס בזמן זה' };
   }
 
-  // Check blocked periods using new logic
-  const activeBlockingPeriods = blockedPeriods.filter(bp => bp.isActive && bp.isBlocking);
-  const blockedConflict = activeBlockingPeriods.some(blockedPeriod => {
-    const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, session.day);
+  // Check activities using new logic
+  const activeBlockingActivities = activities.filter(activity => activity.isActive && activity.isBlocking);
+  const blockedConflict = activeBlockingActivities.some(activity => {
+    const periodTime = getActivityTimeForDay(activity, session.day);
     if (!periodTime) {
       return false; // No blocking for this day
     }

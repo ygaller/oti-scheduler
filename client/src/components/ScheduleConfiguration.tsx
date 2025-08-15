@@ -16,8 +16,8 @@ import { Delete as DeleteIcon, Warning as WarningIcon, DataObject as DemoIcon } 
 import { ScheduleConfig } from '../types';
 import { systemService } from '../services';
 import { demoService } from '../services/demoService';
-import { useBlockedPeriods } from '../hooks';
-import BlockedPeriodManagement from './BlockedPeriodManagement';
+import { useActivities } from '../hooks';
+import ActivityManagement from './ActivityManagement';
 
 interface ScheduleConfigurationProps {
   config: ScheduleConfig | null;
@@ -37,14 +37,14 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
 
   // Use the blocked periods hook
   const {
-    blockedPeriods,
-    loading: blockedPeriodsLoading,
-    error: blockedPeriodsError,
-    createBlockedPeriod,
-    updateBlockedPeriod,
-    setBlockedPeriodActive,
-    deleteBlockedPeriod
-  } = useBlockedPeriods(false); // Include inactive for management
+    activities,
+    loading: activitiesLoading,
+    error: activitiesError,
+    createActivity,
+    updateActivity,
+    setActivityActive,
+    deleteActivity
+  } = useActivities(false); // Include inactive for management
 
 
   const handleResetData = async () => {
@@ -151,26 +151,26 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
       )}
 
       {/* New Flexible Blocked Periods Management */}
-      {blockedPeriodsError && (
+      {activitiesError && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {blockedPeriodsError}
+          {activitiesError}
         </Alert>
       )}
 
-      {blockedPeriodsLoading ? (
+      {activitiesLoading ? (
         <Box display="flex" justifyContent="center" p={4}>
           <CircularProgress />
         </Box>
       ) : (
-        <BlockedPeriodManagement
-          blockedPeriods={blockedPeriods}
-          onCreateBlockedPeriod={createBlockedPeriod}
-          onUpdateBlockedPeriod={updateBlockedPeriod}
-          onSetBlockedPeriodActive={setBlockedPeriodActive}
-          onDeleteBlockedPeriod={deleteBlockedPeriod}
-          showActiveOnly={showActiveOnly}
-          onShowActiveToggle={setShowActiveOnly}
-        />
+                        <ActivityManagement
+                  activities={activities}
+                  onCreateActivity={createActivity}
+                  onUpdateActivity={updateActivity}
+                  onSetActivityActive={setActivityActive}
+                  onDeleteActivity={deleteActivity}
+                  showActiveOnly={showActiveOnly}
+                  onShowActiveToggle={setShowActiveOnly}
+                />
       )}
 
       {process.env.NODE_ENV === 'development' && (

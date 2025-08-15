@@ -6,14 +6,14 @@ import {
   ScheduleRepository, 
   SessionRepository, 
   SystemConfigRepository,
-  BlockedPeriodRepository
+  ActivityRepository
 } from '../repositories';
 import { createEmployeeRouter } from './employees';
 import { createPatientRouter } from './patients';
 import { createRoomRouter } from './rooms';
 import { createScheduleRouter } from './schedule';
 import { createSystemRouter } from './system';
-import { createBlockedPeriodRouter } from './blockedPeriods';
+import { createActivityRouter } from './activities';
 
 export const createApiRouter = (
   employeeRepo: EmployeeRepository,
@@ -22,7 +22,7 @@ export const createApiRouter = (
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
   configRepo: SystemConfigRepository,
-  blockedPeriodRepo: BlockedPeriodRepository
+  activityRepo: ActivityRepository
 ): Router => {
   const router = Router();
 
@@ -31,8 +31,8 @@ export const createApiRouter = (
   router.use('/patients', createPatientRouter(patientRepo));
   router.use('/rooms', createRoomRouter(roomRepo));
   router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo));
-  router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, patientRepo, blockedPeriodRepo));
-  router.use('/blocked-periods', createBlockedPeriodRouter(blockedPeriodRepo));
+  router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, patientRepo, activityRepo));
+  router.use('/activities', createActivityRouter(activityRepo));
 
   // Health check endpoint
   router.get('/health', (req, res) => {

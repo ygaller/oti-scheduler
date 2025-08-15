@@ -6,5 +6,5 @@ export { PrismaSessionRepository } from './SessionRepository';
 export { PrismaScheduleRepository } from './ScheduleRepository';
 export { PrismaSystemConfigRepository } from './SystemConfigRepository';
 export { PrismaUserRepository } from './UserRepository';
-export { PrismaBlockedPeriodRepository } from './BlockedPeriodRepository';
+export { PrismaActivityRepository } from './ActivityRepository';
 

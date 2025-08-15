@@ -44,11 +44,11 @@ import {
   WEEK_DAYS,
   WeekDay,
   ROLE_LABELS,
-  BlockedPeriod 
+  Activity 
 } from '../types';
 import { validateScheduleConstraints } from '../utils/scheduler';
 import { scheduleService } from '../services';
-import { useBlockedPeriods } from '../hooks';
+import { useActivities } from '../hooks';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -73,7 +73,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Get blocked periods for display
-  const { blockedPeriods } = useBlockedPeriods(true); // Only active ones
+  const { activities } = useActivities(true); // Only active ones
 
   const handleGenerateScheduleClick = () => {
     console.log('Generate schedule button clicked!');
@@ -333,9 +333,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   // Helper function to get the effective time range for a blocked period on a specific day
-  const getBlockedPeriodTimeForDay = (blockedPeriod: BlockedPeriod, day: WeekDay): { startTime: string; endTime: string } | null => {
+  const getActivityTimeForDay = (activity: Activity, day: WeekDay): { startTime: string; endTime: string } | null => {
     // Check if there's a day-specific override
-    const dayOverride = blockedPeriod.dayOverrides[day];
+    const dayOverride = activity.dayOverrides[day];
     
     if (dayOverride !== undefined) {
       // If the override is explicitly null, this day is not blocked
@@ -347,10 +347,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
     
     // Use default time if both are available
-    if (blockedPeriod.defaultStartTime && blockedPeriod.defaultEndTime) {
+    if (activity.defaultStartTime && activity.defaultEndTime) {
       return {
-        startTime: blockedPeriod.defaultStartTime,
-        endTime: blockedPeriod.defaultEndTime
+        startTime: activity.defaultStartTime,
+        endTime: activity.defaultEndTime
       };
     }
     
@@ -359,14 +359,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const getReservedSlot = (time: string, day: WeekDay) => {
-    // Check all active blocked periods
-    for (const blockedPeriod of blockedPeriods) {
-      const timeRange = getBlockedPeriodTimeForDay(blockedPeriod, day);
+    // Check all active activities
+    for (const activity of activities) {
+      const timeRange = getActivityTimeForDay(activity, day);
       if (timeRange && isTimeInRange(time, timeRange.startTime, timeRange.endTime)) {
         return { 
-          type: blockedPeriod.id, 
-          label: blockedPeriod.name,
-          color: blockedPeriod.color,
+          type: activity.id, 
+          label: activity.name,
+          color: activity.color,
           isStartTime: time === timeRange.startTime
         };
       }
@@ -639,14 +639,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
     html += '</div>';
 
-    // Add blocked periods if any
-    if (blockedPeriods.length > 0) {
+    // Add activities if any
+    if (activities.length > 0) {
       html += `
         <div class="blocked-periods">
           <div class="statistics-title">פעילויות שוטפות</div>
       `;
       
-      blockedPeriods.forEach(period => {
+      activities.forEach(period => {
         html += `
           <div class="blocked-period-item">
             <strong>${period.name}</strong><br>

@@ -30,9 +30,9 @@ import {
   Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import { 
-  BlockedPeriod, 
-  CreateBlockedPeriodDto, 
-  UpdateBlockedPeriodDto, 
+  Activity, 
+  CreateActivityDto, 
+  UpdateActivityDto, 
   AVAILABLE_COLORS, 
   DAY_LABELS,
   WeekDay,
@@ -40,12 +40,12 @@ import {
 } from '../types';
 import ColorPicker from './ColorPicker';
 
-interface BlockedPeriodManagementProps {
-  blockedPeriods: BlockedPeriod[];
-  onCreateBlockedPeriod: (data: CreateBlockedPeriodDto) => Promise<BlockedPeriod>;
-  onUpdateBlockedPeriod: (id: string, data: UpdateBlockedPeriodDto) => Promise<BlockedPeriod>;
-  onSetBlockedPeriodActive: (id: string, isActive: boolean) => Promise<BlockedPeriod>;
-  onDeleteBlockedPeriod: (id: string) => Promise<void>;
+interface ActivityManagementProps {
+  activities: Activity[];
+  onCreateActivity: (data: CreateActivityDto) => Promise<Activity>;
+  onUpdateActivity: (id: string, data: UpdateActivityDto) => Promise<Activity>;
+  onSetActivityActive: (id: string, isActive: boolean) => Promise<Activity>;
+  onDeleteActivity: (id: string) => Promise<void>;
   showActiveOnly: boolean;
   onShowActiveToggle: (checked: boolean) => void;
 }
@@ -70,12 +70,12 @@ const initialFormData: FormData = {
   isActive: true
 };
 
-const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
-  blockedPeriods,
-  onCreateBlockedPeriod,
-  onUpdateBlockedPeriod,
-  onSetBlockedPeriodActive,
-  onDeleteBlockedPeriod,
+const ActivityManagement: React.FC<ActivityManagementProps> = ({
+  activities,
+  onCreateActivity,
+  onUpdateActivity,
+  onSetActivityActive,
+  onDeleteActivity,
   showActiveOnly,
   onShowActiveToggle
 }) => {
@@ -87,17 +87,17 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
 
   const isEditing = editingId !== null;
 
-  const handleOpenDialog = (blockedPeriod?: BlockedPeriod) => {
-    if (blockedPeriod) {
-      setEditingId(blockedPeriod.id);
+  const handleOpenDialog = (activity?: Activity) => {
+    if (activity) {
+      setEditingId(activity.id);
       setFormData({
-        name: blockedPeriod.name,
-        color: blockedPeriod.color,
-        defaultStartTime: blockedPeriod.defaultStartTime,
-        defaultEndTime: blockedPeriod.defaultEndTime,
-        dayOverrides: { ...blockedPeriod.dayOverrides } as Record<WeekDay, { startTime: string; endTime: string } | null>,
-        isBlocking: blockedPeriod.isBlocking,
-        isActive: blockedPeriod.isActive
+        name: activity.name,
+        color: activity.color,
+        defaultStartTime: activity.defaultStartTime,
+        defaultEndTime: activity.defaultEndTime,
+        dayOverrides: { ...activity.dayOverrides } as Record<WeekDay, { startTime: string; endTime: string } | null>,
+        isBlocking: activity.isBlocking,
+        isActive: activity.isActive
       });
     } else {
       setEditingId(null);
@@ -120,7 +120,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
       setError(null);
 
       if (isEditing) {
-        const updateDto: UpdateBlockedPeriodDto = {
+        const updateDto: UpdateActivityDto = {
           name: formData.name.trim(),
           color: formData.color,
           defaultStartTime: formData.defaultStartTime,
@@ -129,9 +129,9 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
           isBlocking: formData.isBlocking,
           isActive: formData.isActive
         };
-        await onUpdateBlockedPeriod(editingId!, updateDto);
+        await onUpdateActivity(editingId!, updateDto);
       } else {
-        const createDto: CreateBlockedPeriodDto = {
+        const createDto: CreateActivityDto = {
           name: formData.name.trim() || '',
           color: formData.color,
           defaultStartTime: formData.defaultStartTime,
@@ -140,13 +140,13 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
           isBlocking: formData.isBlocking,
           isActive: formData.isActive
         };
-        await onCreateBlockedPeriod(createDto);
+        await onCreateActivity(createDto);
       }
 
       handleCloseDialog();
     } catch (error) {
-      console.error('Error saving blocked period:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save blocked period');
+      console.error('Error saving activity:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save activity');
     } finally {
       setSaving(false);
     }
@@ -154,18 +154,18 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     try {
-      await onSetBlockedPeriodActive(id, !currentStatus);
+      await onSetActivityActive(id, !currentStatus);
     } catch (error) {
-      console.error('Error updating blocked period status:', error);
+      console.error('Error updating activity status:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('האם אתה בטוח שברצונך למחוק את התקופה החסומה?')) {
       try {
-        await onDeleteBlockedPeriod(id);
+        await onDeleteActivity(id);
       } catch (error) {
-        console.error('Error deleting blocked period:', error);
+        console.error('Error deleting activity:', error);
       }
     }
   };
@@ -217,9 +217,9 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
     });
   };
 
-  const filteredBlockedPeriods = showActiveOnly 
-    ? blockedPeriods.filter(bp => bp.isActive)
-    : blockedPeriods;
+  const filteredActivities = showActiveOnly 
+    ? activities.filter(activity => activity.isActive)
+    : activities;
 
   return (
     <Box>
@@ -258,8 +258,8 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
           gap: 3
         }}
       >
-        {filteredBlockedPeriods.map((blockedPeriod) => (
-          <Card key={blockedPeriod.id} sx={{ height: '100%' }}>
+        {filteredActivities.map((activity) => (
+          <Card key={activity.id} sx={{ height: '100%' }}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -268,23 +268,23 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                         width: 20,
                         height: 20,
                         borderRadius: '50%',
-                        backgroundColor: blockedPeriod.color,
+                        backgroundColor: activity.color,
                         flexShrink: 0
                       }}
                     />
                     <Typography variant="h6" component="h2">
-                      {blockedPeriod.name}
+                      {activity.name}
                     </Typography>
                   </Box>
                   <Box display="flex" flexDirection="column" gap={0.5}>
                     <Chip
-                      label={blockedPeriod.isActive ? 'פעיל' : 'לא פעיל'}
-                      color={blockedPeriod.isActive ? 'success' : 'default'}
+                      label={activity.isActive ? 'פעיל' : 'לא פעיל'}
+                      color={activity.isActive ? 'success' : 'default'}
                       size="small"
                     />
                     <Chip
-                      label={blockedPeriod.isBlocking ? 'חוסם טיפולים' : 'לא חוסם טיפולים'}
-                      color={blockedPeriod.isBlocking ? 'warning' : 'info'}
+                      label={activity.isBlocking ? 'חוסם טיפולים' : 'לא חוסם טיפולים'}
+                      color={activity.isBlocking ? 'warning' : 'info'}
                       size="small"
                     />
                   </Box>
@@ -294,9 +294,9 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     <strong>שעות יומיות:</strong>
                   </Typography>
-                  {blockedPeriod.defaultStartTime && blockedPeriod.defaultEndTime ? (
+                  {activity.defaultStartTime && activity.defaultEndTime ? (
                     <Typography variant="body2">
-                      {blockedPeriod.defaultStartTime} - {blockedPeriod.defaultEndTime}
+                      {activity.defaultStartTime} - {activity.defaultEndTime}
                     </Typography>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
@@ -305,12 +305,12 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                   )}
                 </Box>
 
-                {Object.keys(blockedPeriod.dayOverrides).length > 0 && (
+                {Object.keys(activity.dayOverrides).length > 0 && (
                   <Box mb={2}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       <strong>שעות בימים ספציפיים:</strong>
                     </Typography>
-                    {Object.entries(blockedPeriod.dayOverrides).map(([day, override]) => (
+                    {Object.entries(activity.dayOverrides).map(([day, override]) => (
                       override && (
                         <Typography key={day} variant="body2">
                           {DAY_LABELS[day as WeekDay]}: {override.startTime} - {override.endTime}
@@ -324,22 +324,22 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                   <Button
                     size="small"
                     startIcon={<EditIcon />}
-                    onClick={() => handleOpenDialog(blockedPeriod)}
+                    onClick={() => handleOpenDialog(activity)}
                   >
                     ערוך
                   </Button>
                   <Button
                     size="small"
-                    color={blockedPeriod.isActive ? 'warning' : 'success'}
-                    onClick={() => handleToggleActive(blockedPeriod.id, blockedPeriod.isActive)}
+                    color={activity.isActive ? 'warning' : 'success'}
+                    onClick={() => handleToggleActive(activity.id, activity.isActive)}
                   >
-                    {blockedPeriod.isActive ? 'השבת' : 'הפעל'}
+                    {activity.isActive ? 'השבת' : 'הפעל'}
                   </Button>
                   <Button
                     size="small"
                     color="error"
                     startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(blockedPeriod.id)}
+                    onClick={() => handleDelete(activity.id)}
                   >
                     מחק
                   </Button>
@@ -349,7 +349,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
         ))}
       </Box>
 
-      {filteredBlockedPeriods.length === 0 && (
+      {filteredActivities.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center', mt: 3 }}>
           <ScheduleIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -368,7 +368,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
         </Paper>
       )}
 
-      {/* Dialog for creating/editing blocked periods */}
+      {/* Dialog for creating/editing activities */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {isEditing ? 'ערוך פעילויות שוטפות' : 'הגדר פעילויות שוטפות'}
@@ -516,4 +516,4 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
   );
 };
 
-export default BlockedPeriodManagement;
+export default ActivityManagement;

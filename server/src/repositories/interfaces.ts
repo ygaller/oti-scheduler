@@ -1,4 +1,4 @@
-import { Employee, Patient, Room, Session, Schedule, ScheduleConfig, BlockedPeriod, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateBlockedPeriodDto, UpdateBlockedPeriodDto } from '../types';
+import { Employee, Patient, Room, Session, Schedule, ScheduleConfig, Activity, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateActivityDto, UpdateActivityDto } from '../types';
 
 export interface EmployeeRepository {
   findAll(includeInactive?: boolean): Promise<Employee[]>;
@@ -60,12 +60,12 @@ export interface SystemConfigRepository {
   setScheduleConfig(config: ScheduleConfig): Promise<void>;
 }
 
-export interface BlockedPeriodRepository {
-  findAll(includeInactive?: boolean): Promise<BlockedPeriod[]>;
-  findById(id: string): Promise<BlockedPeriod | null>;
-  create(blockedPeriod: CreateBlockedPeriodDto): Promise<BlockedPeriod>;
-  update(id: string, blockedPeriod: UpdateBlockedPeriodDto): Promise<BlockedPeriod>;
-  setActive(id: string, isActive: boolean): Promise<BlockedPeriod>;
+export interface ActivityRepository {
+  findAll(includeInactive?: boolean): Promise<Activity[]>;
+  findById(id: string): Promise<Activity | null>;
+  create(activity: CreateActivityDto): Promise<Activity>;
+  update(id: string, activity: UpdateActivityDto): Promise<Activity>;
+  setActive(id: string, isActive: boolean): Promise<Activity>;
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
 }

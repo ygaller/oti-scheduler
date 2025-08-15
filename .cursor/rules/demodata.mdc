@@ -1,4 +1,4 @@
 ---
 alwaysApply: true
 ---
-When changing the data structures always make sure to update the demo data and demo data creation. Also update the delete all data button behavior.
+When changing the data structures always make sure to update the demo data and demo data creation. Also update the delete all data button behavior. Always update any export logic (csv, etc.)

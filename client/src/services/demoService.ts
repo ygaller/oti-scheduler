@@ -1,5 +1,5 @@
-import { Employee, Room, Patient, CreateBlockedPeriodDto, AVAILABLE_COLORS } from '../types';
-import { employeeService, roomService, scheduleService, patientService, blockedPeriodService } from './index';
+import { Employee, Room, Patient, CreateActivityDto, AVAILABLE_COLORS } from '../types';
+import { employeeService, roomService, scheduleService, patientService, activityService } from './index';
 
 const demoEmployees: Omit<Employee, 'id' | 'isActive'>[] = [
   {
@@ -99,7 +99,7 @@ const demoPatients: Omit<Patient, 'id' | 'isActive'>[] = [
   }
 ];
 
-const demoBlockedPeriods: CreateBlockedPeriodDto[] = [
+const demoActivities: CreateActivityDto[] = [
   {
     name: 'ארוחת בוקר',
     color: AVAILABLE_COLORS[4],
@@ -147,9 +147,9 @@ export const demoService = {
         demoPatients.map(patient => patientService.create(patient))
       );
 
-      // Create blocked periods
+      // Create activities
       await Promise.all(
-        demoBlockedPeriods.map(blockedPeriod => blockedPeriodService.create(blockedPeriod))
+        demoActivities.map(activity => activityService.create(activity))
       );
 
       // Set default schedule configuration
