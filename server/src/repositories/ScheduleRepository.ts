@@ -61,10 +61,16 @@ export class PrismaScheduleRepository implements ScheduleRepository {
   }
 
   async create(sessions: Session[]): Promise<Schedule> {
+    // First, deactivate all existing schedules
+    await this.prisma.schedule.updateMany({
+      data: { isActive: false }
+    });
+
+    // Create new schedule as active
     const schedule = await this.prisma.schedule.create({
       data: {
         generatedAt: new Date(),
-        isActive: false,
+        isActive: true, // New schedules are active by default
         sessions: {
           create: sessions.map(session => ({
             employeeId: session.employeeId,
