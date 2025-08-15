@@ -321,6 +321,15 @@ export function generateScheduleWithActivities(
   rooms: Room[],
   activities: Activity[]
 ): Session[] {
+  // Validate inputs
+  if (!employees || employees.length === 0) {
+    throw new Error('No employees found');
+  }
+  
+  if (!rooms || rooms.length === 0) {
+    throw new Error('No rooms found');
+  }
+
   const generator = new ScheduleGenerator(employees, rooms, activities);
   return generator.generateSchedule();
 }

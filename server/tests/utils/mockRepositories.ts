@@ -100,7 +100,8 @@ export class MockEmployeeRepository implements EmployeeRepository {
   async create(employee: CreateEmployeeDto): Promise<Employee> {
     const newEmployee: Employee = {
       id: `employee-${this.idCounter++}`,
-      ...employee
+      ...employee,
+      isActive: employee.isActive ?? true
     };
     this.employees.push(newEmployee);
     return { ...newEmployee };
@@ -164,7 +165,8 @@ export class MockRoomRepository implements RoomRepository {
   async create(room: CreateRoomDto): Promise<Room> {
     const newRoom: Room = {
       id: `room-${this.idCounter++}`,
-      ...room
+      ...room,
+      isActive: room.isActive ?? true
     };
     this.rooms.push(newRoom);
     return { ...newRoom };
@@ -228,7 +230,8 @@ export class MockPatientRepository implements PatientRepository {
   async create(patient: Omit<Patient, 'id'>): Promise<Patient> {
     const newPatient: Patient = {
       id: `patient-${this.idCounter++}`,
-      ...patient
+      ...patient,
+      isActive: patient.isActive ?? true
     };
     this.patients.push(newPatient);
     return { ...newPatient };
@@ -294,7 +297,8 @@ export class MockActivityRepository implements ActivityRepository {
       id: `activity-${this.idCounter++}`,
       createdAt: new Date(),
       updatedAt: new Date(),
-      ...activity
+      ...activity,
+      isActive: activity.isActive ?? true
     };
     this.activities.push(newActivity);
     return { ...newActivity };
@@ -311,6 +315,17 @@ export class MockActivityRepository implements ActivityRepository {
       ...activity,
       updatedAt: new Date()
     };
+    return { ...this.activities[index] };
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<Activity> {
+    const index = this.activities.findIndex(a => a.id === id);
+    if (index === -1) {
+      throw new Error('Activity not found');
+    }
+    
+    this.activities[index].isActive = isActive;
+    this.activities[index].updatedAt = new Date();
     return { ...this.activities[index] };
   }
 
@@ -434,6 +449,18 @@ export class MockSessionRepository implements SessionRepository {
     }));
     
     return { ...session };
+  }
+
+  async findByScheduleId(scheduleId: string): Promise<Session[]> {
+    return this.sessions.filter(s => s.scheduleId === scheduleId);
+  }
+
+  async deleteAll(): Promise<void> {
+    this.sessions = [];
+  }
+
+  async deleteByScheduleId(scheduleId: string): Promise<void> {
+    this.sessions = this.sessions.filter(s => s.scheduleId !== scheduleId);
   }
 
   // Helper methods for testing

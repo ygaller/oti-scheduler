@@ -380,6 +380,9 @@ describe('Schedule API Integration Tests', () => {
       const employeeResponse = await request(app).post('/api/employees').send(employee);
       const roomResponse = await request(app).post('/api/rooms').send(room);
 
+      // Generate a schedule first (required for session creation)
+      await request(app).post('/api/schedule/generate').expect(201);
+
       const sessionData = {
         employeeId: employeeResponse.body.id,
         roomId: roomResponse.body.id,
@@ -390,8 +393,14 @@ describe('Schedule API Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/schedule/sessions')
-        .send(sessionData)
-        .expect(201);
+        .send(sessionData);
+
+      // Log the error to debug
+      if (response.status !== 201) {
+        console.log('Session creation failed:', response.status, response.body);
+      }
+      
+      expect(response.status).toBe(201);
 
       expect(response.body).toHaveProperty('id');
       expect(response.body.employeeId).toBe(sessionData.employeeId);
@@ -463,6 +472,9 @@ describe('Schedule API Integration Tests', () => {
         }
       });
       patient = patientResponse.body;
+
+      // Generate a schedule first (required for session creation)
+      await request(app).post('/api/schedule/generate').expect(201);
 
       // Create test sessions via API
       const session1Response = await request(app).post('/api/schedule/sessions').send({
