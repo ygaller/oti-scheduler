@@ -12,17 +12,29 @@ let prisma: PrismaClient;
 beforeAll(async () => {
   console.log('Initializing test database...');
   
-  if (process.env.CI || process.env.NODE_ENV === 'test') {
-    // In CI or test environment, use direct PrismaClient with external database
-    console.log('Using external PostgreSQL database for tests');
+  if (process.env.NODE_ENV === 'test') {
+    // For tests, try to use a test database on running PostgreSQL instance
+    console.log('Using test database for tests');
+    const testDbUrl = process.env.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:52111/scheduling';
+    
     prisma = new PrismaClient({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL
+          url: testDbUrl
         }
       }
     });
-    await prisma.$connect();
+    
+    try {
+      await prisma.$connect();
+      console.log('Connected to test database successfully');
+    } catch (error) {
+      console.log('Failed to connect to test database, falling back to embedded database');
+      await prisma.$disconnect();
+      // Fall back to embedded database
+      const { prisma: testPrisma } = await initializeDatabase();
+      prisma = testPrisma;
+    }
   } else {
     // In local development, use embedded database
     console.log('Using embedded PostgreSQL database for tests');
@@ -70,11 +82,12 @@ afterAll(async () => {
     console.warn('Database cleanup failed during teardown:', error instanceof Error ? error.message : String(error));
   }
   
-  if (process.env.CI || process.env.NODE_ENV === 'test') {
-    // In CI, just disconnect the Prisma client
+  // Check if we're in test mode with external database
+  if (process.env.NODE_ENV === 'test') {
+    // Using test database, just disconnect the Prisma client
     await prisma.$disconnect();
   } else {
-    // In local development, close the embedded database
+    // Using embedded database, close it properly
     await closeDatabase();
   }
 });

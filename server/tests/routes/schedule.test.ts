@@ -311,7 +311,7 @@ describe('Schedule API Endpoints', () => {
         .put('/api/schedule/invalid-uuid/activate')
         .expect(400);
 
-      expect(response.body.error).toBe('Invalid UUID format');
+      expect(response.body.error).toBe('Invalid id format');
     });
   });
 
@@ -619,7 +619,7 @@ describe('Schedule API Endpoints', () => {
         day: 'monday',
         startTime: '11:00',
         endTime: '12:00'
-      });
+      }).expect(201);
       const session3 = session3Response.body;
 
       // Assign patient to session1 (10:00-11:00)
@@ -646,7 +646,7 @@ describe('Schedule API Endpoints', () => {
         day: 'monday',
         startTime: '10:45',
         endTime: '11:45'
-      });
+      }).expect(201);
       const session3 = session3Response.body;
 
       // Assign patient to session1 (10:00-11:00)

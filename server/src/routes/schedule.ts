@@ -37,7 +37,7 @@ export const createScheduleRouter = (
       // Save the schedule to database
       const schedule = await scheduleRepo.create(sessions);
       
-      res.json(schedule);
+      res.status(201).json(schedule);
     } catch (error) {
       console.error('Error generating schedule:', error);
       
