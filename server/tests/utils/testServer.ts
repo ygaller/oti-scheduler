@@ -8,7 +8,7 @@ import {
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
   PrismaSystemConfigRepository,
-  PrismaBlockedPeriodRepository
+  PrismaActivityRepository
 } from '../../src/repositories';
 import { createApiRouter } from '../../src/routes';
 
@@ -27,10 +27,10 @@ export const createTestApp = (prisma: PrismaClient) => {
   const scheduleRepo = new PrismaScheduleRepository(prisma);
   const sessionRepo = new PrismaSessionRepository(prisma);
   const configRepo = new PrismaSystemConfigRepository(prisma);
-  const blockedPeriodRepo = new PrismaBlockedPeriodRepository(prisma);
+  const activityRepo = new PrismaActivityRepository(prisma);
   
   // Setup API routes
-  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, blockedPeriodRepo));
+  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo));
   
   // Error handling
   app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

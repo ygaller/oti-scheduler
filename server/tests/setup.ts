@@ -1,16 +1,19 @@
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import dotenv from 'dotenv';
+import { initializeDatabase, closeDatabase, getPrismaClient } from '../src/database/connection';
 
 // Load environment variables from main .env file
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const prisma = new PrismaClient();
+let prisma: PrismaClient;
 
 beforeAll(async () => {
-  // Test database uses the same database as development
-  // No migration needed since it should already be up to date
-  console.log('Test setup completed - using existing database');
+  // Initialize embedded database for tests
+  console.log('Initializing test database...');
+  const { prisma: testPrisma } = await initializeDatabase();
+  prisma = testPrisma;
+  console.log('Test setup completed - database initialized');
 });
 
 beforeEach(async () => {
@@ -51,7 +54,7 @@ afterAll(async () => {
   } catch (error) {
     console.warn('Database cleanup failed during teardown:', error instanceof Error ? error.message : String(error));
   }
-  await prisma.$disconnect();
+  await closeDatabase();
 });
 
 export { prisma };
