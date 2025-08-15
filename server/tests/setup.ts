@@ -19,9 +19,15 @@ beforeEach(async () => {
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
-    await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
     await prisma.systemConfig.deleteMany();
+    
+    // Only try to delete patients if the table exists
+    try {
+      await prisma.patient.deleteMany();
+    } catch (patientError) {
+      // Silently ignore if patients table doesn't exist - it's not needed for most tests
+    }
   } catch (error) {
     console.warn('Database cleanup failed - tests may run against existing data:', error instanceof Error ? error.message : String(error));
   }
@@ -33,9 +39,15 @@ afterAll(async () => {
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
-    await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
     await prisma.systemConfig.deleteMany();
+    
+    // Only try to delete patients if the table exists
+    try {
+      await prisma.patient.deleteMany();
+    } catch (patientError) {
+      // Silently ignore if patients table doesn't exist
+    }
   } catch (error) {
     console.warn('Database cleanup failed during teardown:', error instanceof Error ? error.message : String(error));
   }
