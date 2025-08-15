@@ -46,8 +46,9 @@ import {
   Activity 
 } from '../types';
 import { validateScheduleConstraints } from '../utils/scheduler';
-import { scheduleService } from '../services';
+import { scheduleService, ApiError } from '../services';
 import { useActivities } from '../hooks';
+import ErrorModal from './ErrorModal';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -68,6 +69,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{
+    title: string;
+    message: string;
+    details?: string;
+  }>({ title: '', message: '' });
 
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
@@ -76,7 +83,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     console.log('Generate schedule button clicked!');
     
     if (employees.length === 0 || rooms.length === 0) {
-      alert('נדרשים לפחות עובד אחד וחדר אחד כדי ליצור לוח זמנים');
+      setErrorInfo({
+        title: 'לא ניתן ליצור לוח זמנים',
+        message: 'נדרשים לפחות עובד אחד וחדר אחד כדי ליצור לוח זמנים'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
@@ -105,10 +116,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       await setSchedule(); // Refresh the schedule from the server
       console.log('Schedule refreshed successfully');
       
-      alert('לוח הזמנים נוצר והופעל בהצלחה!');
+      // For success, we could use a toast notification or simple alert for now
+      // The schedule is automatically refreshed, so the user will see the new schedule
+      console.log('Schedule generated and activated successfully');
     } catch (error) {
       console.error('Error generating schedule:', error);
-      alert('שגיאה ביצירת לוח הזמנים: ' + (error instanceof Error ? error.message : 'שגיאה לא ידועה'));
+      
+      const isApiError = error instanceof ApiError;
+      setErrorInfo({
+        title: 'שגיאה ביצירת לוח הזמנים',
+        message: isApiError ? error.message : 'שגיאה לא ידועה בתקשורת עם השרת',
+        details: isApiError ? error.details : undefined
+      });
+      setErrorModalOpen(true);
     } finally {
       setIsGenerating(false);
     }
@@ -1162,6 +1182,15 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Error Modal */}
+      <ErrorModal
+        open={errorModalOpen}
+        title={errorInfo.title}
+        message={errorInfo.message}
+        details={errorInfo.details}
+        onClose={() => setErrorModalOpen(false)}
+      />
     </Box>
   );
 };

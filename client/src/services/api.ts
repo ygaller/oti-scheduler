@@ -1,7 +1,7 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public details?: string) {
     super(message);
     this.name = 'ApiError';
   }
@@ -10,7 +10,11 @@ class ApiError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-    throw new ApiError(response.status, errorData.error || 'Request failed');
+    throw new ApiError(
+      response.status, 
+      errorData.error || 'Request failed',
+      errorData.details
+    );
   }
   return response.json();
 }
@@ -61,7 +65,7 @@ export const api = {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new ApiError(response.status, errorData.error || 'Delete failed');
+      throw new ApiError(response.status, errorData.error || 'Delete failed', errorData.details);
     }
   },
 };
