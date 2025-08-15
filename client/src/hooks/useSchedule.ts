@@ -1,147 +1,114 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Schedule, ScheduleConfig } from '../types';
+import { Schedule } from '../types';
 import { scheduleService, ApiError } from '../services';
 
 interface UseScheduleResult {
-  config: ScheduleConfig | null;
   activeSchedule: Schedule | null;
   allSchedules: Schedule[];
   loading: boolean;
   error: string | null;
-  updateConfig: (config: ScheduleConfig) => Promise<void>;
   generateSchedule: () => Promise<Schedule>;
   activateSchedule: (id: string) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
-  refetchConfig: () => Promise<void>;
   refetchActive: () => Promise<void>;
   refetchAll: () => Promise<void>;
 }
 
 export const useSchedule = (): UseScheduleResult => {
-  const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchConfig = useCallback(async () => {
-    try {
-      const data = await scheduleService.getConfig();
-      setConfig(data);
-    } catch (err) {
-      console.error('Error fetching schedule config:', err);
-      setError(err instanceof ApiError ? err.message : 'Failed to load schedule configuration');
-    }
-  }, []);
-
   const fetchActiveSchedule = useCallback(async () => {
     try {
-      const data = await scheduleService.getActive();
-      setActiveSchedule(data);
+      setError(null);
+      const schedule = await scheduleService.getActive();
+      setActiveSchedule(schedule);
     } catch (err) {
-      console.error('Error fetching active schedule:', err);
-      setError(err instanceof ApiError ? err.message : 'Failed to load active schedule');
+      console.error('Failed to fetch active schedule:', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to fetch active schedule');
     }
   }, []);
 
   const fetchAllSchedules = useCallback(async () => {
     try {
-      const data = await scheduleService.getAll();
-      setAllSchedules(data);
-    } catch (err) {
-      console.error('Error fetching all schedules:', err);
-      setError(err instanceof ApiError ? err.message : 'Failed to load schedules');
-    }
-  }, []);
-
-  const fetchAll = useCallback(async () => {
-    try {
-      setLoading(true);
       setError(null);
-      await Promise.all([
-        fetchConfig(),
-        fetchActiveSchedule(),
-        fetchAllSchedules()
-      ]);
+      const schedules = await scheduleService.getAll();
+      setAllSchedules(schedules);
     } catch (err) {
-      // Error handling is already done in individual functions
+      console.error('Failed to fetch all schedules:', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to fetch schedules');
     } finally {
       setLoading(false);
-    }
-  }, [fetchConfig, fetchActiveSchedule, fetchAllSchedules]);
-
-  const updateConfig = useCallback(async (newConfig: ScheduleConfig): Promise<void> => {
-    try {
-      setError(null);
-      const updatedConfig = await scheduleService.updateConfig(newConfig);
-      setConfig(updatedConfig);
-    } catch (err) {
-      const errorMessage = err instanceof ApiError ? err.message : 'Failed to update schedule configuration';
-      setError(errorMessage);
-      throw new Error(errorMessage);
     }
   }, []);
 
   const generateSchedule = useCallback(async (): Promise<Schedule> => {
     try {
+      setLoading(true);
       setError(null);
       const newSchedule = await scheduleService.generate();
-      setAllSchedules(prev => [newSchedule, ...prev]);
+      await fetchAllSchedules();
       return newSchedule;
     } catch (err) {
-      const errorMessage = err instanceof ApiError ? err.message : 'Failed to generate schedule';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, []);
-
-  const activateSchedule = useCallback(async (id: string): Promise<void> => {
-    try {
-      setError(null);
-      const activatedSchedule = await scheduleService.activate(id);
-      setActiveSchedule(activatedSchedule);
-      // Update the schedules list to reflect the new active status
-      await fetchAllSchedules();
-    } catch (err) {
-      const errorMessage = err instanceof ApiError ? err.message : 'Failed to activate schedule';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('Failed to generate schedule:', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to generate schedule');
+      throw err;
+    } finally {
+      setLoading(false);
     }
   }, [fetchAllSchedules]);
 
-  const deleteSchedule = useCallback(async (id: string): Promise<void> => {
+  const activateSchedule = useCallback(async (id: string) => {
     try {
+      setLoading(true);
+      setError(null);
+      await scheduleService.activate(id);
+      await fetchActiveSchedule();
+      await fetchAllSchedules();
+    } catch (err) {
+      console.error('Failed to activate schedule:', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to activate schedule');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchActiveSchedule, fetchAllSchedules]);
+
+  const deleteSchedule = useCallback(async (id: string) => {
+    try {
+      setLoading(true);
       setError(null);
       await scheduleService.delete(id);
-      setAllSchedules(prev => prev.filter(s => s.id !== id));
-      // If we deleted the active schedule, clear it
-      if (activeSchedule?.id === id) {
-        setActiveSchedule(null);
-      }
+      await fetchActiveSchedule();
+      await fetchAllSchedules();
     } catch (err) {
-      const errorMessage = err instanceof ApiError ? err.message : 'Failed to delete schedule';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('Failed to delete schedule:', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to delete schedule');
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, [activeSchedule?.id]);
+  }, [fetchActiveSchedule, fetchAllSchedules]);
 
+  // Fetch initial data
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    Promise.all([
+      fetchActiveSchedule(),
+      fetchAllSchedules()
+    ]);
+  }, [fetchActiveSchedule, fetchAllSchedules]);
 
   return {
-    config,
     activeSchedule,
     allSchedules,
     loading,
     error,
-    updateConfig,
     generateSchedule,
     activateSchedule,
     deleteSchedule,
-    refetchConfig: fetchConfig,
     refetchActive: fetchActiveSchedule,
     refetchAll: fetchAllSchedules,
   };
 };
-

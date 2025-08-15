@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, Box, Tabs, Tab, Typography, Paper, CircularProgress, Alert } from '@mui/material';
+import { CssBaseline, Container, Box, Tabs, Tab, Typography, CircularProgress, Alert } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import rtlPlugin from 'stylis-plugin-rtl';
@@ -20,7 +20,7 @@ import { LoginButton } from './components/LoginButton';
 import AuthCallback from './components/AuthCallback';
 import { employeeService, patientService, roomService, scheduleService } from './services';
 import { authService, User } from './services/authService';
-import { Employee, Patient, Room, ScheduleConfig, Schedule } from './types';
+import { Employee, Patient, Room, Schedule } from './types';
 
 // Create RTL cache
 const cacheRtl = createCache({
@@ -125,7 +125,7 @@ function AppContent() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [config, setConfig] = useState<ScheduleConfig | null>(null);
+
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -158,18 +158,16 @@ function AppContent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [employeesData, patientsData, roomsData, configData, activeSchedule] = await Promise.all([
+      const [employeesData, patientsData, roomsData, activeSchedule] = await Promise.all([
         employeeService.getAll(),
         patientService.getAll(),
         roomService.getAll(),
-        scheduleService.getConfig(),
         scheduleService.getActive().catch(() => null) // Handle case where no active schedule exists
       ]);
       
       setEmployees(employeesData);
       setPatients(patientsData);
       setRooms(roomsData);
-      setConfig(configData);
       setSchedule(activeSchedule);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -238,15 +236,7 @@ function AppContent() {
     }
   };
 
-  const updateConfig = async (newConfig: ScheduleConfig) => {
-    try {
-      const updatedConfig = await scheduleService.updateConfig(newConfig);
-      setConfig(updatedConfig);
-    } catch (error) {
-      console.error('Error updating config:', error);
-      throw error;
-    }
-  };
+
 
   const refreshSchedule = async () => {
     try {
@@ -376,24 +366,16 @@ function AppContent() {
                       
                       {activeTab === 3 && (
                         <>
-                          {config ? (
-                            <ScheduleConfiguration 
-                              config={config} 
-                              setConfig={updateConfig}
-                              onDataChange={async () => {
-                                await Promise.all([
-                                  refreshEmployees(),
-                                  refreshPatients(),
-                                  refreshRooms(),
-                                  fetchData()
-                                ]);
-                              }}
-                            />
-                          ) : (
-                            <Paper sx={{ p: 3 }}>
-                              <Typography>טוען הגדרות...</Typography>
-                            </Paper>
-                          )}
+                          <ScheduleConfiguration 
+                            onDataChange={async () => {
+                              await Promise.all([
+                                refreshEmployees(),
+                                refreshPatients(),
+                                refreshRooms(),
+                                fetchData()
+                              ]);
+                            }}
+                          />
                           
                           {/* System status - only show in settings tab */}
                           <Box sx={{ 
@@ -413,19 +395,12 @@ function AppContent() {
                       )}
                       
                       {activeTab === 4 && (
-                        config ? (
-                          <ScheduleView 
-                            employees={employees} 
-                            rooms={rooms} 
-                            scheduleConfig={config}
-                            schedule={schedule}
-                            setSchedule={refreshSchedule} 
-                          />
-                        ) : (
-                          <Paper sx={{ p: 3 }}>
-                            <Typography>טוען נתוני לוח זמנים...</Typography>
-                          </Paper>
-                        )
+                        <ScheduleView 
+                          employees={employees} 
+                          rooms={rooms} 
+                          schedule={schedule}
+                          setSchedule={refreshSchedule} 
+                        />
                       )}
                     </>
                   )}

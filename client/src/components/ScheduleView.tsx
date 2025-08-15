@@ -37,7 +37,6 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { 
   Employee, 
   Room, 
-  ScheduleConfig, 
   Schedule, 
   Session, 
   DAY_LABELS, 
@@ -53,7 +52,6 @@ import { useActivities } from '../hooks';
 interface ScheduleViewProps {
   employees: Employee[];
   rooms: Room[];
-  scheduleConfig: ScheduleConfig;
   schedule: Schedule | null;
   setSchedule: () => Promise<void>;
 }
@@ -61,7 +59,6 @@ interface ScheduleViewProps {
 const ScheduleView: React.FC<ScheduleViewProps> = ({
   employees,
   rooms,
-  scheduleConfig,
   schedule,
   setSchedule
 }) => {
@@ -239,7 +236,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       otherSessions, 
       employees, 
       rooms, 
-      scheduleConfig
+      activities
     );
 
     if (!validation.valid) {

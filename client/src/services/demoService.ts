@@ -1,5 +1,5 @@
 import { Employee, Room, Patient, CreateActivityDto, AVAILABLE_COLORS } from '../types';
-import { employeeService, roomService, scheduleService, patientService, activityService } from './index';
+import { employeeService, roomService, patientService, activityService } from './index';
 
 const demoEmployees: Omit<Employee, 'id' | 'isActive'>[] = [
   {
@@ -152,14 +152,7 @@ export const demoService = {
         demoActivities.map(activity => activityService.create(activity))
       );
 
-      // Set default schedule configuration
-      const defaultConfig = {
-        breakfast: { startTime: '08:00', endTime: '08:30' },
-        morningMeetup: { startTime: '09:00', endTime: '09:15' },
-        lunch: { startTime: '12:00', endTime: '13:00' }
-      };
-      
-      await scheduleService.updateConfig(defaultConfig);
+      // Config is no longer needed - activities are used instead
 
       return {
         employees: createdEmployees,

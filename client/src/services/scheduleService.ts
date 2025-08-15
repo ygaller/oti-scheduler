@@ -1,15 +1,8 @@
-import { Schedule, ScheduleConfig, Session } from '../types';
+import { Schedule, Session } from '../types';
 import { api } from './api';
 
 export const scheduleService = {
-  // Schedule Configuration
-  async getConfig(): Promise<ScheduleConfig> {
-    return api.get<ScheduleConfig>('/schedule/config');
-  },
 
-  async updateConfig(config: ScheduleConfig): Promise<ScheduleConfig> {
-    return api.put<ScheduleConfig>('/schedule/config', config);
-  },
 
   // Schedule Generation
   async generate(): Promise<Schedule> {

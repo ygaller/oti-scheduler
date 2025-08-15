@@ -76,8 +76,7 @@ function App() {
       // Refetch data to update the UI
       await Promise.all([
         employeesState.refetch(),
-        roomsState.refetch(),
-        scheduleState.refetchConfig()
+        roomsState.refetch()
       ]);
     } catch (error) {
       console.error('Error loading demo data:', error);
@@ -158,13 +157,10 @@ function App() {
                 )}
                 
                 {activeTab === 2 && (
-                  <ScheduleConfiguration 
-                    config={scheduleState.config} 
-                    setConfig={scheduleState.updateConfig}
-                  />
+                  <ScheduleConfiguration />
                 )}
                 
-                {activeTab === 3 && scheduleState.config && (
+                {activeTab === 3 && (
                   <div>
                     <h2>לוח זמנים</h2>
                     <p>תכונה זו תהיה זמינה בקרוב</p>

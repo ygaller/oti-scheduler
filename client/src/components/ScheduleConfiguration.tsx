@@ -13,19 +13,17 @@ import {
 } from '@mui/material';
 
 import { Delete as DeleteIcon, Warning as WarningIcon, DataObject as DemoIcon } from '@mui/icons-material';
-import { ScheduleConfig } from '../types';
+
 import { systemService } from '../services';
 import { demoService } from '../services/demoService';
 import { useActivities } from '../hooks';
 import ActivityManagement from './ActivityManagement';
 
 interface ScheduleConfigurationProps {
-  config: ScheduleConfig | null;
-  setConfig: (config: ScheduleConfig) => Promise<void>;
   onDataChange?: () => Promise<void>; // Callback to refresh data after demo load
 }
 
-const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, setConfig, onDataChange }) => {
+const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataChange }) => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -87,14 +85,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ config, s
     }
   };
 
-  // Return loading state if config is not loaded yet
-  if (!config) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+
 
   return (
     <Box>
