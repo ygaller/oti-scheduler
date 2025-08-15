@@ -40,7 +40,6 @@ beforeEach(async () => {
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.room.deleteMany();
-    await prisma.systemConfig.deleteMany();
     
     // Only try to delete patients if the table exists
     try {
@@ -60,7 +59,6 @@ afterAll(async () => {
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.room.deleteMany();
-    await prisma.systemConfig.deleteMany();
     
     // Only try to delete patients if the table exists
     try {

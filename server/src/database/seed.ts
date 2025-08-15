@@ -109,12 +109,6 @@ const demoRooms = [
   { name: 'חדר תקשורת', color: '#ff8066', isActive: true }
 ];
 
-const defaultScheduleConfig = {
-  breakfast: { startTime: '08:00', endTime: '08:30' },
-  morningMeetup: { startTime: '09:00', endTime: '09:15' },
-  lunch: { startTime: '12:00', endTime: '13:00' }
-};
-
 async function seed() {
   try {
     console.log('🌱 Starting database seeding...');
@@ -126,7 +120,6 @@ async function seed() {
     await prisma.employee.deleteMany();
     await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
-    await prisma.systemConfig.deleteMany();
 
     // Seed employees
     console.log('Seeding employees...');
@@ -155,22 +148,13 @@ async function seed() {
     );
     console.log(`✅ Created ${createdRooms.length} rooms`);
 
-    // Seed schedule configuration
-    console.log('Seeding schedule configuration...');
-    await prisma.systemConfig.create({
-      data: {
-        key: 'schedule_config',
-        value: defaultScheduleConfig
-      }
-    });
-    console.log('✅ Created schedule configuration');
+    // Note: Schedule configuration is now handled differently and not stored in database
 
     console.log('🎉 Database seeding completed successfully!');
     console.log('\nCreated:');
     console.log(`  - ${createdEmployees.length} employees`);
     console.log(`  - ${createdPatients.length} patients`);
     console.log(`  - ${createdRooms.length} rooms`);
-    console.log(`  - 1 schedule configuration`);
 
   } catch (error) {
     console.error('❌ Error during seeding:', error);
