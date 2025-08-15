@@ -30,7 +30,7 @@ export const createApiRouter = (
   router.use('/employees', createEmployeeRouter(employeeRepo));
   router.use('/patients', createPatientRouter(patientRepo));
   router.use('/rooms', createRoomRouter(roomRepo));
-  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo));
+  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo));
   router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, patientRepo, activityRepo));
   router.use('/activities', createActivityRouter(activityRepo));
 

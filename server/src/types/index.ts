@@ -70,21 +70,7 @@ export interface Activity {
   updatedAt?: Date;
 }
 
-// Legacy interface for backward compatibility during migration
-export interface ScheduleConfig {
-  breakfast: {
-    startTime: string;
-    endTime: string;
-  };
-  morningMeetup: {
-    startTime: string;
-    endTime: string;
-  };
-  lunch: {
-    startTime: string;
-    endTime: string;
-  };
-}
+
 
 export interface Session {
   id: string;

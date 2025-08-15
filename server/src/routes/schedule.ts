@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository } from '../repositories';
-import { generateSchedule, validateScheduleConstraints } from '../utils/scheduler';
+import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, ActivityRepository } from '../repositories';
+import { generateScheduleWithActivities, validateScheduleConstraints } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -9,49 +9,19 @@ export const createScheduleRouter = (
   roomRepo: RoomRepository,
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
-  configRepo: SystemConfigRepository
+  configRepo: SystemConfigRepository,
+  activityRepo: ActivityRepository
 ): Router => {
   const router = Router();
 
-  // GET /api/schedule/config - Get schedule configuration
-  router.get('/config', async (req, res) => {
-    try {
-      const config = await configRepo.getScheduleConfig();
-      if (!config) {
-        // Return default config if none exists
-        const defaultConfig = {
-          breakfast: { startTime: '08:00', endTime: '08:30' },
-          morningMeetup: { startTime: '09:00', endTime: '09:15' },
-          lunch: { startTime: '12:00', endTime: '13:00' }
-        };
-        res.json(defaultConfig);
-      } else {
-        res.json(config);
-      }
-    } catch (error) {
-      console.error('Error fetching schedule config:', error);
-      res.status(500).json({ error: 'Failed to fetch schedule configuration' });
-    }
-  });
 
-  // PUT /api/schedule/config - Update schedule configuration
-  router.put('/config', async (req, res) => {
-    try {
-      const config = req.body;
-      await configRepo.setScheduleConfig(config);
-      res.json(config);
-    } catch (error) {
-      console.error('Error updating schedule config:', error);
-      res.status(500).json({ error: 'Failed to update schedule configuration' });
-    }
-  });
 
   // POST /api/schedule/generate - Generate new schedule
   router.post('/generate', async (req, res) => {
     try {
       const employees = await employeeRepo.findAll();
       const rooms = await roomRepo.findAll();
-      let config = await configRepo.getScheduleConfig();
+      const activities = await activityRepo.findAll(true); // Include all active activities
 
       if (employees.length === 0) {
         return res.status(400).json({ error: 'No employees found' });
@@ -59,18 +29,9 @@ export const createScheduleRouter = (
       if (rooms.length === 0) {
         return res.status(400).json({ error: 'No rooms found' });
       }
-      
-      // Use default config if none exists
-      if (!config) {
-        config = {
-          breakfast: { startTime: '08:00', endTime: '08:30' },
-          morningMeetup: { startTime: '09:00', endTime: '09:15' },
-          lunch: { startTime: '12:00', endTime: '13:00' }
-        };
-      }
 
-      // Generate schedule using existing algorithm
-      const sessions = generateSchedule(employees, rooms, config);
+      // Generate schedule using activity-based algorithm
+      const sessions = generateScheduleWithActivities(employees, rooms, activities);
       
       // Save the schedule to database
       const schedule = await scheduleRepo.create(sessions);
@@ -78,7 +39,16 @@ export const createScheduleRouter = (
       res.json(schedule);
     } catch (error) {
       console.error('Error generating schedule:', error);
-      res.status(500).json({ error: 'Failed to generate schedule' });
+      
+      // Check if this is a scheduling validation error
+      if (error instanceof Error && error.message.includes('Cannot generate schedule - insufficient available time slots')) {
+        res.status(400).json({ 
+          error: 'Schedule generation failed', 
+          details: error.message 
+        });
+      } else {
+        res.status(500).json({ error: 'Failed to generate schedule' });
+      }
     }
   });
 
@@ -154,18 +124,14 @@ export const createScheduleRouter = (
       const employees = await employeeRepo.findAll();
       const rooms = await roomRepo.findAll();
       const allSessions = await sessionRepo.findAll();
-      const config = await configRepo.getScheduleConfig();
-      
-      if (!config) {
-        return res.status(400).json({ error: 'Schedule configuration not found' });
-      }
+      const activities = await activityRepo.findAll(true); // Include all active activities
 
       const validation = validateScheduleConstraints(
         sessionData as any, // Type conversion needed for the validation
         allSessions,
         employees,
         rooms,
-        config
+        activities
       );
 
       if (!validation.valid) {
@@ -192,11 +158,7 @@ export const createScheduleRouter = (
         const employees = await employeeRepo.findAll();
         const rooms = await roomRepo.findAll();
         const allSessions = await sessionRepo.findAll();
-        const config = await configRepo.getScheduleConfig();
-        
-        if (!config) {
-          return res.status(400).json({ error: 'Schedule configuration not found' });
-        }
+        const activities = await activityRepo.findAll(true); // Include all active activities
 
         // Get the current session to merge with updates
         const currentSession = await sessionRepo.findById(req.params.id);
@@ -211,7 +173,7 @@ export const createScheduleRouter = (
           allSessions.filter(s => s.id !== req.params.id), // Exclude current session
           employees,
           rooms,
-          config
+          activities
         );
 
         if (!validation.valid) {

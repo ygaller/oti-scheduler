@@ -1,4 +1,4 @@
-import { Employee, Patient, Room, Session, Schedule, ScheduleConfig, Activity, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateActivityDto, UpdateActivityDto } from '../types';
+import { Employee, Patient, Room, Session, Schedule, Activity, CreateEmployeeDto, UpdateEmployeeDto, CreatePatientDto, UpdatePatientDto, CreateRoomDto, UpdateRoomDto, CreateSessionDto, UpdateSessionDto, CreateActivityDto, UpdateActivityDto } from '../types';
 
 export interface EmployeeRepository {
   findAll(includeInactive?: boolean): Promise<Employee[]>;
@@ -56,8 +56,7 @@ export interface SystemConfigRepository {
   set<T>(key: string, value: T): Promise<void>;
   delete(key: string): Promise<void>;
   deleteAll(): Promise<void>;
-  getScheduleConfig(): Promise<ScheduleConfig | null>;
-  setScheduleConfig(config: ScheduleConfig): Promise<void>;
+
 }
 
 export interface ActivityRepository {

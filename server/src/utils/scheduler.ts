@@ -1,4 +1,4 @@
-import { Employee, Room, Session, WeekDay, Activity, ScheduleConfig } from '../types';
+import { Employee, Room, Session, WeekDay, Activity } from '../types';
 
 export const WEEK_DAYS: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
@@ -86,7 +86,29 @@ class ScheduleGenerator {
       this.tryAssignSession(timeSlot);
     }
 
+    // Validate that all employees have their required sessions
+    this.validateSessionRequirements();
+
     return this.sessions;
+  }
+
+  private validateSessionRequirements(): void {
+    const unmetRequirements: string[] = [];
+    
+    for (const employee of this.employees) {
+      const state = this.employeeStates.get(employee.id)!;
+      const actualSessions = employee.weeklySessionsCount - state.remainingSessions;
+      
+      if (state.remainingSessions > 0) {
+        unmetRequirements.push(
+          `${employee.firstName} ${employee.lastName}: required ${employee.weeklySessionsCount} sessions, only ${actualSessions} could be scheduled`
+        );
+      }
+    }
+
+    if (unmetRequirements.length > 0) {
+      throw new Error(`Cannot generate schedule - insufficient available time slots for employees:\n${unmetRequirements.join('\n')}`);
+    }
   }
 
   private generateAllTimeSlots(): TimeSlot[] {
@@ -292,50 +314,7 @@ class ScheduleGenerator {
   }
 }
 
-// Legacy function for backward compatibility
-export function generateSchedule(
-  employees: Employee[],
-  rooms: Room[],
-  config: ScheduleConfig
-): Session[] {
-  // Convert old config to activities
-  const activities: Activity[] = [
-    {
-      id: 'legacy-breakfast',
-      name: 'ארוחת בוקר',
-      color: '#ff9671',
-      defaultStartTime: config.breakfast.startTime,
-      defaultEndTime: config.breakfast.endTime,
-      dayOverrides: {},
-      isBlocking: true, // Legacy config blocks scheduling by default
-      isActive: true
-    },
-    {
-      id: 'legacy-morning-meetup',
-      name: 'מפגש בוקר',
-      color: '#845ec2',
-      defaultStartTime: config.morningMeetup.startTime,
-      defaultEndTime: config.morningMeetup.endTime,
-      dayOverrides: {},
-      isBlocking: true, // Legacy config blocks scheduling by default
-      isActive: true
-    },
-    {
-      id: 'legacy-lunch',
-      name: 'ארוחת צהריים',
-      color: '#00c9a7',
-      defaultStartTime: config.lunch.startTime,
-      defaultEndTime: config.lunch.endTime,
-      dayOverrides: {},
-      isBlocking: true, // Legacy config blocks scheduling by default
-      isActive: true
-    }
-  ];
-  
-  return generateScheduleWithActivities(employees, rooms, activities);
-}
-
-// New function that uses Activity[]
+// Main schedule generation function that uses Activity[]
 export function generateScheduleWithActivities(
   employees: Employee[],
   rooms: Room[],
@@ -345,92 +324,8 @@ export function generateScheduleWithActivities(
   return generator.generateSchedule();
 }
 
+// Main validation function that uses Activity[]
 export function validateScheduleConstraints(
-  session: Session,
-  allSessions: Session[],
-  employees: Employee[],
-  rooms: Room[],
-  config: ScheduleConfig
-): { valid: boolean; error?: string } {
-  const employee = employees.find(e => e.id === session.employeeId);
-  const room = rooms.find(r => r.id === session.roomId);
-
-  if (!employee) return { valid: false, error: 'עובד לא נמצא' };
-  if (!room) return { valid: false, error: 'חדר לא נמצא' };
-
-  // Check working hours
-  const workingHours = employee.workingHours[session.day];
-  if (!workingHours) {
-    return { valid: false, error: 'העובד לא עובד ביום זה' };
-  }
-
-  if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
-    return { valid: false, error: 'הטיפול מחוץ לשעות העבודה של העובד' };
-  }
-
-  // Check room conflicts
-  const roomConflicts = allSessions.filter(s => 
-    s.id !== session.id &&
-    s.roomId === session.roomId &&
-    s.day === session.day &&
-    timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
-  );
-
-  if (roomConflicts.length > 0) {
-    return { valid: false, error: 'החדר תפוס בזמן זה' };
-  }
-
-  // Check employee conflicts
-  const employeeConflicts = allSessions.filter(s => 
-    s.id !== session.id &&
-    s.employeeId === session.employeeId &&
-    s.day === session.day &&
-    timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
-  );
-
-  if (employeeConflicts.length > 0) {
-    return { valid: false, error: 'העובד תפוס בזמן זה' };
-  }
-
-  // Check blocked periods - convert legacy config
-  const legacyActivities: Activity[] = [
-    {
-      id: 'legacy-breakfast',
-      name: 'ארוחת בוקר',
-      color: '#ff9671',
-      defaultStartTime: config.breakfast.startTime,
-      defaultEndTime: config.breakfast.endTime,
-      dayOverrides: {},
-      isBlocking: true, // Legacy config blocks scheduling by default
-      isActive: true
-    },
-    {
-      id: 'legacy-morning-meetup', 
-      name: 'מפגש בוקר',
-      color: '#845ec2',
-      defaultStartTime: config.morningMeetup.startTime,
-      defaultEndTime: config.morningMeetup.endTime,
-      dayOverrides: {},
-      isBlocking: true, // Legacy config blocks scheduling by default
-      isActive: true
-    },
-    {
-      id: 'legacy-lunch',
-      name: 'ארוחת צהריים',
-      color: '#00c9a7',
-      defaultStartTime: config.lunch.startTime,
-      defaultEndTime: config.lunch.endTime,
-      dayOverrides: {},
-      isBlocking: true, // Legacy config blocks scheduling by default
-      isActive: true
-    }
-  ];
-
-  return validateScheduleConstraintsWithActivities(session, allSessions, employees, rooms, legacyActivities);
-}
-
-// New validation function that uses Activity[]
-export function validateScheduleConstraintsWithActivities(
   session: Session,
   allSessions: Session[],
   employees: Employee[],

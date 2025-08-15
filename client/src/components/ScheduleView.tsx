@@ -698,6 +698,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
                 שעה
               </TableCell>
+              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100' }}>
+                פעילויות
+              </TableCell>
               {sortedEmployees.map(employee => (
                 <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
                   {employee.firstName} {employee.lastName}
@@ -708,11 +711,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <TableBody>
             {timeSlots.map((time, index) => {
               const isHourMark = time.endsWith(':00');
+              const reservedSlot = getReservedSlot(time, day);
+              
               return (
                 <TableRow key={time} sx={{ 
                   height: 20,
                   borderTop: isHourMark ? 2 : 0.5,
-                  borderColor: isHourMark ? 'primary.main' : 'divider'
+                  borderColor: isHourMark ? 'primary.main' : 'divider',
+                  backgroundColor: reservedSlot ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
                 }}>
                   <TableCell sx={{ 
                     p: 0.5, 
@@ -723,23 +729,21 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   }}>
                     {isHourMark ? time : ''}
                   </TableCell>
+                  
+                  {/* Activities Column */}
+                  <TableCell sx={{ 
+                    p: 0.5,
+                    backgroundColor: reservedSlot ? reservedSlot.color + '30' : 'grey.50',
+                    textAlign: 'center',
+                    fontSize: '0.7rem',
+                    color: reservedSlot ? 'text.primary' : 'text.secondary',
+                    fontWeight: reservedSlot ? 'bold' : 'normal'
+                  }}>
+                    {reservedSlot?.isStartTime ? reservedSlot.label : ''}
+                  </TableCell>
+                  
                   {sortedEmployees.map(employee => {
                     const session = getSessionAtTime(daySessions, time, employee.id);
-                    const reservedSlot = getReservedSlot(time, day);
-                    
-                    if (reservedSlot) {
-                      return (
-                        <TableCell key={employee.id} sx={{ 
-                          p: 0.5,
-                          backgroundColor: reservedSlot.color + '20', // Add transparency to the blocked period's color
-                          textAlign: 'center',
-                          fontSize: '0.7rem',
-                          color: 'text.secondary'
-                        }}>
-                          {reservedSlot.isStartTime ? reservedSlot.label : ''}
-                        </TableCell>
-                      );
-                    }
                     
                     if (session && time === session.startTime) {
                       const duration = getSessionDurationInSlots(session);
@@ -754,6 +758,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             fontSize: '0.8rem',
                             color: 'white',
                             cursor: 'pointer',
+                            position: 'relative',
+                            zIndex: 2, // Ensure sessions appear on top of activities
                             '&:hover': { 
                               filter: 'brightness(0.8)'
                             }
@@ -784,7 +790,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     }
                     
                     return (
-                      <TableCell key={employee.id} sx={{ p: 0.5 }}>
+                      <TableCell key={employee.id} sx={{ 
+                        p: 0.5,
+                        backgroundColor: 'transparent' // Let the row background show through
+                      }}>
                       </TableCell>
                     );
                   })}
@@ -810,6 +819,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
                 שעה
               </TableCell>
+              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100' }}>
+                פעילויות
+              </TableCell>
               {sortedRooms.map(room => (
                 <TableCell key={room.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
                   {room.name}
@@ -820,11 +832,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <TableBody>
             {timeSlots.map((time, index) => {
               const isHourMark = time.endsWith(':00');
+              const reservedSlot = getReservedSlot(time, day);
+              
               return (
                 <TableRow key={time} sx={{ 
                   height: 20,
                   borderTop: isHourMark ? 2 : 0.5,
-                  borderColor: isHourMark ? 'primary.main' : 'divider'
+                  borderColor: isHourMark ? 'primary.main' : 'divider',
+                  backgroundColor: reservedSlot ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
                 }}>
                   <TableCell sx={{ 
                     p: 0.5, 
@@ -835,23 +850,21 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   }}>
                     {isHourMark ? time : ''}
                   </TableCell>
+                  
+                  {/* Activities Column */}
+                  <TableCell sx={{ 
+                    p: 0.5,
+                    backgroundColor: reservedSlot ? reservedSlot.color + '30' : 'grey.50',
+                    textAlign: 'center',
+                    fontSize: '0.7rem',
+                    color: reservedSlot ? 'text.primary' : 'text.secondary',
+                    fontWeight: reservedSlot ? 'bold' : 'normal'
+                  }}>
+                    {reservedSlot?.isStartTime ? reservedSlot.label : ''}
+                  </TableCell>
+                  
                   {sortedRooms.map(room => {
                     const session = getSessionAtTime(daySessions, time, undefined, room.id);
-                    const reservedSlot = getReservedSlot(time, day);
-                    
-                    if (reservedSlot) {
-                      return (
-                        <TableCell key={room.id} sx={{ 
-                          p: 0.5,
-                          backgroundColor: reservedSlot.color + '20', // Add transparency to the blocked period's color
-                          textAlign: 'center',
-                          fontSize: '0.7rem',
-                          color: 'text.secondary'
-                        }}>
-                          {reservedSlot.isStartTime ? reservedSlot.label : ''}
-                        </TableCell>
-                      );
-                    }
                     
                     if (session && time === session.startTime) {
                       const duration = getSessionDurationInSlots(session);
@@ -866,6 +879,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             fontSize: '0.8rem',
                             color: 'white',
                             cursor: 'pointer',
+                            position: 'relative',
+                            zIndex: 2, // Ensure sessions appear on top of activities
                             '&:hover': { 
                               filter: 'brightness(0.8)'
                             }
@@ -896,7 +911,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     }
                     
                     return (
-                      <TableCell key={room.id} sx={{ p: 0.5 }}>
+                      <TableCell key={room.id} sx={{ 
+                        p: 0.5,
+                        backgroundColor: 'transparent' // Let the row background show through
+                      }}>
                       </TableCell>
                     );
                   })}

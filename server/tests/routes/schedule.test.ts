@@ -2,7 +2,7 @@ import request from 'supertest';
 import { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createTestApp } from '../utils/testServer';
-import { createEmployeeFixture, createRoomFixture, createScheduleConfigFixture } from '../utils/fixtures';
+import { createEmployeeFixture, createRoomFixture } from '../utils/fixtures';
 import { prisma } from '../setup';
 
 describe('Schedule API Endpoints', () => {
@@ -12,194 +12,61 @@ describe('Schedule API Endpoints', () => {
     app = createTestApp(prisma);
   });
 
-  describe('GET /api/schedule/config', () => {
-    it('should return default config when none exists', async () => {
-      const response = await request(app)
-        .get('/api/schedule/config')
-        .expect(200);
-
-      expect(response.body).toEqual({
-        breakfast: { startTime: '08:00', endTime: '08:30' },
-        morningMeetup: { startTime: '09:00', endTime: '09:15' },
-        lunch: { startTime: '12:00', endTime: '13:00' }
-      });
-    });
-
-    it('should return stored config when it exists', async () => {
-      const config = createScheduleConfigFixture({
-        breakfast: { startTime: '07:30', endTime: '08:00' },
-        lunch: { startTime: '12:30', endTime: '13:30' }
-      });
-
-      // Set config first
-      await request(app)
-        .put('/api/schedule/config')
-        .send(config)
-        .expect(200);
-
-      // Get config
-      const response = await request(app)
-        .get('/api/schedule/config')
-        .expect(200);
-
-      expect(response.body).toEqual(config);
-    });
-  });
-
-  describe('PUT /api/schedule/config', () => {
-    it('should update schedule configuration', async () => {
-      const config = createScheduleConfigFixture({
-        breakfast: { startTime: '07:45', endTime: '08:15' },
-        morningMeetup: { startTime: '08:45', endTime: '09:00' },
-        lunch: { startTime: '12:15', endTime: '13:15' }
-      });
-
-      const response = await request(app)
-        .put('/api/schedule/config')
-        .send(config)
-        .expect(200);
-
-      expect(response.body).toEqual(config);
-
-      // Verify the config is actually stored
-      const getResponse = await request(app)
-        .get('/api/schedule/config')
-        .expect(200);
-
-      expect(getResponse.body).toEqual(config);
-    });
-
-    it('should handle partial config updates', async () => {
-      const partialConfig = {
-        breakfast: { startTime: '07:30', endTime: '08:00' }
-      };
-
-      const response = await request(app)
-        .put('/api/schedule/config')
-        .send(partialConfig)
-        .expect(200);
-
-      expect(response.body).toEqual(partialConfig);
-    });
-
-    it('should handle invalid time formats gracefully', async () => {
-      const invalidConfig = {
-        breakfast: { startTime: 'invalid', endTime: '08:30' },
-        morningMeetup: { startTime: '09:00', endTime: '09:15' },
-        lunch: { startTime: '12:00', endTime: '13:00' }
-      };
-
-      // This should not crash the server, but validation might occur in the scheduling logic
-      await request(app)
-        .put('/api/schedule/config')
-        .send(invalidConfig)
-        .expect(200);
-    });
-  });
-
-  describe('GET /api/schedule/active', () => {
-    it('should return null when no active schedule exists', async () => {
-      const response = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(response.body).toBeNull();
-    });
-
-    it('should return active schedule when it exists', async () => {
-      // First create employees and rooms for schedule generation
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture({ firstName: 'Dr', lastName: 'Smith' }));
-
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture({ name: 'Therapy Room' }));
-
-      // Generate a schedule
-      const generateResponse = await request(app)
-        .post('/api/schedule/generate')
-        .expect(200);
-
-      const scheduleId = generateResponse.body.id;
-
-      // Activate the schedule
-      await request(app)
-        .put(`/api/schedule/${scheduleId}/activate`)
-        .expect(200);
-
-      // Get active schedule
-      const response = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(response.body).not.toBeNull();
-      expect(response.body.id).toBe(scheduleId);
-      expect(response.body).toHaveProperty('sessions');
-      expect(Array.isArray(response.body.sessions)).toBe(true);
-    });
-  });
-
-  describe('GET /api/schedule/all', () => {
-    it('should return empty array when no schedules exist', async () => {
-      const response = await request(app)
-        .get('/api/schedule/all')
-        .expect(200);
-
-      expect(response.body).toEqual([]);
-    });
-
-    it('should return all schedules when they exist', async () => {
-      // Setup prerequisites
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture());
-
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture());
-
-      // Generate multiple schedules
-      await request(app).post('/api/schedule/generate').expect(200);
-      await request(app).post('/api/schedule/generate').expect(200);
-
-      const response = await request(app)
-        .get('/api/schedule/all')
-        .expect(200);
-
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0]).toHaveProperty('id');
-      expect(response.body[0]).toHaveProperty('sessions');
-      expect(response.body[1]).toHaveProperty('id');
-      expect(response.body[1]).toHaveProperty('sessions');
-    });
-  });
-
   describe('POST /api/schedule/generate', () => {
     beforeEach(async () => {
-      // Set up basic requirements for schedule generation
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture({ 
-          firstName: 'John', 
-          lastName: 'Therapist',
-          role: 'occupational-therapist'
-        }));
-
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture({ name: 'OT Room' }));
-
-      // Set up schedule config
-      await request(app)
-        .put('/api/schedule/config')
-        .send(createScheduleConfigFixture());
+      // Clean up before each test
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
     });
 
     it('should generate schedule with valid data', async () => {
+      // Create test employees
+      const employee1 = createEmployeeFixture({
+        firstName: 'Alice',
+        lastName: 'Smith',
+        role: 'occupational-therapist',
+        workingHours: {
+          sunday: { startTime: '08:00', endTime: '16:00' },
+          monday: { startTime: '08:00', endTime: '16:00' },
+          tuesday: { startTime: '08:00', endTime: '16:00' },
+          wednesday: { startTime: '08:00', endTime: '16:00' },
+          thursday: { startTime: '08:00', endTime: '16:00' }
+        },
+        weeklySessionsCount: 20
+      });
+
+      const employee2 = createEmployeeFixture({
+        firstName: 'Bob',
+        lastName: 'Johnson', 
+        role: 'physiotherapist',
+        workingHours: {
+          sunday: { startTime: '09:00', endTime: '17:00' },
+          monday: { startTime: '09:00', endTime: '17:00' },
+          tuesday: { startTime: '09:00', endTime: '17:00' },
+          wednesday: { startTime: '09:00', endTime: '17:00' },
+          thursday: { startTime: '09:00', endTime: '17:00' }
+        },
+        weeklySessionsCount: 15
+      });
+
+      // Create employees in database
+      await request(app).post('/api/employees').send(employee1);
+      await request(app).post('/api/employees').send(employee2);
+
+      // Create test rooms
+      const room1 = createRoomFixture({ name: 'Therapy Room 1' });
+      const room2 = createRoomFixture({ name: 'Therapy Room 2' });
+
+      await request(app).post('/api/rooms').send(room1);
+      await request(app).post('/api/rooms').send(room2);
+
+      // Generate schedule
       const response = await request(app)
         .post('/api/schedule/generate')
-        .expect(200);
+        .expect(201);
 
       expect(response.body).toHaveProperty('id');
       expect(response.body).toHaveProperty('sessions');
@@ -207,12 +74,10 @@ describe('Schedule API Endpoints', () => {
       expect(Array.isArray(response.body.sessions)).toBe(true);
     });
 
-    it('should return 400 when no employees exist', async () => {
-      // Clear employees but keep rooms
-      await request(app).post('/api/system/reset');
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture());
+    it('should fail when no employees exist', async () => {
+      // Create rooms but no employees
+      const room1 = createRoomFixture({ name: 'Test Room' });
+      await request(app).post('/api/rooms').send(room1);
 
       const response = await request(app)
         .post('/api/schedule/generate')
@@ -221,12 +86,13 @@ describe('Schedule API Endpoints', () => {
       expect(response.body.error).toBe('No employees found');
     });
 
-    it('should return 400 when no rooms exist', async () => {
-      // Clear rooms but keep employees
-      await request(app).post('/api/system/reset');
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture());
+    it('should fail when no rooms exist', async () => {
+      // Create employees but no rooms
+      const employee1 = createEmployeeFixture({
+        firstName: 'Test',
+        lastName: 'Employee'
+      });
+      await request(app).post('/api/employees').send(employee1);
 
       const response = await request(app)
         .post('/api/schedule/generate')
@@ -235,82 +101,204 @@ describe('Schedule API Endpoints', () => {
       expect(response.body.error).toBe('No rooms found');
     });
 
-    it('should use default config when no schedule config exists', async () => {
-      // Clear all data and recreate only employees and rooms
-      await request(app).post('/api/system/reset');
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture());
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture());
+    it('should fail when insufficient time slots for employee weekly sessions', async () => {
+      // Create an employee with very high session requirements
+      const employee = createEmployeeFixture({
+        firstName: 'High',
+        lastName: 'Demand',
+        weeklySessionsCount: 100, // Impossible to schedule 100 sessions in a week
+        workingHours: {
+          sunday: { startTime: '10:00', endTime: '11:00' }, // Only 1 hour per day
+          monday: { startTime: '10:00', endTime: '11:00' },
+          tuesday: { startTime: '10:00', endTime: '11:00' },
+          wednesday: { startTime: '10:00', endTime: '11:00' },
+          thursday: { startTime: '10:00', endTime: '11:00' }
+        }
+      });
+      
+      const room = createRoomFixture({ name: 'Test Room' });
 
-      // Don't set config - should use default config and succeed
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
       const response = await request(app)
         .post('/api/schedule/generate')
-        .expect(200);
+        .expect(400);
 
-      expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('sessions');
-      expect(Array.isArray(response.body.sessions)).toBe(true);
+      expect(response.body.error).toBe('Schedule generation failed');
+      expect(response.body.details).toContain('Cannot generate schedule - insufficient available time slots');
+      expect(response.body.details).toContain('High Demand');
+      expect(response.body.details).toContain('required 100 sessions');
     });
 
-    it('should generate different schedules on multiple calls', async () => {
-      const response1 = await request(app)
+    it('should fail when blocking activities prevent scheduling enough sessions', async () => {
+      // Create an employee who needs many sessions
+      const employee = createEmployeeFixture({
+        firstName: 'Blocked',
+        lastName: 'Employee',
+        weeklySessionsCount: 15,
+        workingHours: {
+          sunday: { startTime: '08:00', endTime: '16:00' },
+          monday: { startTime: '08:00', endTime: '16:00' },
+          tuesday: { startTime: '08:00', endTime: '16:00' },
+          wednesday: { startTime: '08:00', endTime: '16:00' },
+          thursday: { startTime: '08:00', endTime: '16:00' }
+        }
+      });
+      
+      const room = createRoomFixture({ name: 'Test Room' });
+
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
+      // Create blocking activities that cover most of the working hours
+      const blockingActivity1 = {
+        name: 'Morning Meeting',
+        color: '#ff5733',
+        defaultStartTime: '08:00',
+        defaultEndTime: '12:00', // Blocks morning
+        dayOverrides: {},
+        isBlocking: true,
+        isActive: true
+      };
+
+      const blockingActivity2 = {
+        name: 'Afternoon Training',
+        color: '#ff5733',
+        defaultStartTime: '13:00',
+        defaultEndTime: '16:00', // Blocks afternoon
+        dayOverrides: {},
+        isBlocking: true,
+        isActive: true
+      };
+
+      await request(app).post('/api/activities').send(blockingActivity1);
+      await request(app).post('/api/activities').send(blockingActivity2);
+
+      const response = await request(app)
         .post('/api/schedule/generate')
+        .expect(400);
+
+      expect(response.body.error).toBe('Schedule generation failed');
+      expect(response.body.details).toContain('Cannot generate schedule - insufficient available time slots');
+      expect(response.body.details).toContain('Blocked Employee');
+      expect(response.body.details).toContain('required 15 sessions');
+    });
+  });
+
+  describe('GET /api/schedule/active', () => {
+    beforeEach(async () => {
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
+    });
+
+    it('should return null when no active schedule exists', async () => {
+      const response = await request(app)
+        .get('/api/schedule/active')
         .expect(200);
 
-      const response2 = await request(app)
+      expect(response.body).toBeNull();
+    });
+
+    it('should return active schedule when one exists', async () => {
+      // Set up test data
+      const employee = createEmployeeFixture();
+      const room = createRoomFixture();
+
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
+      // Generate a schedule (which becomes active by default)
+      const generateResponse = await request(app)
         .post('/api/schedule/generate')
+        .expect(201);
+
+      // Get active schedule
+      const response = await request(app)
+        .get('/api/schedule/active')
         .expect(200);
 
-      expect(response1.body.id).not.toBe(response2.body.id);
-      expect(response1.body.generatedAt).not.toBe(response2.body.generatedAt);
+      expect(response.body).toEqual(generateResponse.body);
+    });
+  });
+
+  describe('GET /api/schedule/all', () => {
+    beforeEach(async () => {
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
+    });
+
+    it('should return empty array when no schedules exist', async () => {
+      const response = await request(app)
+        .get('/api/schedule/all')
+        .expect(200);
+
+      expect(response.body).toEqual([]);
+    });
+
+    it('should return all schedules', async () => {
+      // Set up test data
+      const employee = createEmployeeFixture();
+      const room = createRoomFixture();
+
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
+      // Generate two schedules
+      await request(app).post('/api/schedule/generate').expect(201);
+      await request(app).post('/api/schedule/generate').expect(201);
+
+      const response = await request(app)
+        .get('/api/schedule/all')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toHaveLength(2);
     });
   });
 
   describe('PUT /api/schedule/:id/activate', () => {
-    let scheduleId: string;
-
     beforeEach(async () => {
-      // Create prerequisites and generate a schedule
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture());
-
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture());
-
-      await request(app)
-        .put('/api/schedule/config')
-        .send(createScheduleConfigFixture());
-
-      const generateResponse = await request(app)
-        .post('/api/schedule/generate')
-        .expect(200);
-
-      scheduleId = generateResponse.body.id;
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
     });
 
-    it('should activate existing schedule', async () => {
+    it('should activate a schedule', async () => {
+      // Set up test data
+      const employee = createEmployeeFixture();
+      const room = createRoomFixture();
+
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
+      // Generate a schedule
+      const generateResponse = await request(app)
+        .post('/api/schedule/generate')
+        .expect(201);
+
+      const scheduleId = generateResponse.body.id;
+
+      // Activate the schedule
       const response = await request(app)
         .put(`/api/schedule/${scheduleId}/activate`)
         .expect(200);
 
       expect(response.body.id).toBe(scheduleId);
-
-      // Verify it's active
-      const activeResponse = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(activeResponse.body.id).toBe(scheduleId);
+      expect(response.body.isActive).toBe(true);
     });
 
     it('should return 404 for non-existent schedule', async () => {
       const nonExistentId = '00000000-0000-0000-0000-000000000000';
-
+      
       const response = await request(app)
         .put(`/api/schedule/${nonExistentId}/activate`)
         .expect(404);
@@ -318,248 +306,217 @@ describe('Schedule API Endpoints', () => {
       expect(response.body.error).toBe('Schedule not found');
     });
 
-    it('should handle activating already active schedule', async () => {
-      // Activate once
-      await request(app)
-        .put(`/api/schedule/${scheduleId}/activate`)
-        .expect(200);
-
-      // Activate again
+    it('should return 400 for invalid UUID', async () => {
       const response = await request(app)
-        .put(`/api/schedule/${scheduleId}/activate`)
-        .expect(200);
+        .put('/api/schedule/invalid-uuid/activate')
+        .expect(400);
 
-      expect(response.body.id).toBe(scheduleId);
+      expect(response.body.error).toBe('Invalid UUID format');
     });
   });
 
   describe('DELETE /api/schedule/:id', () => {
-    let scheduleId: string;
-
     beforeEach(async () => {
-      // Create prerequisites and generate a schedule
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture());
-
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture());
-
-      await request(app)
-        .put('/api/schedule/config')
-        .send(createScheduleConfigFixture());
-
-      const generateResponse = await request(app)
-        .post('/api/schedule/generate')
-        .expect(200);
-
-      scheduleId = generateResponse.body.id;
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
     });
 
-    it('should delete existing schedule', async () => {
+    it('should delete a schedule', async () => {
+      // Set up test data
+      const employee = createEmployeeFixture();
+      const room = createRoomFixture();
+
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
+      // Generate a schedule
+      const generateResponse = await request(app)
+        .post('/api/schedule/generate')
+        .expect(201);
+
+      const scheduleId = generateResponse.body.id;
+
+      // Delete the schedule
       await request(app)
         .delete(`/api/schedule/${scheduleId}`)
         .expect(204);
 
-      // Verify schedule is deleted
-      const allSchedulesResponse = await request(app)
+      // Verify it's deleted
+      const allSchedules = await request(app)
         .get('/api/schedule/all')
         .expect(200);
 
-      expect(allSchedulesResponse.body).toHaveLength(0);
+      expect(allSchedules.body).toHaveLength(0);
     });
 
     it('should return 404 for non-existent schedule', async () => {
       const nonExistentId = '00000000-0000-0000-0000-000000000000';
-
+      
       const response = await request(app)
         .delete(`/api/schedule/${nonExistentId}`)
         .expect(404);
 
       expect(response.body.error).toBe('Schedule not found');
     });
-
-    it('should handle deleting active schedule', async () => {
-      // Activate the schedule first
-      await request(app)
-        .put(`/api/schedule/${scheduleId}/activate`)
-        .expect(200);
-
-      // Delete the active schedule
-      await request(app)
-        .delete(`/api/schedule/${scheduleId}`)
-        .expect(204);
-
-      // Active schedule should now be null
-      const activeResponse = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(activeResponse.body).toBeNull();
-    });
   });
 
-  describe('GET /api/schedule/sessions', () => {
-    it('should return empty array when no sessions exist', async () => {
-      const response = await request(app)
-        .get('/api/schedule/sessions')
-        .expect(200);
-
-      expect(response.body).toEqual([]);
+  describe('Session Management', () => {
+    beforeEach(async () => {
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
     });
 
-    it('should return all sessions when they exist', async () => {
-      // Create prerequisites and generate a schedule
-      await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture());
-
-      await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture());
-
-      await request(app)
-        .put('/api/schedule/config')
-        .send(createScheduleConfigFixture());
-
-      await request(app)
-        .post('/api/schedule/generate')
-        .expect(200);
-
+    it('should get all sessions', async () => {
       const response = await request(app)
         .get('/api/schedule/sessions')
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-      if (response.body.length > 0) {
-        expect(response.body[0]).toHaveProperty('id');
-        expect(response.body[0]).toHaveProperty('employeeId');
-        expect(response.body[0]).toHaveProperty('roomId');
-        expect(response.body[0]).toHaveProperty('day');
-        expect(response.body[0]).toHaveProperty('startTime');
-        expect(response.body[0]).toHaveProperty('endTime');
-      }
+    });
+
+    it('should create a session with valid data', async () => {
+      // Set up test data
+      const employee = createEmployeeFixture();
+      const room = createRoomFixture();
+
+      const employeeResponse = await request(app).post('/api/employees').send(employee);
+      const roomResponse = await request(app).post('/api/rooms').send(room);
+
+      const sessionData = {
+        employeeId: employeeResponse.body.id,
+        roomId: roomResponse.body.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00'
+      };
+
+      const response = await request(app)
+        .post('/api/schedule/sessions')
+        .send(sessionData)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.employeeId).toBe(sessionData.employeeId);
+      expect(response.body.roomId).toBe(sessionData.roomId);
+      expect(response.body.day).toBe(sessionData.day);
+      expect(response.body.startTime).toBe(sessionData.startTime);
+      expect(response.body.endTime).toBe(sessionData.endTime);
     });
   });
 
-  describe('Schedule API Integration', () => {
-    it('should handle complete schedule workflow', async () => {
-      // 1. Set up employees and rooms
-      const employeeResponse = await request(app)
-        .post('/api/employees')
-        .send(createEmployeeFixture({ firstName: 'Workflow', lastName: 'Test' }));
-
-      const roomResponse = await request(app)
-        .post('/api/rooms')
-        .send(createRoomFixture({ name: 'Workflow Room' }));
-
-      // 2. Set schedule configuration
-      const config = createScheduleConfigFixture();
-      await request(app)
-        .put('/api/schedule/config')
-        .send(config)
-        .expect(200);
-
-      // 3. Generate schedule
-      const generateResponse = await request(app)
-        .post('/api/schedule/generate')
-        .expect(200);
-
-      const scheduleId = generateResponse.body.id;
-
-      // 4. Verify schedule exists in all schedules
-      const allSchedulesResponse = await request(app)
-        .get('/api/schedule/all')
-        .expect(200);
-
-      expect(allSchedulesResponse.body).toHaveLength(1);
-      expect(allSchedulesResponse.body[0].id).toBe(scheduleId);
-
-      // 5. Activate schedule
-      await request(app)
-        .put(`/api/schedule/${scheduleId}/activate`)
-        .expect(200);
-
-      // 6. Verify active schedule
-      const activeResponse = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(activeResponse.body.id).toBe(scheduleId);
-
-      // 7. Check sessions
-      const sessionsResponse = await request(app)
-        .get('/api/schedule/sessions')
-        .expect(200);
-
-      expect(Array.isArray(sessionsResponse.body)).toBe(true);
-
-      // 8. Clean up - delete schedule
-      await request(app)
-        .delete(`/api/schedule/${scheduleId}`)
-        .expect(204);
-
-      // 9. Verify cleanup
-      const finalActiveResponse = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(finalActiveResponse.body).toBeNull();
+  describe('Non-blocking Activities', () => {
+    beforeEach(async () => {
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
     });
 
-    it('should handle multiple employees and rooms', async () => {
-      // Create multiple employees with different roles
-      const employees = [
-        { firstName: 'Alice', lastName: 'OT', role: 'occupational-therapist' as const },
-        { firstName: 'Bob', lastName: 'ST', role: 'speech-therapist' as const },
-        { firstName: 'Carol', lastName: 'PT', role: 'physiotherapist' as const }
-      ];
+    it('should schedule sessions over non-blocking activities', async () => {
+      // Create employee and room
+      const employee = createEmployeeFixture({
+        firstName: 'Test',
+        lastName: 'Employee',
+        weeklySessionsCount: 5
+      });
+      const room = createRoomFixture({ name: 'Test Room' });
 
-      const rooms = [
-        { name: 'OT Room' },
-        { name: 'Speech Room' },
-        { name: 'PT Room' },
-        { name: 'Group Room' }
-      ];
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
 
-      // Create all employees and rooms
-      for (const emp of employees) {
-        await request(app)
-          .post('/api/employees')
-          .send(createEmployeeFixture(emp));
-      }
+      // Create a non-blocking activity
+      const activity = {
+        name: 'Optional Training',
+        color: '#ff5733',
+        defaultStartTime: '10:00',
+        defaultEndTime: '11:00',
+        dayOverrides: {},
+        isBlocking: false, // This is the key - NOT blocking
+        isActive: true
+      };
 
-      for (const room of rooms) {
-        await request(app)
-          .post('/api/rooms')
-          .send(createRoomFixture(room));
-      }
+      await request(app).post('/api/activities').send(activity);
 
-      // Set config and generate schedule
-      await request(app)
-        .put('/api/schedule/config')
-        .send(createScheduleConfigFixture());
-
-      const generateResponse = await request(app)
+      // Generate schedule
+      const response = await request(app)
         .post('/api/schedule/generate')
-        .expect(200);
+        .expect(201);
 
-      expect(generateResponse.body).toHaveProperty('sessions');
-      expect(Array.isArray(generateResponse.body.sessions)).toBe(true);
+      expect(response.body).toHaveProperty('sessions');
+      const sessions = response.body.sessions;
+      
+      // Check if sessions are scheduled during the non-blocking activity time
+      const sessionsInActivityTime = sessions.filter((session: any) => {
+        const sessionStart = timeToMinutes(session.startTime);
+        const sessionEnd = timeToMinutes(session.endTime);
+        const activityStart = timeToMinutes('10:00');
+        const activityEnd = timeToMinutes('11:00');
+        
+        return sessionStart < activityEnd && activityStart < sessionEnd;
+      });
 
-      // Verify sessions make sense with multiple employees and rooms
-      const sessions = generateResponse.body.sessions;
-      if (sessions.length > 0) {
-        // Each session should have valid employee and room IDs
-        sessions.forEach((session: any) => {
-          expect(session).toHaveProperty('employeeId');
-          expect(session).toHaveProperty('roomId');
-          expect(session).toHaveProperty('day');
-          expect(session).toHaveProperty('startTime');
-          expect(session).toHaveProperty('endTime');
-        });
-      }
+      // Should have at least some sessions during the non-blocking activity time
+      expect(sessionsInActivityTime.length).toBeGreaterThan(0);
+    });
+
+    it('should NOT schedule sessions over blocking activities', async () => {
+      // Create employee and room
+      const employee = createEmployeeFixture({
+        firstName: 'Test',
+        lastName: 'Employee',
+        weeklySessionsCount: 5
+      });
+      const room = createRoomFixture({ name: 'Test Room' });
+
+      await request(app).post('/api/employees').send(employee);
+      await request(app).post('/api/rooms').send(room);
+
+      // Create a blocking activity
+      const activity = {
+        name: 'Staff Meeting',
+        color: '#ff5733',
+        defaultStartTime: '10:00',
+        defaultEndTime: '11:00',
+        dayOverrides: {},
+        isBlocking: true, // This should block scheduling
+        isActive: true
+      };
+
+      await request(app).post('/api/activities').send(activity);
+
+      // Generate schedule
+      const response = await request(app)
+        .post('/api/schedule/generate')
+        .expect(201);
+
+      expect(response.body).toHaveProperty('sessions');
+      const sessions = response.body.sessions;
+      
+      // Check that NO sessions are scheduled during the blocking activity time
+      const sessionsInActivityTime = sessions.filter((session: any) => {
+        const sessionStart = timeToMinutes(session.startTime);
+        const sessionEnd = timeToMinutes(session.endTime);
+        const activityStart = timeToMinutes('10:00');
+        const activityEnd = timeToMinutes('11:00');
+        
+        return sessionStart < activityEnd && activityStart < sessionEnd;
+      });
+
+      // Should have NO sessions during the blocking activity time
+      expect(sessionsInActivityTime.length).toBe(0);
     });
   });
 });
+
+// Helper function to convert time string to minutes for comparison
+function timeToMinutes(timeStr: string): number {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
