@@ -74,15 +74,7 @@ model Room {
   @@map("rooms")
 }
 
-model SystemConfig {
-  id        String   @id @default(uuid())
-  key       String   @unique // e.g., "meal_times", "system_settings"
-  value     Json     // Store configuration as JSON
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  
-  @@map("system_config")
-}
+
 
 model Schedule {
   id          String    @id @default(uuid())
@@ -97,35 +89,7 @@ model Schedule {
   @@map("schedules")
 }
 
-model User {
-  id          String    @id @default(uuid())
-  email       String    @unique
-  name        String?
-  picture     String?   // Profile picture URL from Google
-  googleId    String    @unique @map("google_id") // Google OAuth ID
-  isActive    Boolean   @default(true) @map("is_active")
-  lastLoginAt DateTime? @map("last_login_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  
-  // Relations
-  userSessions UserSession[]
-  
-  @@map("users")
-}
 
-model UserSession {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  token     String   @unique // JWT token
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_sessions")
-}
 
 model Activity {
   id           String    @id @default(uuid())

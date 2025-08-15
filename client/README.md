@@ -49,9 +49,8 @@
 # התקנת תלויות
 npm install
 
-# הגדרת משתני סביבה (אופציונלי - לתכונות Google)
+# הגדרת משתני סביבה (אופציונלי)
 cp .env.example .env
-# ערוך את קובץ .env והגדר את REACT_APP_GOOGLE_CLIENT_ID
 
 # הפעלת שרת הפיתוח
 npm start
@@ -59,25 +58,7 @@ npm start
 
 המערכת תיפתח בכתובת: `http://localhost:3000`
 
-### הגדרת Google OAuth (אופציונלי)
 
-לתמיכה בייצוא ל-Google Drive והתחברות משתמשים:
-
-1. עבור ל-[Google Cloud Console](https://console.cloud.google.com/)
-2. צור פרויקט חדש או בחר פרויקט קיים
-3. אפשר את ה-Google Identity API
-4. עבור ל"Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
-5. בחר "Web application"
-6. הוסף את כתובות המקור המותרות:
-   - `http://localhost:3000`
-   - `https://localhost:3000`
-7. הוסף את כתובות ההפניה:
-   - `http://localhost:3000/auth/callback`
-   - `http://localhost:3000/oauth-callback.html`
-8. צור קובץ `.env` בתיקיית `client` עם:
-   ```env
-   REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here
-   ```
 
 ### שימוש במערכת
 

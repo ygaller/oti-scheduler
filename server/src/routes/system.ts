@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, PatientRepository, ActivityRepository } from '../repositories';
+import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, PatientRepository, ActivityRepository } from '../repositories';
 
 export const createSystemRouter = (
   employeeRepo: EmployeeRepository,
   roomRepo: RoomRepository,
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
-  configRepo: SystemConfigRepository,
   patientRepo: PatientRepository,
   activityRepo: ActivityRepository
 ): Router => {
@@ -46,8 +45,7 @@ export const createSystemRouter = (
         console.log('Skipped activities deletion - table may not exist yet');
       }
       
-      await configRepo.deleteAll();
-      console.log('Deleted all system config');
+
       
       console.log('System reset completed successfully');
       res.json({ message: 'System reset completed successfully' });

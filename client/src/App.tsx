@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, Box, Tabs, Tab, Typography, CircularProgress, Alert } from '@mui/material';
+import { CssBaseline, Container, Box, Tabs, Tab, Typography, CircularProgress } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import rtlPlugin from 'stylis-plugin-rtl';
@@ -16,10 +16,9 @@ import PatientManagement from './components/PatientManagement';
 import RoomManagement from './components/RoomManagement';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
 import ScheduleView from './components/ScheduleView';
-import { LoginButton } from './components/LoginButton';
-import AuthCallback from './components/AuthCallback';
+
 import { employeeService, patientService, roomService, scheduleService } from './services';
-import { authService, User } from './services/authService';
+
 import { Employee, Patient, Room, Schedule } from './types';
 
 // Create RTL cache
@@ -111,9 +110,7 @@ const theme = createTheme({
 
 // Main App Content Component (everything except routing)
 function AppContent() {
-  // Authentication state
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+
   
   // Load saved tab from localStorage or default to 0
   const [activeTab, setActiveTab] = useState(() => {
@@ -130,30 +127,10 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuthStatus();
-    fetchData(); // Load data regardless of authentication status
+    fetchData();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      setAuthLoading(true);
-      const currentUser = authService.getUser();
-      if (currentUser) {
-        // Verify session with server
-        const verifiedUser = await authService.verifySession();
-        if (verifiedUser) {
-          setUser(verifiedUser);
-        } else {
-          setUser(null);
-        }
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      setUser(null);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
+
 
   const fetchData = async () => {
     try {
@@ -254,14 +231,7 @@ function AppContent() {
     localStorage.setItem('scheduling-app-active-tab', newValue.toString());
   };
 
-  const handleLogin = (loggedInUser: User) => {
-    setUser(loggedInUser);
-  };
 
-  const handleLogout = () => {
-    setUser(null);
-    // Don't clear data on logout - keep the app functional
-  };
 
   return (
     <CacheProvider value={cacheRtl}>
@@ -270,7 +240,7 @@ function AppContent() {
           <CssBaseline />
           <Box dir="rtl" sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
             <Container maxWidth="xl" sx={{ py: 3 }}>
-              {/* Header with logo, title, and auth */}
+              {/* Header with logo and title */}
               <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
                 <Box display="flex" alignItems="center" gap={2}>
                   <img 
@@ -287,43 +257,12 @@ function AppContent() {
                   </Typography>
                 </Box>
                 
-                {/* Authentication section */}
-                <Box>
-                  {authLoading ? (
-                    <CircularProgress size={24} />
-                  ) : (
-                    <LoginButton
-                      user={user}
-                      onLogin={handleLogin}
-                      onLogout={handleLogout}
-                    />
-                  )}
-                </Box>
+
               </Box>
 
-              {/* Show welcome message if not authenticated */}
-              {!authLoading && !user && (
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  <Typography variant="body2">
-                    <strong>טיפ:</strong> התחבר/י עם חשבון Google כדי לייצא לוחות זמנים לחשבון שלך ב-Google Drive.
-                  </Typography>
-                </Alert>
-              )}
 
-
-
-              {/* Show "Google OAuth Setup Required" warning if not configured */}
-              {(!process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') && (
-                <Alert severity="warning" sx={{ mb: 3 }}>
-                  <Typography variant="body2">
-                    <strong>נדרש הגדרת Google OAuth:</strong> יש להגדיר את משתני הסביבה REACT_APP_GOOGLE_CLIENT_ID ו-GOOGLE_CLIENT_ID במערכת.
-                  </Typography>
-                </Alert>
-              )}
               
-              {/* Main content - always show after loading */}
-              {!authLoading && (
-                <>
+              {/* Main content */}
                   <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
                       <Tab label="עובדים" />
@@ -405,8 +344,6 @@ function AppContent() {
                       )}
                     </>
                   )}
-                </>
-              )}
             </Container>
           </Box>
         </ThemeProvider>
@@ -420,7 +357,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/auth/callback" element={<AuthCallback />} />
+
         <Route path="*" element={<AppContent />} />
       </Routes>
     </Router>

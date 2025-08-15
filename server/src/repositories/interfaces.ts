@@ -51,13 +51,7 @@ export interface ScheduleRepository {
   deleteAll(): Promise<void>;
 }
 
-export interface SystemConfigRepository {
-  get<T>(key: string): Promise<T | null>;
-  set<T>(key: string, value: T): Promise<void>;
-  delete(key: string): Promise<void>;
-  deleteAll(): Promise<void>;
 
-}
 
 export interface ActivityRepository {
   findAll(includeInactive?: boolean): Promise<Activity[]>;

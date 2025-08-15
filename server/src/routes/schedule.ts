@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, ActivityRepository } from '../repositories';
+import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, ActivityRepository } from '../repositories';
 import { generateScheduleWithActivities, validateScheduleConstraints, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
@@ -10,7 +10,6 @@ export const createScheduleRouter = (
   roomRepo: RoomRepository,
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
-  configRepo: SystemConfigRepository,
   activityRepo: ActivityRepository,
   prisma: PrismaClient
 ): Router => {

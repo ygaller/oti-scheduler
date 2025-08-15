@@ -9,13 +9,13 @@ import {
   PrismaRoomRepository, 
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
-  PrismaSystemConfigRepository,
-  PrismaUserRepository,
+
+
   PrismaActivityRepository
 } from './repositories';
 import { createApiRouter } from './routes';
-import { createAuthRouter } from './routes/auth';
-import { secretManager } from './config/secrets';
+
+
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -34,15 +34,14 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Add security headers for OAuth popup support
+// Add security headers
 app.use((req, res, next) => {
-  // Allow cross-origin opener policy for OAuth popups
   res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
   res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
   // Allow same-origin for iframe embedding
@@ -61,10 +60,7 @@ async function startServer() {
   try {
     console.log('Starting server...');
     
-    // Initialize security (JWT secrets)
-    console.log('🔐 Initializing security...');
-    const jwtSecret = secretManager.getJwtSecret();
-    console.log(`🔑 JWT Secret: ${jwtSecret.length} characters`);
+
     
     // Initialize database
     const { prisma, port: dbPort } = await initializeDatabase();
@@ -84,13 +80,13 @@ async function startServer() {
     const roomRepo = new PrismaRoomRepository(prisma);
     const scheduleRepo = new PrismaScheduleRepository(prisma);
     const sessionRepo = new PrismaSessionRepository(prisma);
-    const configRepo = new PrismaSystemConfigRepository(prisma);
-    const userRepo = new PrismaUserRepository(prisma);
+
+
     const activityRepo = new PrismaActivityRepository(prisma);
     
     // Setup API routes
-    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo, prisma));
-    app.use('/api/auth', createAuthRouter(userRepo));
+    app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, prisma));
+
     
     // Default route
     app.get('/', (req, res) => {

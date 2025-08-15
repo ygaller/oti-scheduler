@@ -6,7 +6,7 @@ import {
   RoomRepository, 
   ScheduleRepository, 
   SessionRepository, 
-  SystemConfigRepository,
+
   ActivityRepository
 } from '../repositories';
 import { createEmployeeRouter } from './employees';
@@ -22,7 +22,7 @@ export const createApiRouter = (
   roomRepo: RoomRepository,
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
-  configRepo: SystemConfigRepository,
+
   activityRepo: ActivityRepository,
   prisma: PrismaClient
 ): Router => {
@@ -32,8 +32,8 @@ export const createApiRouter = (
   router.use('/employees', createEmployeeRouter(employeeRepo));
   router.use('/patients', createPatientRouter(patientRepo));
   router.use('/rooms', createRoomRouter(roomRepo));
-  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo, prisma));
-  router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, patientRepo, activityRepo));
+  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, prisma));
+  router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, patientRepo, activityRepo));
   router.use('/activities', createActivityRouter(activityRepo));
 
   // Health check endpoint

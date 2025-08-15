@@ -12,6 +12,8 @@ CREATE TABLE "employees" (
     "role" "Role" NOT NULL,
     "weekly_sessions_count" INTEGER NOT NULL,
     "working_hours" JSONB NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#845ec2',
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -19,25 +21,32 @@ CREATE TABLE "employees" (
 );
 
 -- CreateTable
+CREATE TABLE "patients" (
+    "id" TEXT NOT NULL,
+    "first_name" TEXT NOT NULL,
+    "last_name" TEXT NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#845ec2',
+    "therapy_requirements" JSONB NOT NULL DEFAULT '{}',
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "patients_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "rooms" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#845ec2',
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "rooms_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "system_config" (
-    "id" TEXT NOT NULL,
-    "key" TEXT NOT NULL,
-    "value" JSONB NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "system_config_pkey" PRIMARY KEY ("id")
-);
 
 -- CreateTable
 CREATE TABLE "schedules" (
@@ -48,6 +57,24 @@ CREATE TABLE "schedules" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "schedules_pkey" PRIMARY KEY ("id")
+);
+
+
+
+-- CreateTable
+CREATE TABLE "activities" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#ff6b6b',
+    "default_start_time" TEXT,
+    "default_end_time" TEXT,
+    "day_overrides" JSONB NOT NULL DEFAULT '{}',
+    "is_blocking" BOOLEAN NOT NULL DEFAULT false,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "activities_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -65,8 +92,25 @@ CREATE TABLE "sessions" (
     CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "session_patients" (
+    "id" TEXT NOT NULL,
+    "session_id" TEXT NOT NULL,
+    "patient_id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "session_patients_pkey" PRIMARY KEY ("id")
+);
+
+
+
+
+
 -- CreateIndex
-CREATE UNIQUE INDEX "system_config_key_key" ON "system_config"("key");
+CREATE UNIQUE INDEX "session_patients_session_id_patient_id_key" ON "session_patients"("session_id", "patient_id");
+
+
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -76,3 +120,9 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_room_id_fkey" FOREIGN KEY ("room
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_schedule_id_fkey" FOREIGN KEY ("schedule_id") REFERENCES "schedules"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "session_patients" ADD CONSTRAINT "session_patients_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "session_patients" ADD CONSTRAINT "session_patients_patient_id_fkey" FOREIGN KEY ("patient_id") REFERENCES "patients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
