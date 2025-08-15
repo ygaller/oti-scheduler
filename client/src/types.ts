@@ -63,6 +63,7 @@ export interface BlockedPeriod {
   defaultStartTime: string | null; // null means no default time
   defaultEndTime: string | null;   // null means no default time
   dayOverrides: DayTimeOverride;   // JSON field for day-specific overrides
+  isBlocking: boolean;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -149,6 +150,7 @@ export interface CreateBlockedPeriodDto {
   defaultStartTime?: string | null;
   defaultEndTime?: string | null;
   dayOverrides?: DayTimeOverride;
+  isBlocking?: boolean;
   isActive?: boolean;
 }
 

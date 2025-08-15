@@ -27,14 +27,24 @@ export const createSystemRouter = (
       await employeeRepo.deleteAll();
       console.log('Deleted all employees');
       
-      await patientRepo.deleteAll();
-      console.log('Deleted all patients');
+      // Only try to delete patients if the table exists
+      try {
+        await patientRepo.deleteAll();
+        console.log('Deleted all patients');
+      } catch (patientError) {
+        console.log('Skipped patients deletion - table may not exist yet');
+      }
       
       await roomRepo.deleteAll();
       console.log('Deleted all rooms');
       
-      await blockedPeriodRepo.deleteAll();
-      console.log('Deleted all blocked periods');
+      // Only try to delete blocked periods if the table exists
+      try {
+        await blockedPeriodRepo.deleteAll();
+        console.log('Deleted all blocked periods');
+      } catch (blockedPeriodError) {
+        console.log('Skipped blocked periods deletion - table may not exist yet');
+      }
       
       await configRepo.deleteAll();
       console.log('Deleted all system config');

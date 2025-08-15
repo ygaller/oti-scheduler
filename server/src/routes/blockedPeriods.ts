@@ -44,6 +44,7 @@ export const createBlockedPeriodRouter = (blockedPeriodRepo: BlockedPeriodReposi
         defaultStartTime: req.body.defaultStartTime || null,
         defaultEndTime: req.body.defaultEndTime || null,
         dayOverrides: req.body.dayOverrides || {},
+        isBlocking: req.body.isBlocking !== undefined ? req.body.isBlocking : false,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true
       };
 
@@ -81,6 +82,7 @@ export const createBlockedPeriodRouter = (blockedPeriodRepo: BlockedPeriodReposi
       if (req.body.defaultStartTime !== undefined) dto.defaultStartTime = req.body.defaultStartTime;
       if (req.body.defaultEndTime !== undefined) dto.defaultEndTime = req.body.defaultEndTime;
       if (req.body.dayOverrides !== undefined) dto.dayOverrides = req.body.dayOverrides;
+      if (req.body.isBlocking !== undefined) dto.isBlocking = req.body.isBlocking;
       if (req.body.isActive !== undefined) dto.isActive = req.body.isActive;
 
       // Validate name if provided

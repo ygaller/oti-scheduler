@@ -1,4 +1,4 @@
-import { Employee, Room, ScheduleConfig, Session, WeekDay, BlockedPeriod } from '../types';
+import { Employee, Room, Session, WeekDay, BlockedPeriod, ScheduleConfig } from '../types';
 
 export const WEEK_DAYS: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
@@ -266,6 +266,11 @@ class ScheduleGenerator {
 
   private isTimeSlotBlocked(day: WeekDay, startTime: string, endTime: string): boolean {
     return this.blockedPeriods.some(blockedPeriod => {
+      // Only check blocked periods that are set to block scheduling
+      if (!blockedPeriod.isBlocking) {
+        return false;
+      }
+      
       const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, day);
       if (!periodTime) {
         return false; // No blocking for this day
@@ -302,6 +307,7 @@ export function generateSchedule(
       defaultStartTime: config.breakfast.startTime,
       defaultEndTime: config.breakfast.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     },
     {
@@ -311,6 +317,7 @@ export function generateSchedule(
       defaultStartTime: config.morningMeetup.startTime,
       defaultEndTime: config.morningMeetup.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     },
     {
@@ -320,6 +327,7 @@ export function generateSchedule(
       defaultStartTime: config.lunch.startTime,
       defaultEndTime: config.lunch.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     }
   ];
@@ -393,6 +401,7 @@ export function validateScheduleConstraints(
       defaultStartTime: config.breakfast.startTime,
       defaultEndTime: config.breakfast.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     },
     {
@@ -402,6 +411,7 @@ export function validateScheduleConstraints(
       defaultStartTime: config.morningMeetup.startTime,
       defaultEndTime: config.morningMeetup.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     },
     {
@@ -411,6 +421,7 @@ export function validateScheduleConstraints(
       defaultStartTime: config.lunch.startTime,
       defaultEndTime: config.lunch.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     }
   ];
@@ -467,8 +478,8 @@ export function validateScheduleConstraintsWithBlockedPeriods(
   }
 
   // Check blocked periods using new logic
-  const activeBlockedPeriods = blockedPeriods.filter(bp => bp.isActive);
-  const blockedConflict = activeBlockedPeriods.some(blockedPeriod => {
+  const activeBlockingPeriods = blockedPeriods.filter(bp => bp.isActive && bp.isBlocking);
+  const blockedConflict = activeBlockingPeriods.some(blockedPeriod => {
     const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, session.day);
     if (!periodTime) {
       return false; // No blocking for this day

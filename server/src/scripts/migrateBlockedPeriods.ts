@@ -36,6 +36,7 @@ async function migrateBlockedPeriods() {
         defaultStartTime: config.breakfast.startTime,
         defaultEndTime: config.breakfast.endTime,
         dayOverrides: {},
+        isBlocking: true, // Breakfast blocks scheduling
         isActive: true
       },
       {
@@ -44,6 +45,7 @@ async function migrateBlockedPeriods() {
         defaultStartTime: config.morningMeetup.startTime,
         defaultEndTime: config.morningMeetup.endTime,
         dayOverrides: {},
+        isBlocking: true, // Staff meeting blocks scheduling
         isActive: true
       },
       {
@@ -52,6 +54,7 @@ async function migrateBlockedPeriods() {
         defaultStartTime: config.lunch.startTime,
         defaultEndTime: config.lunch.endTime,
         dayOverrides: {},
+        isBlocking: true, // Lunch blocks scheduling
         isActive: true
       }
     ];

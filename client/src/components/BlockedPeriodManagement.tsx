@@ -56,6 +56,7 @@ interface FormData {
   defaultStartTime: string | null;
   defaultEndTime: string | null;
   dayOverrides: Record<WeekDay, { startTime: string; endTime: string } | null>;
+  isBlocking: boolean;
   isActive: boolean;
 }
 
@@ -65,6 +66,7 @@ const initialFormData: FormData = {
   defaultStartTime: null,
   defaultEndTime: null,
   dayOverrides: {} as Record<WeekDay, { startTime: string; endTime: string } | null>,
+  isBlocking: false,
   isActive: true
 };
 
@@ -94,6 +96,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
         defaultStartTime: blockedPeriod.defaultStartTime,
         defaultEndTime: blockedPeriod.defaultEndTime,
         dayOverrides: { ...blockedPeriod.dayOverrides } as Record<WeekDay, { startTime: string; endTime: string } | null>,
+        isBlocking: blockedPeriod.isBlocking,
         isActive: blockedPeriod.isActive
       });
     } else {
@@ -123,6 +126,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
           defaultStartTime: formData.defaultStartTime,
           defaultEndTime: formData.defaultEndTime,
           dayOverrides: formData.dayOverrides,
+          isBlocking: formData.isBlocking,
           isActive: formData.isActive
         };
         await onUpdateBlockedPeriod(editingId!, updateDto);
@@ -133,6 +137,7 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
           defaultStartTime: formData.defaultStartTime,
           defaultEndTime: formData.defaultEndTime,
           dayOverrides: formData.dayOverrides,
+          isBlocking: formData.isBlocking,
           isActive: formData.isActive
         };
         await onCreateBlockedPeriod(createDto);
@@ -271,11 +276,18 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                       {blockedPeriod.name}
                     </Typography>
                   </Box>
-                  <Chip
-                    label={blockedPeriod.isActive ? 'פעיל' : 'לא פעיל'}
-                    color={blockedPeriod.isActive ? 'success' : 'default'}
-                    size="small"
-                  />
+                  <Box display="flex" flexDirection="column" gap={0.5}>
+                    <Chip
+                      label={blockedPeriod.isActive ? 'פעיל' : 'לא פעיל'}
+                      color={blockedPeriod.isActive ? 'success' : 'default'}
+                      size="small"
+                    />
+                    <Chip
+                      label={blockedPeriod.isBlocking ? 'חוסם טיפולים' : 'לא חוסם טיפולים'}
+                      color={blockedPeriod.isBlocking ? 'warning' : 'info'}
+                      size="small"
+                    />
+                  </Box>
                 </Box>
 
                 <Box mb={2}>
@@ -464,6 +476,16 @@ const BlockedPeriodManagement: React.FC<BlockedPeriodManagementProps> = ({
                 </Box>
               </AccordionDetails>
             </Accordion>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.isBlocking}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isBlocking: e.target.checked }))}
+                />
+              }
+              label="חסימת תזמון טיפולים"
+            />
 
             <FormControlLabel
               control={

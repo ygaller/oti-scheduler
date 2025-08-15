@@ -1,4 +1,4 @@
-import { Employee, Room, ScheduleConfig, Session, WeekDay, WEEK_DAYS, BlockedPeriod } from '../types';
+import { Employee, Room, Session, WeekDay, WEEK_DAYS, BlockedPeriod, ScheduleConfig } from '../types';
 
 // Helper function to get the effective time range for a blocked period on a specific day
 function getBlockedPeriodTimeForDay(blockedPeriod: BlockedPeriod, day: WeekDay): { startTime: string; endTime: string } | null {
@@ -42,14 +42,14 @@ interface EmployeeScheduleState {
 class ScheduleGenerator {
   private employees: Employee[];
   private rooms: Room[];
-  private config: ScheduleConfig;
+  private blockedPeriods: BlockedPeriod[];
   private sessions: Session[] = [];
   private employeeStates: Map<string, EmployeeScheduleState> = new Map();
 
-  constructor(employees: Employee[], rooms: Room[], config: ScheduleConfig) {
+  constructor(employees: Employee[], rooms: Room[], blockedPeriods: BlockedPeriod[]) {
     this.employees = employees;
     this.rooms = rooms;
-    this.config = config;
+    this.blockedPeriods = blockedPeriods.filter(bp => bp.isActive);
     this.initializeEmployeeStates();
   }
 
@@ -122,7 +122,7 @@ class ScheduleGenerator {
       const slotEnd = this.minutesToTimeString(currentTime + 45);
       
       // Skip slots that conflict with break times
-      if (!this.isTimeSlotBlocked(slotStart, slotEnd)) {
+      if (!this.isTimeSlotBlocked(day, slotStart, slotEnd)) {
         slots.push({
           day,
           startTime: slotStart,
@@ -262,16 +262,20 @@ class ScheduleGenerator {
     return start1Min < end2Min && start2Min < end1Min;
   }
 
-  private isTimeSlotBlocked(startTime: string, endTime: string): boolean {
-    const blockedPeriods = [
-      this.config.breakfast,
-      this.config.morningMeetup,
-      this.config.lunch
-    ];
-
-    return blockedPeriods.some(period => 
-      this.timesOverlap(period.startTime, period.endTime, startTime, endTime)
-    );
+  private isTimeSlotBlocked(day: WeekDay, startTime: string, endTime: string): boolean {
+    return this.blockedPeriods.some(blockedPeriod => {
+      // Only check blocked periods that are set to block scheduling
+      if (!blockedPeriod.isBlocking) {
+        return false;
+      }
+      
+      const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, day);
+      if (!periodTime) {
+        return false; // No blocking for this day
+      }
+      
+      return this.timesOverlap(periodTime.startTime, periodTime.endTime, startTime, endTime);
+    });
   }
 
   private timeStringToMinutes(timeStr: string): number {
@@ -286,12 +290,56 @@ class ScheduleGenerator {
   }
 }
 
+// Legacy function for backward compatibility
 export function generateSchedule(
   employees: Employee[],
   rooms: Room[],
   config: ScheduleConfig
 ): Session[] {
-  const generator = new ScheduleGenerator(employees, rooms, config);
+  // Convert old config to blocked periods
+  const blockedPeriods: BlockedPeriod[] = [
+    {
+      id: 'legacy-breakfast',
+      name: 'ארוחת בוקר',
+      color: '#ff9671',
+      defaultStartTime: config.breakfast.startTime,
+      defaultEndTime: config.breakfast.endTime,
+      dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
+      isActive: true
+    },
+    {
+      id: 'legacy-morning-meetup',
+      name: 'מפגש בוקר',
+      color: '#845ec2',
+      defaultStartTime: config.morningMeetup.startTime,
+      defaultEndTime: config.morningMeetup.endTime,
+      dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
+      isActive: true
+    },
+    {
+      id: 'legacy-lunch',
+      name: 'ארוחת צהריים',
+      color: '#00c9a7',
+      defaultStartTime: config.lunch.startTime,
+      defaultEndTime: config.lunch.endTime,
+      dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
+      isActive: true
+    }
+  ];
+  
+  return generateScheduleWithBlockedPeriods(employees, rooms, blockedPeriods);
+}
+
+// New function that uses BlockedPeriod[]
+export function generateScheduleWithBlockedPeriods(
+  employees: Employee[],
+  rooms: Room[],
+  blockedPeriods: BlockedPeriod[]
+): Session[] {
+  const generator = new ScheduleGenerator(employees, rooms, blockedPeriods);
   return generator.generateSchedule();
 }
 
@@ -351,6 +399,7 @@ export function validateScheduleConstraints(
       defaultStartTime: config.breakfast.startTime,
       defaultEndTime: config.breakfast.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     },
     {
@@ -360,6 +409,7 @@ export function validateScheduleConstraints(
       defaultStartTime: config.morningMeetup.startTime,
       defaultEndTime: config.morningMeetup.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     },
     {
@@ -369,6 +419,7 @@ export function validateScheduleConstraints(
       defaultStartTime: config.lunch.startTime,
       defaultEndTime: config.lunch.endTime,
       dayOverrides: {},
+      isBlocking: true, // Legacy config blocks scheduling by default
       isActive: true
     }
   ];
@@ -425,8 +476,8 @@ export function validateScheduleConstraintsWithBlockedPeriods(
   }
 
   // Check blocked periods using new logic
-  const activeBlockedPeriods = blockedPeriods.filter(bp => bp.isActive);
-  const blockedConflict = activeBlockedPeriods.some(blockedPeriod => {
+  const activeBlockingPeriods = blockedPeriods.filter(bp => bp.isActive && bp.isBlocking);
+  const blockedConflict = activeBlockingPeriods.some(blockedPeriod => {
     const periodTime = getBlockedPeriodTimeForDay(blockedPeriod, session.day);
     if (!periodTime) {
       return false; // No blocking for this day

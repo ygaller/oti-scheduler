@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+We are in a greenfield project. We can always delete all data and regenerate it. Therefore, there is no need for backward compatibility logic to handle old data structures and apis.

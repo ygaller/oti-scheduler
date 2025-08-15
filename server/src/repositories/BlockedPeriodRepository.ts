@@ -17,6 +17,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
       defaultStartTime: bp.defaultStartTime,
       defaultEndTime: bp.defaultEndTime,
       dayOverrides: bp.dayOverrides as Record<string, { startTime: string; endTime: string } | null>,
+      isBlocking: bp.isBlocking,
       isActive: bp.isActive,
       createdAt: bp.createdAt,
       updatedAt: bp.updatedAt
@@ -37,6 +38,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
       defaultStartTime: blockedPeriod.defaultStartTime,
       defaultEndTime: blockedPeriod.defaultEndTime,
       dayOverrides: blockedPeriod.dayOverrides as Record<string, { startTime: string; endTime: string } | null>,
+      isBlocking: blockedPeriod.isBlocking,
       isActive: blockedPeriod.isActive,
       createdAt: blockedPeriod.createdAt,
       updatedAt: blockedPeriod.updatedAt
@@ -51,6 +53,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
         defaultStartTime: dto.defaultStartTime || null,
         defaultEndTime: dto.defaultEndTime || null,
         dayOverrides: (dto.dayOverrides || {}) as any,
+        isBlocking: dto.isBlocking !== undefined ? dto.isBlocking : false,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
       }
     });
@@ -62,6 +65,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
       defaultStartTime: blockedPeriod.defaultStartTime,
       defaultEndTime: blockedPeriod.defaultEndTime,
       dayOverrides: blockedPeriod.dayOverrides as Record<string, { startTime: string; endTime: string } | null>,
+      isBlocking: blockedPeriod.isBlocking,
       isActive: blockedPeriod.isActive,
       createdAt: blockedPeriod.createdAt,
       updatedAt: blockedPeriod.updatedAt
@@ -75,6 +79,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
     if (dto.defaultStartTime !== undefined) updateData.defaultStartTime = dto.defaultStartTime;
     if (dto.defaultEndTime !== undefined) updateData.defaultEndTime = dto.defaultEndTime;
     if (dto.dayOverrides !== undefined) updateData.dayOverrides = dto.dayOverrides as any;
+    if (dto.isBlocking !== undefined) updateData.isBlocking = dto.isBlocking;
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
 
     const blockedPeriod = await this.prisma.blockedPeriod.update({
@@ -89,6 +94,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
       defaultStartTime: blockedPeriod.defaultStartTime,
       defaultEndTime: blockedPeriod.defaultEndTime,
       dayOverrides: blockedPeriod.dayOverrides as Record<string, { startTime: string; endTime: string } | null>,
+      isBlocking: blockedPeriod.isBlocking,
       isActive: blockedPeriod.isActive,
       createdAt: blockedPeriod.createdAt,
       updatedAt: blockedPeriod.updatedAt
@@ -108,6 +114,7 @@ export class PrismaBlockedPeriodRepository implements BlockedPeriodRepository {
       defaultStartTime: blockedPeriod.defaultStartTime,
       defaultEndTime: blockedPeriod.defaultEndTime,
       dayOverrides: blockedPeriod.dayOverrides as Record<string, { startTime: string; endTime: string } | null>,
+      isBlocking: blockedPeriod.isBlocking,
       isActive: blockedPeriod.isActive,
       createdAt: blockedPeriod.createdAt,
       updatedAt: blockedPeriod.updatedAt

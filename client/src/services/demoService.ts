@@ -106,6 +106,7 @@ const demoBlockedPeriods: CreateBlockedPeriodDto[] = [
     defaultStartTime: '08:00',
     defaultEndTime: '08:30',
     dayOverrides: {},
+    isBlocking: true, // Breakfast blocks scheduling
     isActive: true
   },
   {
@@ -114,6 +115,7 @@ const demoBlockedPeriods: CreateBlockedPeriodDto[] = [
     defaultStartTime: '09:00',
     defaultEndTime: '09:15',
     dayOverrides: {},
+    isBlocking: true, // Staff meeting blocks scheduling
     isActive: true
   },
   {
@@ -122,6 +124,7 @@ const demoBlockedPeriods: CreateBlockedPeriodDto[] = [
     defaultStartTime: '12:00',
     defaultEndTime: '13:00',
     dayOverrides: {},
+    isBlocking: true, // Lunch blocks scheduling
     isActive: true
   }
 ];
