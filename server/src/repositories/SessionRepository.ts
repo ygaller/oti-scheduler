@@ -81,7 +81,6 @@ export class PrismaSessionRepository implements SessionRepository {
     
     if (sessionData.employeeId !== undefined) updateData.employeeId = sessionData.employeeId;
     if (sessionData.roomId !== undefined) updateData.roomId = sessionData.roomId;
-    if (sessionData.scheduleId !== undefined) updateData.scheduleId = sessionData.scheduleId;
     if (sessionData.day !== undefined) updateData.day = mapAPIWeekDayToPrisma(sessionData.day);
     if (sessionData.startTime !== undefined) updateData.startTime = sessionData.startTime;
     if (sessionData.endTime !== undefined) updateData.endTime = sessionData.endTime;
