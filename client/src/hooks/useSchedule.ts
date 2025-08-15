@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Schedule, Session } from '../types';
+import { Schedule } from '../types';
 import { scheduleService, ApiError } from '../services';
 
 interface UseScheduleResult {

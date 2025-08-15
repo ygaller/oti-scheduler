@@ -32,10 +32,10 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "start:https": "HTTPS=true react-scripts start",
-    "start:ssl": "HTTPS=true SSL_CRT_FILE=ssl/localhost.pem SSL_KEY_FILE=ssl/localhost-key.pem react-scripts start",
-    "build": "react-scripts build",
+    "start": "GENERATE_SOURCEMAP=false react-scripts start",
+    "start:https": "HTTPS=true GENERATE_SOURCEMAP=false react-scripts start",
+    "start:ssl": "HTTPS=true SSL_CRT_FILE=ssl/localhost.pem SSL_KEY_FILE=ssl/localhost-key.pem GENERATE_SOURCEMAP=false react-scripts start",
+    "build": "GENERATE_SOURCEMAP=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
