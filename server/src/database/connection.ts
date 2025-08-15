@@ -204,11 +204,15 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
     try {
       execSync('npx prisma migrate deploy', { 
         cwd: path.join(__dirname, '..', '..'), // Go to server root where prisma folder is
-        stdio: 'inherit' 
+        stdio: 'inherit',
+        env: { 
+          ...process.env, 
+          DATABASE_URL: process.env.DATABASE_URL 
+        }
       });
       console.log('✅ Database migrations completed');
     } catch (error) {
-      console.log('⚠️  No migrations found yet. Database schema will be created when first migration is run.');
+      console.log('⚠️  Migration failed, will try to continue:', error instanceof Error ? error.message : String(error));
     }
     
   } catch (error) {

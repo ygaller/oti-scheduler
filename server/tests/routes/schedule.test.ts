@@ -413,7 +413,7 @@ describe('Schedule API Endpoints', () => {
   });
 
   describe('Patient Assignment Conflict Validation', () => {
-    let employee1: any, employee2: any, room1: any, room2: any, patient: any;
+    let employee1: any, employee2: any, room1: any, room2: any, room3: any, patient: any;
     let session1: any, session2: any;
 
     beforeEach(async () => {
@@ -446,8 +446,10 @@ describe('Schedule API Endpoints', () => {
       // Create test rooms
       const room1Response = await request(app).post('/api/rooms').send(createRoomFixture({ name: 'Room A' }));
       const room2Response = await request(app).post('/api/rooms').send(createRoomFixture({ name: 'Room B' }));
+      const room3Response = await request(app).post('/api/rooms').send(createRoomFixture({ name: 'Room C' }));
       room1 = room1Response.body;
       room2 = room2Response.body;
+      room3 = room3Response.body;
 
       // Create test patient
       const patientResponse = await request(app).post('/api/patients').send({
@@ -613,9 +615,10 @@ describe('Schedule API Endpoints', () => {
 
     it('should handle edge case: sessions that touch but do not overlap', async () => {
       // Create adjacent session (11:00-12:00) - touches session1 (10:00-11:00) but doesn't overlap
+      // Use room3 to avoid conflicts with existing sessions
       const session3Response = await request(app).post('/api/schedule/sessions').send({
         employeeId: employee2.id,
-        roomId: room2.id,
+        roomId: room3.id,
         day: 'monday',
         startTime: '11:00',
         endTime: '12:00'
@@ -640,9 +643,10 @@ describe('Schedule API Endpoints', () => {
 
     it('should handle partial overlap conflicts correctly', async () => {
       // Create session with partial overlap (10:45-11:45) - overlaps with session1 (10:00-11:00)
+      // Use room3 to avoid conflict with existing sessions
       const session3Response = await request(app).post('/api/schedule/sessions').send({
         employeeId: employee2.id,
-        roomId: room2.id,
+        roomId: room3.id,
         day: 'monday',
         startTime: '10:45',
         endTime: '11:45'
