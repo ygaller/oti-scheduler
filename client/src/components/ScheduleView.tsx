@@ -47,10 +47,10 @@ import {
   Activity,
   Patient 
 } from '../types';
+import ErrorModal from './ErrorModal';
 import { validateScheduleConstraints } from '../utils/scheduler';
 import { scheduleService, ApiError } from '../services';
 import { useActivities } from '../hooks';
-import ErrorModal from './ErrorModal';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -80,6 +80,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     details?: string;
   }>({ title: '', message: '' });
 
+  // Patient view states
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+
   // Patient assignment states
   const [patientAssignmentDialogOpen, setPatientAssignmentDialogOpen] = useState(false);
   const [assigningSession, setAssigningSession] = useState<Session | null>(null);
@@ -87,6 +90,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
+
+  // Set default selected patient to first active patient
+  React.useEffect(() => {
+    const activePatients = patients.filter(patient => patient.isActive);
+    if (activePatients.length > 0 && !selectedPatientId) {
+      setSelectedPatientId(activePatients[0].id);
+    }
+  }, [patients, selectedPatientId]);
 
   const handleGenerateScheduleClick = () => {
     console.log('Generate schedule button clicked!');
@@ -149,7 +160,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const handleExportCSV = () => {
     if (!schedule || schedule.sessions.length === 0) {
-      alert('אין נתונים לייצוא');
+      setErrorInfo({
+        title: 'לא ניתן לייצא',
+        message: 'אין נתונים לייצוא'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
@@ -181,14 +196,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const handlePrint = () => {
     if (!schedule || schedule.sessions.length === 0) {
-      alert('אין נתונים להדפסה');
+      setErrorInfo({
+        title: 'לא ניתן להדפיס',
+        message: 'אין נתונים להדפסה'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה');
+      setErrorInfo({
+        title: 'שגיאה בהדפסה',
+        message: 'חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה',
+        details: 'אנא אפשר חלונות קופצים עבור אתר זה ונסה שוב'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
@@ -241,7 +265,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const handleSaveSession = async () => {
     if (!sessionForm.employeeId || !sessionForm.roomId || !sessionForm.day || 
         !sessionForm.startTime || !sessionForm.endTime) {
-      alert('יש למלא את כל השדות');
+      setErrorInfo({
+        title: 'שדות חסרים',
+        message: 'יש למלא את כל השדות הנדרשים'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
@@ -269,7 +297,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     );
 
     if (!validation.valid) {
-      alert(`שגיאה: ${validation.error}`);
+      setErrorInfo({
+        title: 'שגיאה בוולידציה',
+        message: validation.error || 'שגיאה לא ידועה בוולידציה'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
@@ -285,7 +317,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setEditDialogOpen(false);
     } catch (error) {
       console.error('Error saving session:', error);
-      alert('שגיאה בשמירת הטיפול');
+      
+      let errorMessage = 'שגיאה בשמירת הטיפול';
+      let errorDetails = '';
+      
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+        errorDetails = error.details || '';
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setErrorInfo({
+        title: 'שגיאה בשמירה',
+        message: errorMessage,
+        details: errorDetails
+      });
+      setErrorModalOpen(true);
     }
   };
 
@@ -298,7 +346,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setEditDialogOpen(false);
     } catch (error) {
       console.error('Error deleting session:', error);
-      alert('שגיאה במחיקת הטיפול');
+      
+      let errorMessage = 'שגיאה במחיקת הטיפול';
+      let errorDetails = '';
+      
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+        errorDetails = error.details || '';
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setErrorInfo({
+        title: 'שגיאה במחיקה',
+        message: errorMessage,
+        details: errorDetails
+      });
+      setErrorModalOpen(true);
     }
   };
 
@@ -321,7 +385,24 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setPatientAssignmentDialogOpen(false);
     } catch (error) {
       console.error('Error updating session patients:', error);
-      alert('שגיאה בעדכון השיוך מטופלים');
+      
+      // Show specific error message if available, otherwise show generic message
+      let errorMessage = 'שגיאה בעדכון השיוך מטופלים';
+      let errorDetails = '';
+      
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+        errorDetails = error.details || '';
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setErrorInfo({
+        title: 'שגיאה בשיוך מטופלים',
+        message: errorMessage,
+        details: errorDetails
+      });
+      setErrorModalOpen(true);
     }
   };
 
@@ -857,7 +938,68 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     return html;
   };
 
+  // Helper function to get sessions for a specific patient on a specific day
+  const getPatientSessionsForDay = (day: WeekDay, patientId: string) => {
+    if (!schedule || !patientId) return [];
+    return schedule.sessions
+      .filter(session => 
+        session.day === day && 
+        session.patients?.some(p => p.id === patientId)
+      )
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  };
+
   // Calendar components
+  const PatientCalendarView = ({ day }: { day: WeekDay }) => {
+    const patientSessions = getPatientSessionsForDay(day, selectedPatientId);
+    
+    if (patientSessions.length === 0) {
+      return (
+        <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
+          אין טיפולים מתוזמנים ליום זה
+        </Typography>
+      );
+    }
+
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {patientSessions.map(session => {
+          const employee = employees.find(e => e.id === session.employeeId);
+          const room = rooms.find(r => r.id === session.roomId);
+          
+          return (
+            <Card
+              key={session.id}
+              sx={{ 
+                backgroundColor: '#f5f5f5', // Light grey for good print contrast
+                cursor: 'pointer',
+                '&:hover': { 
+                  backgroundColor: '#e0e0e0'
+                }
+              }}
+              onClick={() => handleSessionClick(session)}
+            >
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  {session.startTime} - {session.endTime}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  מטפל: {employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  טיפול: {employee ? ROLE_LABELS[employee.role] : 'לא ידוע'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  חדר: {room ? room.name : 'לא ידוע'}
+                </Typography>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </Box>
+    );
+  };
+
   const EmployeeCalendarView = ({ day }: { day: WeekDay }) => {
     const timeSlots = generateTimeSlots();
     const daySessions = getSessionsForDay(day);
@@ -1227,7 +1369,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" component="h2" mb={2}>
-                  טיפולים ללא השמה
+                  טיפולים נדרשים ללא השמה
                 </Typography>
                 <Box display="flex" flexWrap="wrap" gap={1}>
                   {generateUnassignedTherapyChips().length > 0 ? (
@@ -1262,7 +1404,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" component="h2" mb={2}>
-                  טיפולים מעבר למינימום
+                  טיפולים מעבר למינימום הנדרש
                 </Typography>
                 <Box display="flex" flexWrap="wrap" gap={1}>
                   {generateAboveMinimumTherapyChips().length > 0 ? (
@@ -1296,58 +1438,110 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
               <Tab label="לו״ז טיפולים" />
               <Tab label="לו״ז חדרים" />
+              <Tab label="לו״ז מטופל" />
             </Tabs>
           </Box>
 
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              overflowX: 'auto',
-              gap: 3,
-              pb: 2,
-              '&::-webkit-scrollbar': {
-                height: 8,
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: 'grey.200',
-                borderRadius: 4,
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: 'grey.400',
-                borderRadius: 4,
-                '&:hover': {
-                  backgroundColor: 'grey.500',
-                },
-              },
-            }}
-          >
-            {WEEK_DAYS.map(day => (
-              <Paper 
-                key={day} 
-                sx={{ 
-                  p: 3, 
-                  minWidth: '500px',
-                  flexShrink: 0,
-                  height: 'fit-content'
-                }}
-              >
-                <Typography variant="h5" component="h3" mb={2} color="primary" textAlign="center">
-                  {DAY_LABELS[day]}
-                </Typography>
-                
-                {getSessionsForDay(day).length === 0 && activeTab === 0 ? (
-                  <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
-                    אין טיפולים מתוזמנים ליום זה
+          {/* Patient Selection Dropdown - only show when Patient View tab is active */}
+          {activeTab === 2 && (
+            <Box sx={{ mb: 3 }}>
+              <FormControl sx={{ minWidth: 300 }}>
+                <InputLabel>בחר מטופל</InputLabel>
+                <Select
+                  value={selectedPatientId}
+                  label="בחר מטופל"
+                  onChange={(e) => setSelectedPatientId(e.target.value)}
+                >
+                  {patients.filter(patient => patient.isActive).sort((a, b) => 
+                    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                  ).map(patient => (
+                    <MenuItem key={patient.id} value={patient.id}>
+                      {patient.firstName} {patient.lastName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+
+          {activeTab === 2 ? (
+            // Patient view - show all days in a grid without horizontal scroll
+            <Box 
+              sx={{ 
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, 1fr)',
+                gap: 2,
+                pb: 2,
+              }}
+            >
+              {WEEK_DAYS.map(day => (
+                <Paper 
+                  key={day} 
+                  sx={{ 
+                    p: 2, 
+                    height: 'fit-content'
+                  }}
+                >
+                  <Typography variant="h6" component="h3" mb={2} color="primary" textAlign="center">
+                    {DAY_LABELS[day]}
                   </Typography>
-                ) : (
-                  <>
-                    {activeTab === 0 && <EmployeeCalendarView day={day} />}
-                    {activeTab === 1 && <RoomCalendarView day={day} />}
-                  </>
-                )}
-              </Paper>
-            ))}
-          </Box>
+                  
+                  <PatientCalendarView day={day} />
+                </Paper>
+              ))}
+            </Box>
+          ) : (
+            // Employee and Room views - keep original horizontal scroll layout
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                overflowX: 'auto',
+                gap: 3,
+                pb: 2,
+                '&::-webkit-scrollbar': {
+                  height: 8,
+                },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: 'grey.200',
+                  borderRadius: 4,
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: 'grey.400',
+                  borderRadius: 4,
+                  '&:hover': {
+                    backgroundColor: 'grey.500',
+                  },
+                },
+              }}
+            >
+              {WEEK_DAYS.map(day => (
+                <Paper 
+                  key={day} 
+                  sx={{ 
+                    p: 3, 
+                    minWidth: '500px',
+                    flexShrink: 0,
+                    height: 'fit-content'
+                  }}
+                >
+                  <Typography variant="h5" component="h3" mb={2} color="primary" textAlign="center">
+                    {DAY_LABELS[day]}
+                  </Typography>
+                  
+                  {getSessionsForDay(day).length === 0 ? (
+                    <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
+                      אין טיפולים מתוזמנים ליום זה
+                    </Typography>
+                  ) : (
+                    <>
+                      {activeTab === 0 && <EmployeeCalendarView day={day} />}
+                      {activeTab === 1 && <RoomCalendarView day={day} />}
+                    </>
+                  )}
+                </Paper>
+              ))}
+            </Box>
+          )}
         </>
       ) : (
         <Paper sx={{ p: 4, textAlign: 'center' }}>

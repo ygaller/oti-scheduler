@@ -365,11 +365,13 @@ describe('Schedule API Endpoints', () => {
 
   describe('Session Management', () => {
     beforeEach(async () => {
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
     });
 
     it('should get all sessions', async () => {
@@ -407,6 +409,260 @@ describe('Schedule API Endpoints', () => {
       expect(response.body.day).toBe(sessionData.day);
       expect(response.body.startTime).toBe(sessionData.startTime);
       expect(response.body.endTime).toBe(sessionData.endTime);
+    });
+  });
+
+  describe('Patient Assignment Conflict Validation', () => {
+    let employee1: any, employee2: any, room1: any, room2: any, patient: any;
+    let session1: any, session2: any;
+
+    beforeEach(async () => {
+      // Clean up
+      await prisma.sessionPatient.deleteMany();
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
+
+      // Create test employees
+      const employee1Data = createEmployeeFixture({
+        firstName: 'Alice',
+        lastName: 'Smith',
+        role: 'occupational-therapist'
+      });
+      const employee2Data = createEmployeeFixture({
+        firstName: 'Bob',
+        lastName: 'Johnson',
+        role: 'physiotherapist'
+      });
+
+      const employee1Response = await request(app).post('/api/employees').send(employee1Data);
+      const employee2Response = await request(app).post('/api/employees').send(employee2Data);
+      employee1 = employee1Response.body;
+      employee2 = employee2Response.body;
+
+      // Create test rooms
+      const room1Response = await request(app).post('/api/rooms').send(createRoomFixture({ name: 'Room A' }));
+      const room2Response = await request(app).post('/api/rooms').send(createRoomFixture({ name: 'Room B' }));
+      room1 = room1Response.body;
+      room2 = room2Response.body;
+
+      // Create test patient
+      const patientResponse = await request(app).post('/api/patients').send({
+        firstName: 'John',
+        lastName: 'Doe',
+        color: '#ff5733',
+        therapyRequirements: {
+          'occupational-therapist': 2,
+          'physiotherapist': 1
+        }
+      });
+      patient = patientResponse.body;
+
+      // Create test sessions
+      const session1Response = await request(app).post('/api/schedule/sessions').send({
+        employeeId: employee1.id,
+        roomId: room1.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00'
+      });
+      const session2Response = await request(app).post('/api/schedule/sessions').send({
+        employeeId: employee2.id,
+        roomId: room2.id,
+        day: 'monday',
+        startTime: '10:30',
+        endTime: '11:30'
+      });
+      session1 = session1Response.body;
+      session2 = session2Response.body;
+    });
+
+    it('should allow assigning patient to session when no conflicts exist', async () => {
+      const response = await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      expect(response.body.patients).toHaveLength(1);
+      expect(response.body.patients[0].id).toBe(patient.id);
+    });
+
+    it('should prevent assigning patient to overlapping session', async () => {
+      // First assign patient to session1 (10:00-11:00)
+      await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      // Try to assign same patient to session2 (10:30-11:30) - should conflict
+      const response = await request(app)
+        .post(`/api/schedule/sessions/${session2.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(400);
+
+      expect(response.body.error).toContain('המטופל כבר משויך לטיפול אחר באותו זמן');
+      expect(response.body.error).toContain('10:00-11:00');
+      expect(response.body.error).toContain('Alice Smith');
+      expect(response.body.error).toContain('Room A');
+    });
+
+    it('should allow assigning patient to non-overlapping sessions on same day', async () => {
+      // Create a non-overlapping session (12:00-13:00)
+      const session3Response = await request(app).post('/api/schedule/sessions').send({
+        employeeId: employee2.id,
+        roomId: room2.id,
+        day: 'monday',
+        startTime: '12:00',
+        endTime: '13:00'
+      });
+      const session3 = session3Response.body;
+
+      // Assign patient to session1 (10:00-11:00)
+      await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      // Should be able to assign to non-overlapping session3 (12:00-13:00)
+      const response = await request(app)
+        .post(`/api/schedule/sessions/${session3.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      expect(response.body.patients).toHaveLength(1);
+      expect(response.body.patients[0].id).toBe(patient.id);
+    });
+
+    it('should allow assigning patient to sessions on different days', async () => {
+      // Create session on different day
+      const session3Response = await request(app).post('/api/schedule/sessions').send({
+        employeeId: employee2.id,
+        roomId: room2.id,
+        day: 'tuesday',
+        startTime: '10:30',
+        endTime: '11:30'
+      });
+      const session3 = session3Response.body;
+
+      // Assign patient to session1 (Monday 10:00-11:00)
+      await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      // Should be able to assign to session3 (Tuesday 10:30-11:30) - different day
+      const response = await request(app)
+        .post(`/api/schedule/sessions/${session3.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      expect(response.body.patients).toHaveLength(1);
+      expect(response.body.patients[0].id).toBe(patient.id);
+    });
+
+    it('should validate conflicts when bulk updating session patients', async () => {
+      // Create second patient
+      const patient2Response = await request(app).post('/api/patients').send({
+        firstName: 'Jane',
+        lastName: 'Smith',
+        color: '#33ff57',
+        therapyRequirements: { 'occupational-therapist': 1 }
+      });
+      const patient2 = patient2Response.body;
+
+      // Assign patient to session1 (10:00-11:00)
+      await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      // Try to bulk assign both patients to session2 (10:30-11:30) - patient1 should conflict
+      const response = await request(app)
+        .put(`/api/schedule/sessions/${session2.id}/patients`)
+        .send({ patientIds: [patient.id, patient2.id] })
+        .expect(400);
+
+      expect(response.body.error).toContain('המטופל כבר משויך לטיפול אחר באותו זמן');
+      expect(response.body.error).toContain('10:00-11:00');
+    });
+
+    it('should allow bulk updating when no conflicts exist', async () => {
+      // Create second patient
+      const patient2Response = await request(app).post('/api/patients').send({
+        firstName: 'Jane',
+        lastName: 'Smith',
+        color: '#33ff57',
+        therapyRequirements: { 'physiotherapist': 1 }
+      });
+      const patient2 = patient2Response.body;
+
+      // Bulk assign both patients to session1 (10:00-11:00) - no conflicts
+      const response = await request(app)
+        .put(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientIds: [patient.id, patient2.id] })
+        .expect(200);
+
+      expect(response.body.patients).toHaveLength(2);
+      const patientIds = response.body.patients.map((p: any) => p.id);
+      expect(patientIds).toContain(patient.id);
+      expect(patientIds).toContain(patient2.id);
+    });
+
+    it('should handle edge case: sessions that touch but do not overlap', async () => {
+      // Create adjacent session (11:00-12:00) - touches session1 (10:00-11:00) but doesn't overlap
+      const session3Response = await request(app).post('/api/schedule/sessions').send({
+        employeeId: employee2.id,
+        roomId: room2.id,
+        day: 'monday',
+        startTime: '11:00',
+        endTime: '12:00'
+      });
+      const session3 = session3Response.body;
+
+      // Assign patient to session1 (10:00-11:00)
+      await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      // Should be able to assign to adjacent session3 (11:00-12:00) - no overlap
+      const response = await request(app)
+        .post(`/api/schedule/sessions/${session3.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      expect(response.body.patients).toHaveLength(1);
+      expect(response.body.patients[0].id).toBe(patient.id);
+    });
+
+    it('should handle partial overlap conflicts correctly', async () => {
+      // Create session with partial overlap (10:45-11:45) - overlaps with session1 (10:00-11:00)
+      const session3Response = await request(app).post('/api/schedule/sessions').send({
+        employeeId: employee2.id,
+        roomId: room2.id,
+        day: 'monday',
+        startTime: '10:45',
+        endTime: '11:45'
+      });
+      const session3 = session3Response.body;
+
+      // Assign patient to session1 (10:00-11:00)
+      await request(app)
+        .post(`/api/schedule/sessions/${session1.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(200);
+
+      // Try to assign to overlapping session3 (10:45-11:45) - should conflict
+      const response = await request(app)
+        .post(`/api/schedule/sessions/${session3.id}/patients`)
+        .send({ patientId: patient.id })
+        .expect(400);
+
+      expect(response.body.error).toContain('המטופל כבר משויך לטיפול אחר באותו זמן');
+      expect(response.body.error).toContain('10:00-11:00');
     });
   });
 

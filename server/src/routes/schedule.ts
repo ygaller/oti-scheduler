@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, SystemConfigRepository, ActivityRepository } from '../repositories';
-import { generateScheduleWithActivities, validateScheduleConstraints } from '../utils/scheduler';
+import { generateScheduleWithActivities, validateScheduleConstraints, validatePatientTimeConflict } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -226,6 +226,28 @@ export const createScheduleRouter = (
         return res.status(404).json({ error: 'Session not found' });
       }
 
+      // Validate that patient is not in another session at the same time
+      try {
+        const timeConflictValidation = await validatePatientTimeConflict(
+          patientId,
+          sessionId,
+          session.day,
+          session.startTime,
+          session.endTime,
+          prisma
+        );
+
+        if (!timeConflictValidation.valid) {
+          return res.status(400).json({ error: timeConflictValidation.error });
+        }
+      } catch (validationError) {
+        console.error('Error during patient time conflict validation:', validationError);
+        return res.status(500).json({ 
+          error: 'Failed to validate patient assignment',
+          details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
+        });
+      }
+
       // Add patient to session using Prisma directly (since we don't have a dedicated repository)
       await prisma.sessionPatient.create({
         data: {
@@ -295,6 +317,32 @@ export const createScheduleRouter = (
         return res.status(404).json({ error: 'Session not found' });
       }
 
+      // Validate that each patient is not in another session at the same time
+      for (const patientId of patientIds) {
+        if (patientId) { // Skip empty patient IDs
+          try {
+            const timeConflictValidation = await validatePatientTimeConflict(
+              patientId,
+              sessionId,
+              session.day,
+              session.startTime,
+              session.endTime,
+              prisma
+            );
+
+            if (!timeConflictValidation.valid) {
+              return res.status(400).json({ error: timeConflictValidation.error });
+            }
+          } catch (validationError) {
+            console.error('Error during bulk patient time conflict validation:', validationError);
+            return res.status(500).json({ 
+              error: 'Failed to validate patient assignments',
+              details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
+            });
+          }
+        }
+      }
+
       // Use transaction to update all patients at once
       await prisma.$transaction(async (tx) => {
         // Remove all existing assignments
@@ -302,10 +350,11 @@ export const createScheduleRouter = (
           where: { sessionId }
         });
 
-        // Add new assignments
-        if (patientIds.length > 0) {
+        // Add new assignments (filter out empty patient IDs)
+        const validPatientIds = patientIds.filter((id: string) => id);
+        if (validPatientIds.length > 0) {
           await tx.sessionPatient.createMany({
-            data: patientIds.map((patientId: string) => ({
+            data: validPatientIds.map((patientId: string) => ({
               sessionId,
               patientId
             }))

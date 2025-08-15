@@ -1,4 +1,5 @@
 import { Employee, Room, Session, WeekDay, Activity } from '../types';
+import { mapAPIWeekDayToPrisma } from '../mappers';
 
 export const WEEK_DAYS: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
@@ -390,7 +391,8 @@ export function validateScheduleConstraints(
   return { valid: true };
 }
 
-function timesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+// Export timesOverlap function for reuse
+export function timesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
   const timeStringToMinutes = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     return hours * 60 + minutes;
@@ -402,5 +404,64 @@ function timesOverlap(start1: string, end1: string, start2: string, end2: string
   const end2Min = timeStringToMinutes(end2);
 
   return start1Min < end2Min && start2Min < end1Min;
+}
+
+// Validation function for patient time conflicts
+export async function validatePatientTimeConflict(
+  patientId: string,
+  sessionId: string,
+  day: string,
+  startTime: string,
+  endTime: string,
+  prisma: any // PrismaClient type
+): Promise<{ valid: boolean; error?: string; conflictingSession?: any }> {
+  try {
+    console.log('Validating patient time conflict:', { patientId, sessionId, day, startTime, endTime });
+    
+    // Validate input parameters
+    if (!patientId || !sessionId || !day || !startTime || !endTime) {
+      throw new Error('Missing required parameters for patient time conflict validation');
+    }
+    
+    // Find all sessions where this patient is already assigned on the same day
+    const existingSessions = await prisma.session.findMany({
+      where: {
+        day: mapAPIWeekDayToPrisma(day as WeekDay), // Convert API day to Prisma enum
+        sessionPatients: {
+          some: {
+            patientId: patientId
+          }
+        },
+        id: {
+          not: sessionId // Exclude the current session being updated
+        }
+      },
+      include: {
+        employee: true,
+        room: true
+      }
+    });
+
+  // Check for time conflicts
+  console.log('Found existing sessions:', existingSessions.length);
+  for (const existingSession of existingSessions) {
+    console.log('Checking conflict with session:', existingSession.id, existingSession.startTime, existingSession.endTime);
+    if (timesOverlap(existingSession.startTime, existingSession.endTime, startTime, endTime)) {
+      console.log('Time conflict detected!');
+      return {
+        valid: false,
+        error: `המטופל כבר משויך לטיפול אחר באותו זמן: ${existingSession.startTime}-${existingSession.endTime} עם ${existingSession.employee.firstName} ${existingSession.employee.lastName} בחדר ${existingSession.room.name}`,
+        conflictingSession: existingSession
+      };
+    }
+  }
+
+  console.log('No time conflicts found for patient:', patientId);
+  return { valid: true };
+  
+  } catch (error) {
+    console.error('Error in validatePatientTimeConflict:', error);
+    throw error; // Re-throw to be handled by the calling function
+  }
 }
 

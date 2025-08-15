@@ -30,7 +30,7 @@ export const createTestApp = (prisma: PrismaClient) => {
   const activityRepo = new PrismaActivityRepository(prisma);
   
   // Setup API routes
-  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo));
+  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, configRepo, activityRepo, prisma));
   
   // Error handling
   app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
