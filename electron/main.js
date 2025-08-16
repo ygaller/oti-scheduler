@@ -14,99 +14,113 @@ let updater;
 
 // Server management is handled by server.js module
 
-const createWindow = async () => {
-  try {
-    // Set up secure environment for server
-    const serverEnv = secureConfig.getServerEnvironment();
-    Object.assign(process.env, serverEnv);
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  const createWindow = async () => {
+    try {
+      // Set up secure environment for server
+      const serverEnv = secureConfig.getServerEnvironment();
+      Object.assign(process.env, serverEnv);
+      
+      // Start the server first
+      await startEmbeddedServer();
+
+      // Create the browser window
+      mainWindow = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 1200,
+        minHeight: 800,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          enableRemoteModule: false,
+          preload: path.join(__dirname, 'preload.js')
+        },
+        icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'oti-icon.ico' : 'oti-icon.png'),
+        titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+        show: false // Don't show until ready
+      });
+
+      // Load the React app
+      const startUrl = isDev 
+        ? 'http://localhost:3000' 
+        : `file://${path.join(__dirname, '..', 'client', 'build', 'index.html')}`;
+      
+      console.log('Loading URL:', startUrl);
+      await mainWindow.loadURL(startUrl);
+
+      // Show window when ready
+      mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+        
+        // Initialize updater
+        updater = new AppUpdater();
+        updater.setMainWindow(mainWindow);
+        
+        // Check for updates on startup (after a delay)
+        setTimeout(() => {
+          updater.checkForUpdates();
+        }, 5000);
+        
+        // Open DevTools in development
+        if (isDev) {
+          mainWindow.webContents.openDevTools();
+        }
+      });
+
+      // Handle window closed
+      mainWindow.on('closed', () => {
+        mainWindow = null;
+      });
+
+      // Handle external links
+      mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        require('electron').shell.openExternal(url);
+        return { action: 'deny' };
+      });
+
+      // Set up application menu
+      createApplicationMenu();
+
+    } catch (error) {
+      console.error('Error creating window:', error);
+      dialog.showErrorBox('Startup Error', `Failed to start application: ${error.message}`);
+      app.quit();
+    }
+  };
+
+  // App event handlers
+  app.whenReady().then(createWindow);
+
+  app.on('window-all-closed', () => {
+    // Stop embedded server
+    stopEmbeddedServer();
     
-    // Start the server first
-    await startEmbeddedServer();
+    // On macOS, keep app running even when all windows are closed
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
 
-    // Create the browser window
-    mainWindow = new BrowserWindow({
-      width: 1400,
-      height: 900,
-      minWidth: 1200,
-      minHeight: 800,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        enableRemoteModule: false,
-        preload: path.join(__dirname, 'preload.js')
-      },
-      icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'oti-icon.ico' : 'oti-icon.png'),
-      titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-      show: false // Don't show until ready
-    });
-
-    // Load the React app
-    const startUrl = isDev 
-      ? 'http://localhost:3000' 
-      : `file://${path.join(__dirname, '..', 'client', 'build', 'index.html')}`;
-    
-    console.log('Loading URL:', startUrl);
-    await mainWindow.loadURL(startUrl);
-
-    // Show window when ready
-    mainWindow.once('ready-to-show', () => {
-      mainWindow.show();
-      
-      // Initialize updater
-      updater = new AppUpdater();
-      updater.setMainWindow(mainWindow);
-      
-      // Check for updates on startup (after a delay)
-      setTimeout(() => {
-        updater.checkForUpdates();
-      }, 5000);
-      
-      // Open DevTools in development
-      if (isDev) {
-        mainWindow.webContents.openDevTools();
-      }
-    });
-
-    // Handle window closed
-    mainWindow.on('closed', () => {
-      mainWindow = null;
-    });
-
-    // Handle external links
-    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-      require('electron').shell.openExternal(url);
-      return { action: 'deny' };
-    });
-
-    // Set up application menu
-    createApplicationMenu();
-
-  } catch (error) {
-    console.error('Error creating window:', error);
-    dialog.showErrorBox('Startup Error', `Failed to start application: ${error.message}`);
-    app.quit();
-  }
-};
-
-// App event handlers
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
-  // Stop embedded server
-  stopEmbeddedServer();
-  
-  // On macOS, keep app running even when all windows are closed
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  // On macOS, re-create window when dock icon is clicked
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
+  app.on('activate', () => {
+    // On macOS, re-create window when dock icon is clicked
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+}
 
 app.on('before-quit', () => {
   // Clean up server process
