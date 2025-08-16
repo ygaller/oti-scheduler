@@ -763,7 +763,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           type: activity.id, 
           label: activity.name,
           color: activity.color,
-          isStartTime: time === timeRange.startTime
+          isStartTime: time === timeRange.startTime,
+          isBlocking: activity.isBlocking // Add isBlocking property
         };
       }
     }
@@ -1348,13 +1349,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   height: 20,
                   borderTop: isHourMark ? 2 : 0.5,
                   borderColor: isHourMark ? 'primary.main' : 'divider',
-                  backgroundColor: reservedSlot ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
+                  backgroundColor: reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
                 }}>
                   <TableCell sx={{ 
                     p: 0.5, 
                     fontSize: '0.75rem',
                     textAlign: 'center',
-                    backgroundColor: isHourMark ? 'grey.50' : 'transparent',
+                    backgroundColor: isHourMark ? (reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'grey.50') : 'transparent',
                     fontWeight: isHourMark ? 'bold' : 'normal'
                   }}>
                     {isHourMark ? time : ''}
@@ -1483,13 +1484,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   height: 20,
                   borderTop: isHourMark ? 2 : 0.5,
                   borderColor: isHourMark ? 'primary.main' : 'divider',
-                  backgroundColor: reservedSlot ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
+                  backgroundColor: reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
                 }}>
                   <TableCell sx={{ 
                     p: 0.5, 
                     fontSize: '0.75rem',
                     textAlign: 'center',
-                    backgroundColor: isHourMark ? 'grey.50' : 'transparent',
+                    backgroundColor: isHourMark ? (reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'grey.50') : 'transparent',
                     fontWeight: isHourMark ? 'bold' : 'normal'
                   }}>
                     {isHourMark ? time : ''}
