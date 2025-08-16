@@ -133,6 +133,7 @@ export interface CreateSessionDto {
   day: WeekDay;
   startTime: string;
   endTime: string;
+  forceCreate?: boolean; // Added to allow bypassing certain validations with confirmation
 }
 
 export interface UpdateSessionDto extends Partial<Omit<CreateSessionDto, 'scheduleId'>> {

@@ -336,7 +336,7 @@ export function generateScheduleWithActivities(
 
 // Main validation function that uses Activity[]
 export function validateScheduleConstraints(
-  session: Session,
+  session: Session & { forceCreate?: boolean },
   allSessions: Session[],
   employees: Employee[],
   rooms: Room[],
@@ -359,7 +359,7 @@ export function validateScheduleConstraints(
   }
 
   // Check room conflicts
-  const roomConflicts = allSessions.filter(s => 
+  const roomConflicts = allSessions.filter(s =>
     s.id !== session.id &&
     s.roomId === session.roomId &&
     s.day === session.day &&
@@ -371,7 +371,7 @@ export function validateScheduleConstraints(
   }
 
   // Check employee conflicts
-  const employeeConflicts = allSessions.filter(s => 
+  const employeeConflicts = allSessions.filter(s =>
     s.id !== session.id &&
     s.employeeId === session.employeeId &&
     s.day === session.day &&
@@ -382,19 +382,19 @@ export function validateScheduleConstraints(
     return { valid: false, error: 'העובד תפוס בזמן זה' };
   }
 
-  // Check activities using new logic
-  const activeBlockingActivities = activities.filter(activity => activity.isActive && activity.isBlocking);
-  const blockedConflict = activeBlockingActivities.some(activity => {
-    const periodTime = getActivityTimeForDay(activity, session.day);
-    if (!periodTime) {
-      return false; // No blocking for this day
-    }
-    
-    return timesOverlap(periodTime.startTime, periodTime.endTime, session.startTime, session.endTime);
-  });
+  // Check activities/blocked periods
+  for (const activity of activities) {
+    if (!activity.isBlocking || !activity.isActive) continue;
 
-  if (blockedConflict) {
-    return { valid: false, error: 'לא ניתן לתזמן טיפול בזמן חסום' };
+    const activityTime = getActivityTimeForDay(activity, session.day);
+    if (!activityTime) continue;
+
+    if (timesOverlap(activityTime.startTime, activityTime.endTime, session.startTime, session.endTime)) {
+      // If forceCreate is true, do NOT return an error for blocking activities
+      if (!session.forceCreate) {
+        return { valid: false, error: `לא ניתן לתזמן טיפול בזמן חסום` };
+      }
+    }
   }
 
   return { valid: true };

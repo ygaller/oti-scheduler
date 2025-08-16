@@ -159,14 +159,21 @@ export const createScheduleRouter = (
       const activities = await activityRepo.findAll(true); // Include all active activities
 
       const validation = validateScheduleConstraints(
-        sessionData as any, // Type conversion needed for the validation
+        sessionData as any, // Type conversion needed for validation as sessionData does not have 'id' yet but can have forceCreate
         allSessions,
         employees,
         rooms,
         activities
       );
 
+      // Check if the validation failed due to a blocking activity conflict
       if (!validation.valid) {
+        if (validation.error === 'לא ניתן לתזמן טיפול בזמן חסום' && !sessionData.forceCreate) {
+          return res.status(409).json({ 
+            warning: 'הטיפול מתנגש עם פעילות חוסמת. האם ברצונך ליצור את הטיפול בכל זאת?',
+            requiresConfirmation: true
+          });
+        }
         return res.status(400).json({ error: validation.error });
       }
 
