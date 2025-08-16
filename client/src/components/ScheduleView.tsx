@@ -48,12 +48,7 @@ import {
 import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
-import {
-  validateScheduleConstraints,
-  WeekDay,
-  WEEK_DAYS,
-  DAY_LABELS
-} from '../utils/scheduler';
+import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
 import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../services';
 import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -80,7 +75,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [sessionForm, setSessionForm] = useState<Partial<Session>>({
     patientIds: []
   });
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [confirmCreateSessionOpen, setConfirmCreateSessionOpen] = useState(false); // New state for session creation confirmation
   const [pendingSessionCreationData, setPendingSessionCreationData] = useState<Partial<Session> | null>(null); // New state for pending session data
@@ -90,7 +85,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     message: string;
     details?: string;
   }>({ title: '', message: '' });
-  const [generateScheduleChoiceOpen, setGenerateScheduleChoiceOpen] = useState(false);
+  const [resetScheduleDialogOpen, setResetScheduleDialogOpen] = useState(false);
 
   // Patient view states
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -128,96 +123,39 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   }, [patients, selectedPatientId]);
 
-  const handleGenerateScheduleClick = () => {
-    console.log('Generate schedule button clicked!');
+  const handleResetScheduleClick = () => {
+    console.log('Reset schedule button clicked!');
     
-    if (employees.length === 0 || rooms.length === 0) {
-      setErrorInfo({
-        title: 'לא ניתן ליצור לוח זמנים',
-        message: 'נדרשים לפחות עובד אחד וחדר אחד כדי ליצור לוח זמנים'
-      });
-      setErrorModalOpen(true);
-      return;
-    }
-
-    // Show schedule generation choice dialog
-    setGenerateScheduleChoiceOpen(true);
+    // Show reset confirmation dialog
+    setResetScheduleDialogOpen(true);
   };
 
-  const handleGeneratePopulatedSchedule = async () => {
-    setGenerateScheduleChoiceOpen(false);
-    setIsGenerating(true);
-    
-    try {
-      console.log('Calling scheduleService.generate()...');
-      const newSchedule = await scheduleService.generate();
-      console.log('Schedule generated successfully:', newSchedule);
-      
-      if (!newSchedule.id) {
-        throw new Error('Generated schedule does not have an ID');
-      }
-      
-      console.log('Activating the new schedule...');
-      await scheduleService.activate(newSchedule.id);
-      console.log('Schedule activated successfully');
-      
-      console.log('Refreshing schedule from server...');
-      await setSchedule(); // Refresh the schedule from the server
-      console.log('Schedule refreshed successfully');
-      
-      // For success, we could use a toast notification or simple alert for now
-      // The schedule is automatically refreshed, so the user will see the new schedule
-      console.log('Schedule generated and activated successfully');
-    } catch (error) {
-      console.error('Error generating schedule:', error);
-      
-      const isApiError = error instanceof ApiError;
-      setErrorInfo({
-        title: 'שגיאה ביצירת לוח הזמנים',
-        message: isApiError ? error.message : 'שגיאה לא ידועה בתקשורת עם השרת',
-        details: isApiError ? error.details : undefined
-      });
-      setErrorModalOpen(true);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleGenerateEmptySchedule = async () => {
-    setGenerateScheduleChoiceOpen(false);
-    setIsGenerating(true);
+  const handleResetSchedule = async () => {
+    setResetScheduleDialogOpen(false);
+    setIsResetting(true);
 
     try {
-      console.log('Calling scheduleService.generateEmpty()...');
-      // Assuming a new service method `generateEmpty` which creates an empty schedule
-      const newSchedule = await scheduleService.generateEmpty();
-      console.log('Empty schedule generated successfully:', newSchedule);
-
-      if (!newSchedule.id) {
-        throw new Error('Generated schedule does not have an ID');
-      }
-
-      console.log('Activating the new empty schedule...');
-      await scheduleService.activate(newSchedule.id);
-      console.log('Empty schedule activated successfully');
+      console.log('Calling scheduleService.reset()...');
+      const newSchedule = await scheduleService.reset();
+      console.log('Schedule reset successfully:', newSchedule);
 
       console.log('Refreshing schedule from server...');
       await setSchedule(); // Refresh the schedule from the server
       console.log('Schedule refreshed successfully');
 
-      console.log('Empty schedule generated and activated successfully');
+      console.log('Schedule reset completed successfully');
     } catch (error) {
-      console.error('Error generating empty schedule:', error);
+      console.error('Error resetting schedule:', error);
 
       const isApiError = error instanceof ApiError;
       setErrorInfo({
-        title: 'שגיאה ביצירת לוח זמנים ריק',
+        title: 'שגיאה באיפוס לוח הזמנים',
         message: isApiError ? error.message : 'שגיאה לא ידועה בתקשורת עם השרת',
         details: isApiError ? error.details : undefined
       });
       setErrorModalOpen(true);
     } finally {
-      setIsGenerating(false);
+      setIsResetting(false);
     }
   };
 
@@ -357,33 +295,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       endTime: sessionForm.endTime!,
     };
 
-    // Validate the session
-    const currentSessions = schedule?.sessions || [];
-    const otherSessions = editingSession 
-      ? currentSessions.filter(s => s.id !== editingSession.id)
-      : currentSessions;
-
-    const validation = validateScheduleConstraints(
-      newSession as Session, // Cast to Session for validation, as patients/patientIds aren't strictly required for core validation
-      otherSessions,
-      employees,
-      rooms,
-      activities
-    );
-
-    if (!validation.valid) {
-      if (validation.requiresConfirmation) {
-        setPendingSessionCreationData(sessionForm);
-        setConfirmCreateSessionOpen(true);
-        return; // Exit, confirmation dialog will handle further action
-      }
-      setErrorInfo({
-        title: 'שגיאה בוולידציה',
-        message: validation.error || 'שגיאה לא ידועה בוולידציה'
-      });
-      setErrorModalOpen(true);
-      return;
-    }
+    // Server-side validation will handle all schedule constraints
 
     // Update schedule via API
     try {
@@ -1738,11 +1650,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Button>
           <Button
             variant="contained"
-            startIcon={isGenerating ? <CircularProgress size={16} /> : <CalendarToday />}
-            onClick={handleGenerateScheduleClick}
-            disabled={employees.length === 0 || rooms.length === 0 || isGenerating}
+            startIcon={isResetting ? <CircularProgress size={16} /> : <CalendarToday />}
+            onClick={handleResetScheduleClick}
+            disabled={isResetting}
+            color="warning"
           >
-            {isGenerating ? 'יוצר לוח זמנים...' : 'צור לוח זמנים'}
+            {isResetting ? 'מאפס לוח זמנים...' : 'אפס לוח זמנים'}
           </Button>
           <Button
             variant="outlined"
@@ -1765,7 +1678,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {employees.length === 0 || rooms.length === 0 ? (
         <Alert severity="warning" sx={{ mb: 3 }}>
-          יש להוסיף לפחות עובד אחד וחדר אחד כדי ליצור לוח זמנים
+          יש להוסיף לפחות עובד אחד וחדר אחד כדי להוסיף טיפולים
         </Alert>
       ) : null}
 
@@ -2007,7 +1920,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       ) : (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="body1" color="text.secondary">
-            לא נוצר לוח זמנים עדיין. לחץ על "צור לוח זמנים" להתחיל.
+            לוח הזמנים ריק. תוכל להוסיף טיפולים באמצעות הכפתור "הוסף טיפול".
           </Typography>
         </Paper>
       )}
@@ -2282,31 +2195,29 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         onClose={() => setErrorModalOpen(false)}
       />
 
-      {/* Schedule Generation Choice Dialog */}
-      <Dialog open={generateScheduleChoiceOpen} onClose={() => setGenerateScheduleChoiceOpen(false)} maxWidth="sm">
-        <DialogTitle>בחר סוג לוח זמנים ליצירה</DialogTitle>
+      {/* Reset Schedule Confirmation Dialog */}
+      <Dialog open={resetScheduleDialogOpen} onClose={() => setResetScheduleDialogOpen(false)} maxWidth="sm">
+        <DialogTitle>
+          <Warning color="warning" sx={{ verticalAlign: 'middle', mr: 1 }} />
+          אישור איפוס לוח זמנים
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body1" gutterBottom>
-            כיצד תרצה ליצור את לוח הזמנים החדש?
+            האם אתה בטוח שברצונך לאפס את לוח הזמנים?
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            יצירת לוח זמנים חדש תמחק את לוח הזמנים הנוכחי ותחליף אותו בלוח זמנים חדש. פעולה זו אינה ניתנת לביטול.
+            פעולה זו תמחק את כל הטיפולים מלוח הזמנים ותיצור לוח זמנים ריק חדש. פעולה זו אינה ניתנת לביטול.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setGenerateScheduleChoiceOpen(false)} color="inherit">ביטול</Button>
+          <Button onClick={() => setResetScheduleDialogOpen(false)} color="inherit">ביטול</Button>
           <Button
-            onClick={handleGenerateEmptySchedule}
-            variant="outlined"
-          >
-            צור לוח זמנים ריק
-          </Button>
-          <Button
-            onClick={handleGeneratePopulatedSchedule}
+            onClick={handleResetSchedule}
             variant="contained"
+            color="warning"
             autoFocus
           >
-            צור לוח זמנים מאוכלס
+            אפס לוח זמנים
           </Button>
         </DialogActions>
       </Dialog>

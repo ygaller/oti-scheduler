@@ -1,4 +1,15 @@
-import { Employee as PrismaEmployee, Room as PrismaRoom, Session as PrismaSession, Schedule as PrismaSchedule, Role as PrismaRole, WeekDay as PrismaWeekDay, Patient as PrismaPatient, SessionPatient as PrismaSessionPatient, SessionEmployee as PrismaSessionEmployee } from '@prisma/client';
+import { Employee as PrismaEmployee, Room as PrismaRoom, Session as PrismaSession, Schedule as PrismaSchedule, Role as PrismaRole, WeekDay as PrismaWeekDay, Patient as PrismaPatient, SessionPatient as PrismaSessionPatient } from '@prisma/client';
+
+// Import SessionEmployee type manually since it might not be exported directly
+type PrismaSessionEmployee = {
+  id: string;
+  sessionId: string;
+  employeeId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  session?: PrismaSession;
+  employee: PrismaEmployee;
+};
 import { Employee, Room, Session, Schedule, Role, WeekDay, Patient } from '../types';
 
 // WeekDay mapping

@@ -35,11 +35,7 @@ import {
   UpdateActivityDto, 
   AVAILABLE_COLORS, 
 } from '../types';
-import {
-  DAY_LABELS,
-  WeekDay,
-  WEEK_DAYS
-} from '../utils/scheduler';
+import { DAY_LABELS, WeekDay, WEEK_DAYS } from '../types/schedule';
 import ColorPicker from './ColorPicker';
 
 interface ActivityManagementProps {
@@ -438,7 +434,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
                   הגדר זמנים שונים לימים מסוימים או השבת את התקופה החסומה לימים מסוימים
                 </Typography>
                 <Box display="flex" flexDirection="column" gap={2}>
-                  {WEEK_DAYS.map((day) => {
+                  {WEEK_DAYS.map((day: WeekDay) => {
                     const override = formData.dayOverrides[day];
                     return (
                       <Box key={day}>

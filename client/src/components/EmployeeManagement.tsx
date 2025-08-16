@@ -28,7 +28,7 @@ import {
 import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { Employee, getRandomColor, getRoleName } from '../types';
-import { DAY_LABELS, WEEK_DAYS } from '../utils/scheduler';
+import { DAY_LABELS, WEEK_DAYS, WeekDay } from '../types/schedule';
 import { employeeService } from '../services';
 import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';
@@ -216,7 +216,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                 <TableCell>{employee.weeklySessionsCount}</TableCell>
                 <TableCell>
                   <Box display="flex" gap={1} flexWrap="wrap">
-                    {WEEK_DAYS.map(day => {
+                    {WEEK_DAYS.map((day: WeekDay) => {
                       const hours = employee.workingHours[day];
                       return hours ? (
                         <Chip
@@ -317,7 +317,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
             {/* Working Hours */}
             <Box>
               <Typography variant="h6" sx={{ mb: 2 }}>שעות עבודה</Typography>
-              {WEEK_DAYS.map(day => (
+              {WEEK_DAYS.map((day: WeekDay) => (
                 <Box key={day} sx={{ mb: 2 }}>
                   <Box display="flex" alignItems="center" gap={2}>
                     <Typography variant="body1" sx={{ minWidth: '120px' }}>

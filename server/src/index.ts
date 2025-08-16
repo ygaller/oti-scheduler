@@ -13,7 +13,30 @@ import {
   PrismaRoleRepository
 } from './repositories';
 import { createApiRouter } from './routes';
-import { RoleRepository } from './repositories/interfaces';
+import { RoleRepository, ScheduleRepository } from './repositories/interfaces';
+
+// Ensure empty schedule exists in the database
+async function ensureDefaultSchedule(scheduleRepo: ScheduleRepository): Promise<void> {
+  try {
+    console.log('🔍 Checking for active schedule...');
+    
+    // Check if any active schedule exists
+    const activeSchedule = await scheduleRepo.findActive();
+    
+    if (!activeSchedule) {
+      console.log('📝 Creating default empty schedule...');
+      
+      // Create an empty schedule
+      const newSchedule = await scheduleRepo.create([]);
+      console.log(`✅ Created default empty schedule: ${newSchedule.id}`);
+    } else {
+      console.log(`✅ Found active schedule (${activeSchedule.id}), skipping default schedule creation`);
+    }
+  } catch (error) {
+    console.error('❌ Error ensuring default schedule:', error);
+    // Don't throw - let the server continue even if schedule creation fails
+  }
+}
 
 // Ensure default roles exist in the database
 async function ensureDefaultRoles(roleRepo: RoleRepository): Promise<void> {
@@ -122,6 +145,9 @@ async function startServer() {
     
     // Ensure default roles exist
     await ensureDefaultRoles(roleRepo);
+    
+    // Ensure default empty schedule exists
+    await ensureDefaultSchedule(scheduleRepo);
     
     // Setup API routes
     app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, roleRepo, prisma));

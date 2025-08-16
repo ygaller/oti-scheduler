@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, ActivityRepository } from '../repositories';
-import { generateScheduleWithActivities, validateScheduleConstraints, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
+import { validateScheduleConstraints, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -18,40 +18,7 @@ export const createScheduleRouter = (
 
 
   // POST /api/schedule/generate - Generate new schedule
-  router.post('/generate', async (req, res) => {
-    try {
-      const employees = await employeeRepo.findAll();
-      const rooms = await roomRepo.findAll();
-      const activities = await activityRepo.findAll(true); // Include all active activities
 
-      if (employees.length === 0) {
-        return res.status(400).json({ error: 'No employees found' });
-      }
-      if (rooms.length === 0) {
-        return res.status(400).json({ error: 'No rooms found' });
-      }
-
-      // Generate schedule using activity-based algorithm
-      const sessions = generateScheduleWithActivities(employees, rooms, activities);
-      
-      // Save the schedule to database
-      const schedule = await scheduleRepo.create(sessions);
-      
-      res.status(201).json(schedule);
-    } catch (error) {
-      console.error('Error generating schedule:', error);
-      
-      // Check if this is a scheduling validation error
-      if (error instanceof Error && error.message.includes('Cannot generate schedule - insufficient available time slots')) {
-        res.status(400).json({ 
-          error: 'Schedule generation failed', 
-          details: error.message 
-        });
-      } else {
-        res.status(500).json({ error: 'Failed to generate schedule' });
-      }
-    }
-  });
 
   // POST /api/schedule/generate-empty - Generate new empty schedule
   router.post('/generate-empty', async (req, res) => {
@@ -63,6 +30,29 @@ export const createScheduleRouter = (
     } catch (error) {
       console.error('Error generating empty schedule:', error);
       res.status(500).json({ error: 'Failed to generate empty schedule' });
+    }
+  });
+
+  // POST /api/schedule/reset - Reset current schedule (delete and create new empty one)
+  router.post('/reset', async (req, res) => {
+    try {
+      // Get current active schedule
+      const activeSchedule = await scheduleRepo.findActive();
+      
+      if (activeSchedule && activeSchedule.id) {
+        // Delete the current active schedule (cascades to sessions)
+        await scheduleRepo.delete(activeSchedule.id);
+        console.log('Deleted existing schedule:', activeSchedule.id);
+      }
+      
+      // Create a new empty schedule
+      const newSchedule = await scheduleRepo.create([]);
+      console.log('Created new empty schedule:', newSchedule.id);
+      
+      res.status(201).json(newSchedule);
+    } catch (error) {
+      console.error('Error resetting schedule:', error);
+      res.status(500).json({ error: 'Failed to reset schedule' });
     }
   });
 

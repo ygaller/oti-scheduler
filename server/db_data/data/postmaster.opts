@@ -1,0 +1,1 @@
+/opt/homebrew/Cellar/postgresql@14/14.14/bin/postgres "-D" "/Users/yairgaller/CursorEnvs/scheduling/server/db_data/data" "-p" "56903" "-k" "/tmp" "-F"

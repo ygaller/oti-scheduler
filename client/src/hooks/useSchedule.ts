@@ -7,7 +7,7 @@ interface UseScheduleResult {
   allSchedules: Schedule[];
   loading: boolean;
   error: string | null;
-  generateSchedule: () => Promise<Schedule>;
+  resetSchedule: () => Promise<Schedule>;
   activateSchedule: (id: string) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
   refetchActive: () => Promise<void>;
@@ -44,21 +44,22 @@ export const useSchedule = (): UseScheduleResult => {
     }
   }, []);
 
-  const generateSchedule = useCallback(async (): Promise<Schedule> => {
+  const resetSchedule = useCallback(async (): Promise<Schedule> => {
     try {
       setLoading(true);
       setError(null);
-      const newSchedule = await scheduleService.generate();
+      const newSchedule = await scheduleService.reset();
       await fetchAllSchedules();
+      await fetchActiveSchedule();
       return newSchedule;
     } catch (err) {
-      console.error('Failed to generate schedule:', err);
-      setError(err instanceof ApiError ? err.message : 'Failed to generate schedule');
+      console.error('Failed to reset schedule:', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to reset schedule');
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [fetchAllSchedules]);
+  }, [fetchAllSchedules, fetchActiveSchedule]);
 
   const activateSchedule = useCallback(async (id: string) => {
     try {
@@ -105,7 +106,7 @@ export const useSchedule = (): UseScheduleResult => {
     allSchedules,
     loading,
     error,
-    generateSchedule,
+    resetSchedule,
     activateSchedule,
     deleteSchedule,
     refetchActive: fetchActiveSchedule,

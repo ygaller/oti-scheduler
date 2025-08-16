@@ -19,162 +19,7 @@ describe('Schedule API Integration Tests', () => {
     app = createTestApp(prisma);
   });
 
-  describe('POST /api/schedule/generate - API Integration', () => {
-    beforeEach(async () => {
-      // Clean up before each test - order matters due to foreign key constraints
-      await prisma.sessionPatient.deleteMany();
-      await prisma.session.deleteMany();
-      await prisma.schedule.deleteMany();
-      await prisma.employee.deleteMany();
-      await prisma.room.deleteMany();
-      await prisma.activity.deleteMany();
-      await prisma.patient.deleteMany();
-      await prisma.role.deleteMany();
-    });
-
-    it('should generate schedule and return proper HTTP response', async () => {
-      // Create test roles first
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
-      const role2 = createRoleFixture({ name: 'פיזיותרפיה' });
-      
-      const roleResponse1 = await request(app).post('/api/roles').send(role1);
-      const roleResponse2 = await request(app).post('/api/roles').send(role2);
-      
-      // Create test employees via API
-      const employee1 = createEmployeeFixture({
-        firstName: 'Alice',
-        lastName: 'Smith',
-        roleId: roleResponse1.body.id,
-        weeklySessionsCount: 10
-      });
-
-      const employee2 = createEmployeeFixture({
-        firstName: 'Bob',
-        lastName: 'Johnson', 
-        roleId: roleResponse2.body.id,
-        weeklySessionsCount: 5
-      });
-
-      await request(app).post('/api/employees').send(employee1);
-      await request(app).post('/api/employees').send(employee2);
-
-      // Create test rooms via API
-      const room1 = createRoomFixture({ name: 'Therapy Room 1' });
-      const room2 = createRoomFixture({ name: 'Therapy Room 2' });
-      const room3 = createRoomFixture({ name: 'Therapy Room 3' });
-
-      await request(app).post('/api/rooms').send(room1);
-      await request(app).post('/api/rooms').send(room2);
-      await request(app).post('/api/rooms').send(room3);
-
-      // Generate schedule via API
-      const response = await request(app)
-        .post('/api/schedule/generate')
-        .expect(201);
-
-      // Verify response structure
-      expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('sessions');
-      expect(response.body).toHaveProperty('generatedAt');
-      expect(response.body.isActive).toBe(true);
-      expect(Array.isArray(response.body.sessions)).toBe(true);
-      expect(response.body.sessions.length).toBeGreaterThan(0);
-
-      // Verify data persistence
-      const schedulesInDb = await prisma.schedule.findMany({
-        include: { sessions: true }
-      });
-      expect(schedulesInDb).toHaveLength(1);
-      expect(schedulesInDb[0].isActive).toBe(true);
-    });
-
-    it('should return 400 when no employees exist (API)', async () => {
-      // Create rooms but no employees
-      const room1 = createRoomFixture({ name: 'Test Room' });
-      await request(app).post('/api/rooms').send(room1);
-
-      const response = await request(app)
-        .post('/api/schedule/generate')
-        .expect(400);
-
-      expect(response.body.error).toBe('No employees found');
-    });
-
-    it('should return 400 when no rooms exist (API)', async () => {
-      // Create role first, then employees but no rooms
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
-      const roleResponse1 = await request(app).post('/api/roles').send(role1);
-      
-      const employee1 = createEmployeeFixture({
-        firstName: 'Test',
-        lastName: 'Employee',
-        roleId: roleResponse1.body.id
-      });
-      await request(app).post('/api/employees').send(employee1);
-
-      const response = await request(app)
-        .post('/api/schedule/generate')
-        .expect(400);
-
-      expect(response.body.error).toBe('No rooms found');
-    });
-
-    it('should handle blocking activities correctly (API)', async () => {
-      // Create role first, then employee and room
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
-      const roleResponse1 = await request(app).post('/api/roles').send(role1);
-      
-      const employee = createEmployeeFixture({
-        firstName: 'Blocked',
-        lastName: 'Employee',
-        roleId: roleResponse1.body.id,
-        weeklySessionsCount: 15,
-        workingHours: {
-          sunday: { startTime: '08:00', endTime: '16:00' },
-          monday: { startTime: '08:00', endTime: '16:00' },
-          tuesday: { startTime: '08:00', endTime: '16:00' },
-          wednesday: { startTime: '08:00', endTime: '16:00' },
-          thursday: { startTime: '08:00', endTime: '16:00' }
-        }
-      });
-      
-      const room = createRoomFixture({ name: 'Test Room' });
-
-      await request(app).post('/api/employees').send(employee);
-      await request(app).post('/api/rooms').send(room);
-
-      // Create blocking activities that cover most working hours
-      const blockingActivity1 = {
-        name: 'Morning Meeting',
-        color: '#ff5733',
-        defaultStartTime: '08:00',
-        defaultEndTime: '12:00',
-        dayOverrides: {},
-        isBlocking: true,
-        isActive: true
-      };
-
-      const blockingActivity2 = {
-        name: 'Afternoon Training',
-        color: '#ff5733',
-        defaultStartTime: '13:00',
-        defaultEndTime: '16:00',
-        dayOverrides: {},
-        isBlocking: true,
-        isActive: true
-      };
-
-      await request(app).post('/api/activities').send(blockingActivity1);
-      await request(app).post('/api/activities').send(blockingActivity2);
-
-      const response = await request(app)
-        .post('/api/schedule/generate')
-        .expect(400);
-
-      expect(response.body.error).toBe('Schedule generation failed');
-      expect(response.body.details).toContain('Cannot generate schedule - insufficient available time slots');
-    });
-  });
+  // Automated schedule generation tests removed - functionality no longer supported
 
   describe('GET /api/schedule/active - API Integration', () => {
     beforeEach(async () => {
@@ -208,9 +53,9 @@ describe('Schedule API Integration Tests', () => {
       await request(app).post('/api/employees').send(employee);
       await request(app).post('/api/rooms').send(room);
 
-      // Generate a schedule (which becomes active by default)
+      // Generate an empty schedule (which becomes active by default)
       const generateResponse = await request(app)
-        .post('/api/schedule/generate')
+        .post('/api/schedule/generate-empty')
         .expect(201);
 
       // Get active schedule
@@ -255,9 +100,9 @@ describe('Schedule API Integration Tests', () => {
       await request(app).post('/api/employees').send(employee);
       await request(app).post('/api/rooms').send(room);
 
-      // Generate two schedules
-      const schedule1Response = await request(app).post('/api/schedule/generate').expect(201);
-      const schedule2Response = await request(app).post('/api/schedule/generate').expect(201);
+      // Generate two empty schedules
+      const schedule1Response = await request(app).post('/api/schedule/generate-empty').expect(201);
+      const schedule2Response = await request(app).post('/api/schedule/generate-empty').expect(201);
 
       const response = await request(app)
         .get('/api/schedule/all')
@@ -305,9 +150,9 @@ describe('Schedule API Integration Tests', () => {
       await request(app).post('/api/employees').send(employee);
       await request(app).post('/api/rooms').send(room);
 
-      // Generate two schedules
-      const schedule1Response = await request(app).post('/api/schedule/generate').expect(201);
-      const schedule2Response = await request(app).post('/api/schedule/generate').expect(201);
+      // Generate two empty schedules
+      const schedule1Response = await request(app).post('/api/schedule/generate-empty').expect(201);
+      const schedule2Response = await request(app).post('/api/schedule/generate-empty').expect(201);
 
       const schedule1Id = schedule1Response.body.id;
       const schedule2Id = schedule2Response.body.id;
@@ -375,8 +220,8 @@ describe('Schedule API Integration Tests', () => {
       await request(app).post('/api/employees').send(employee);
       await request(app).post('/api/rooms').send(room);
 
-      // Generate a schedule
-      const generateResponse = await request(app).post('/api/schedule/generate').expect(201);
+      // Generate an empty schedule
+      const generateResponse = await request(app).post('/api/schedule/generate-empty').expect(201);
       const scheduleId = generateResponse.body.id;
 
       // Verify it exists
@@ -431,8 +276,8 @@ describe('Schedule API Integration Tests', () => {
       const employeeResponse = await request(app).post('/api/employees').send(employee);
       const roomResponse = await request(app).post('/api/rooms').send(room);
 
-      // Generate a schedule first (required for session creation)
-      const scheduleResponse = await request(app).post('/api/schedule/generate').expect(201);
+      // Generate an empty schedule first (required for session creation)
+      const scheduleResponse = await request(app).post('/api/schedule/generate-empty').expect(201);
       const initialSessionCount = scheduleResponse.body.sessions.length;
 
       const sessionData = {
@@ -542,8 +387,8 @@ describe('Schedule API Integration Tests', () => {
       });
       patient = patientResponse.body;
 
-      // Generate a schedule first (required for session creation)
-      await request(app).post('/api/schedule/generate').expect(201);
+      // Generate an empty schedule first (required for session creation)
+      await request(app).post('/api/schedule/generate-empty').expect(201);
 
       // Create test sessions via API
       const session1Response = await request(app).post('/api/schedule/sessions').send({
@@ -651,9 +496,16 @@ describe('Schedule API Integration Tests', () => {
     });
 
     it('should handle server errors gracefully', async () => {
-      // Try to generate schedule without any setup
+      // Try to create session with invalid data
       const response = await request(app)
-        .post('/api/schedule/generate')
+        .post('/api/schedule/sessions')
+        .send({
+          employeeIds: ['invalid-id'],
+          roomId: 'invalid-id',
+          day: 'invalid-day',
+          startTime: 'invalid-time',
+          endTime: 'invalid-time'
+        })
         .expect(400);
 
       expect(response.body).toHaveProperty('error');

@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+When you are done, always run npm run build to verify that there are no remaining errors.

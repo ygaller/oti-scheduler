@@ -3,10 +3,9 @@ import { api } from './api';
 
 export const scheduleService = {
 
-
-  // Schedule Generation
-  async generate(): Promise<Schedule> {
-    return api.post<Schedule>('/schedule/generate');
+  // Schedule Management
+  async reset(): Promise<Schedule> {
+    return api.post<Schedule>('/schedule/reset');
   },
 
   async generateEmpty(): Promise<Schedule> {

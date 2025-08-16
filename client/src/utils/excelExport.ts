@@ -1,6 +1,6 @@
 import * as XLSX from 'sheetjs-style';
 import { Session, Employee, Room, Patient, Activity, getRoleName } from '../types';
-import { DAY_LABELS, WeekDay, WEEK_DAYS } from '../utils/scheduler';
+import { DAY_LABELS, WeekDay, WEEK_DAYS } from '../types/schedule';
 
 interface ExcelExportOptions {
   sessions: Session[];
@@ -86,7 +86,7 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
   const mainHeaders: any[] = ['שעה'];
   const subHeaders: any[] = [''];
   
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     mainHeaders.push(DAY_LABELS[day]);
     // Add empty cells for the rest of the employee columns for this day
     for (let i = 1; i < sortedEmployees.length + 1; i++) { // +1 for activities column
@@ -106,7 +106,7 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
   timeSlots.forEach(time => {
     const row: any[] = [time];
     
-    WEEK_DAYS.forEach(day => {
+    WEEK_DAYS.forEach((day: WeekDay) => {
       const daySessions = sessions.filter(s => s.day === day);
       
       // Check for activities
@@ -142,7 +142,7 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
   
   // Merge cells for day headers
   let colIndex = 1;
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     const startCol = colIndex;
     const endCol = colIndex + sortedEmployees.length; // +1 for activities column
     
@@ -187,7 +187,7 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
   
   // Apply employee colors to their columns
   colIndex = 1;
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     colIndex++; // Skip activities column
     
     sortedEmployees.forEach((employee, empIndex) => {
@@ -235,7 +235,7 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   const mainHeaders: any[] = ['שעה'];
   const subHeaders: any[] = [''];
   
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     mainHeaders.push(DAY_LABELS[day]);
     // Add empty cells for the rest of the room columns for this day
     for (let i = 1; i < sortedRooms.length + 1; i++) { // +1 for activities column
@@ -255,7 +255,7 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   timeSlots.forEach(time => {
     const row: any[] = [time];
     
-    WEEK_DAYS.forEach(day => {
+    WEEK_DAYS.forEach((day: WeekDay) => {
       const daySessions = sessions.filter(s => s.day === day);
       
       // Check for activities
@@ -290,7 +290,7 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   
   // Merge cells for day headers
   let colIndex = 1;
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     const startCol = colIndex;
     const endCol = colIndex + sortedRooms.length; // +1 for activities column
     
@@ -335,7 +335,7 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   
   // Apply room colors to their columns
   colIndex = 1;
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     colIndex++; // Skip activities column
     
     sortedRooms.forEach((room, roomIndex) => {
@@ -389,7 +389,7 @@ function createPatientScheduleWorksheet(patient: Patient, options: ExcelExportOp
     ['יום', 'שעת התחלה', 'שעת סיום', 'מטפל', 'תפקיד', 'חדר'] // Headers
   ];
   
-  WEEK_DAYS.forEach(day => {
+  WEEK_DAYS.forEach((day: WeekDay) => {
     const dayLabel = DAY_LABELS[day];
     const daySessions = patientSessions.filter(s => s.day === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
     
