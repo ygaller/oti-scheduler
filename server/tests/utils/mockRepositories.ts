@@ -555,7 +555,7 @@ export class MockRoleRepository implements RoleRepository {
     return this.update(id, { isActive });
   }
 
-  async delete(id: string): Promise<{ success: boolean; error?: string }> {
+  async delete(id: string): Promise<{ success: boolean; error?: string; notFound?: boolean }> {
     const employeeCount = this.employeeCounts[id] || 0;
     
     if (employeeCount > 0) {
@@ -567,7 +567,7 @@ export class MockRoleRepository implements RoleRepository {
 
     const roleIndex = this.roles.findIndex(r => r.id === id);
     if (roleIndex === -1) {
-      return { success: false, error: 'Role not found' };
+      return { success: false, error: 'Role not found', notFound: true };
     }
 
     this.roles.splice(roleIndex, 1);
