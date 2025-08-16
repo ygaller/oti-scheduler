@@ -81,6 +81,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     message: string;
     details?: string;
   }>({ title: '', message: '' });
+  const [generateScheduleChoiceOpen, setGenerateScheduleChoiceOpen] = useState(false);
 
   // Patient view states
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -127,12 +128,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    // Show confirmation dialog
-    setConfirmDialogOpen(true);
+    // Show schedule generation choice dialog
+    setGenerateScheduleChoiceOpen(true);
   };
 
-  const handleGenerateScheduleConfirm = async () => {
-    setConfirmDialogOpen(false);
+  const handleGeneratePopulatedSchedule = async () => {
+    setGenerateScheduleChoiceOpen(false);
     setIsGenerating(true);
     
     try {
@@ -170,8 +171,42 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   };
 
-  const handleGenerateScheduleCancel = () => {
-    setConfirmDialogOpen(false);
+  const handleGenerateEmptySchedule = async () => {
+    setGenerateScheduleChoiceOpen(false);
+    setIsGenerating(true);
+
+    try {
+      console.log('Calling scheduleService.generateEmpty()...');
+      // Assuming a new service method `generateEmpty` which creates an empty schedule
+      const newSchedule = await scheduleService.generateEmpty();
+      console.log('Empty schedule generated successfully:', newSchedule);
+
+      if (!newSchedule.id) {
+        throw new Error('Generated schedule does not have an ID');
+      }
+
+      console.log('Activating the new empty schedule...');
+      await scheduleService.activate(newSchedule.id);
+      console.log('Empty schedule activated successfully');
+
+      console.log('Refreshing schedule from server...');
+      await setSchedule(); // Refresh the schedule from the server
+      console.log('Schedule refreshed successfully');
+
+      console.log('Empty schedule generated and activated successfully');
+    } catch (error) {
+      console.error('Error generating empty schedule:', error);
+
+      const isApiError = error instanceof ApiError;
+      setErrorInfo({
+        title: 'שגיאה ביצירת לוח זמנים ריק',
+        message: isApiError ? error.message : 'שגיאה לא ידועה בתקשורת עם השרת',
+        details: isApiError ? error.details : undefined
+      });
+      setErrorModalOpen(true);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleExportExcel = () => {
@@ -1217,49 +1252,47 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const PatientCalendarView = ({ day }: { day: WeekDay }) => {
     const patientSessions = getPatientSessionsForDay(day, selectedPatientId);
     
-    if (patientSessions.length === 0) {
-      return (
-        <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-          אין טיפולים מתוזמנים ליום זה
-        </Typography>
-      );
-    }
-
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {patientSessions.map(session => {
-          const employee = employees.find(e => e.id === session.employeeId);
-          const room = rooms.find(r => r.id === session.roomId);
-          
-          return (
-            <Card
-              key={session.id}
-              sx={{ 
-                backgroundColor: '#f5f5f5', // Light grey for good print contrast
-                cursor: 'pointer',
-                '&:hover': { 
-                  backgroundColor: '#e0e0e0'
-                }
-              }}
-              onClick={() => handleSessionClick(session)}
-            >
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  {session.startTime} - {session.endTime}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  מטפל: {employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  טיפול: {employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  חדר: {room ? room.name : 'לא ידוע'}
-                </Typography>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {patientSessions.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
+            אין טיפולים מתוזמנים ליום זה
+          </Typography>
+        ) : (
+          patientSessions.map(session => {
+            const employee = employees.find(e => e.id === session.employeeId);
+            const room = rooms.find(r => r.id === session.roomId);
+            
+            return (
+              <Card
+                key={session.id}
+                sx={{ 
+                  backgroundColor: '#f5f5f5', // Light grey for good print contrast
+                  cursor: 'pointer',
+                  '&:hover': { 
+                    backgroundColor: '#e0e0e0'
+                  }
+                }}
+                onClick={() => handleSessionClick(session)}
+              >
+                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    {session.startTime} - {session.endTime}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    מטפל: {employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    טיפול: {employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    חדר: {room ? room.name : 'לא ידוע'}
+                  </Typography>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </Box>
     );
   };
@@ -1267,9 +1300,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const EmployeeCalendarView = ({ day }: { day: WeekDay }) => {
     const timeSlots = generateTimeSlots();
     const daySessions = getSessionsForDay(day);
-    const sortedEmployees = [...employees].sort((a, b) => 
-      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-    );
+    const sortedEmployees = [...employees]
+      .filter(employee => employee.workingHours[day]) // Filter out employees who don't work on this day
+      .sort((a, b) => 
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+      );
+
+    const isTimeWithinWorkingHours = (employee: Employee, time: string, currentDay: WeekDay): boolean => {
+      const workingHours = employee.workingHours[currentDay];
+      if (!workingHours) return false;
+
+      const startMinutes = timeToMinutes(workingHours.startTime);
+      const endMinutes = timeToMinutes(workingHours.endTime);
+      const currentTimeMinutes = timeToMinutes(time);
+
+      return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
+    };
     
     return (
       <TableContainer sx={{ border: 1, borderColor: 'divider', maxHeight: 'none' }}>
@@ -1385,10 +1431,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       return null;
                     }
                     
+                    const isWorkingHour = isTimeWithinWorkingHours(employee, time, day);
+                    
                     return (
-                      <TableCell key={employee.id} sx={{ 
+                      <TableCell key={employee.id} sx={{
                         p: 0.5,
-                        backgroundColor: 'transparent' // Let the row background show through
+                        backgroundColor: isWorkingHour ? 'transparent' : 'grey.400' // Darker grey for non-working hours
                       }}>
                       </TableCell>
                     );
@@ -1769,16 +1817,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     {DAY_LABELS[day]}
                   </Typography>
                   
-                  {getSessionsForDay(day).length === 0 ? (
-                    <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
-                      אין טיפולים מתוזמנים ליום זה
-                    </Typography>
-                  ) : (
-                    <>
-                      {activeTab === 0 && <EmployeeCalendarView day={day} />}
-                      {activeTab === 1 && <RoomCalendarView day={day} />}
-                    </>
-                  )}
+                  {/* Always render calendar views, even if no sessions are scheduled */}
+                  {activeTab === 0 && <EmployeeCalendarView day={day} />}
+                  {activeTab === 1 && <RoomCalendarView day={day} />}
                 </Paper>
               ))}
             </Box>
@@ -1837,35 +1878,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </CardContent>
         </Card>
       ) : null}
-
-      {/* Schedule Generation Confirmation Dialog */}
-      <Dialog open={confirmDialogOpen} onClose={handleGenerateScheduleCancel} maxWidth="sm">
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Warning color="warning" />
-          אזהרה - יצירת לוח זמנים חדש
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            יצירת לוח זמנים חדש תמחק את לוח הזמנים הנוכחי ותחליף אותו בלוח זמנים חדש.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            פעולה זו אינה ניתנת לביטול. האם אתה בטוח שברצונך להמשיך?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleGenerateScheduleCancel} color="inherit">
-            ביטול
-          </Button>
-          <Button 
-            onClick={handleGenerateScheduleConfirm} 
-            variant="contained" 
-            color="warning"
-            autoFocus
-          >
-            כן, צור לוח זמנים חדש
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Edit/Add Session Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -2100,6 +2112,35 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         details={errorInfo.details}
         onClose={() => setErrorModalOpen(false)}
       />
+
+      {/* Schedule Generation Choice Dialog */}
+      <Dialog open={generateScheduleChoiceOpen} onClose={() => setGenerateScheduleChoiceOpen(false)} maxWidth="sm">
+        <DialogTitle>בחר סוג לוח זמנים ליצירה</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            כיצד תרצה ליצור את לוח הזמנים החדש?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            יצירת לוח זמנים חדש תמחק את לוח הזמנים הנוכחי ותחליף אותו בלוח זמנים חדש. פעולה זו אינה ניתנת לביטול.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGenerateScheduleChoiceOpen(false)} color="inherit">ביטול</Button>
+          <Button
+            onClick={handleGenerateEmptySchedule}
+            variant="outlined"
+          >
+            צור לוח זמנים ריק
+          </Button>
+          <Button
+            onClick={handleGeneratePopulatedSchedule}
+            variant="contained"
+            autoFocus
+          >
+            צור לוח זמנים מאוכלס
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

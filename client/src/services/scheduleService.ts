@@ -9,6 +9,10 @@ export const scheduleService = {
     return api.post<Schedule>('/schedule/generate');
   },
 
+  async generateEmpty(): Promise<Schedule> {
+    return api.post<Schedule>('/schedule/generate-empty');
+  },
+
   // Schedule Management
   async getActive(): Promise<Schedule | null> {
     return api.get<Schedule | null>('/schedule/active');

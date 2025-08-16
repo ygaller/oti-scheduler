@@ -53,6 +53,19 @@ export const createScheduleRouter = (
     }
   });
 
+  // POST /api/schedule/generate-empty - Generate new empty schedule
+  router.post('/generate-empty', async (req, res) => {
+    try {
+      // Create an empty schedule by passing an empty array of sessions
+      const schedule = await scheduleRepo.create([]);
+      
+      res.status(201).json(schedule);
+    } catch (error) {
+      console.error('Error generating empty schedule:', error);
+      res.status(500).json({ error: 'Failed to generate empty schedule' });
+    }
+  });
+
   // GET /api/schedule/active - Get active schedule
   router.get('/active', async (req, res) => {
     try {
