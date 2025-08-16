@@ -104,6 +104,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     patientIds: string[];
   } | null>(null);
 
+  const [preselectedEmployeeId, setPreselectedEmployeeId] = useState<string | null>(null);
+
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
   const { getRoleByStringKey } = useRoles();
@@ -307,15 +309,20 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   //   setEditDialogOpen(true);
   // };
 
-  const handleAddSession = () => {
+  const handleAddSession = (
+    day?: WeekDay,
+    startTime?: string,
+    employeeId?: string
+  ) => {
     setEditingSession(null);
     setSessionForm({
-      day: 'sunday',
-      startTime: '09:00',
-      endTime: '09:45',
-      employeeId: employees[0]?.id || '',
+      day: day || 'sunday',
+      startTime: startTime || '09:00',
+      endTime: startTime ? formatTime(new Date(parseTime(startTime).getTime() + 45 * 60 * 1000)) : '09:45',
+      employeeId: employeeId || employees[0]?.id || '',
       roomId: rooms[0]?.id || ''
     });
+    setPreselectedEmployeeId(employeeId || null);
     setEditDialogOpen(true);
   };
 
@@ -372,6 +379,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       
       await setSchedule(); // Refresh the schedule from the server
       setEditDialogOpen(false);
+      setPreselectedEmployeeId(null);
     } catch (error) {
       console.error('Error saving session:', error);
       
@@ -1441,7 +1449,16 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       <TableCell key={employee.id} sx={{
                         p: 0.5,
                         backgroundColor: isWorkingHour ? 'transparent' : 'grey.400', // Darker grey for non-working hours
-                        borderLeft: '1px solid rgba(224, 224, 224, 1)'
+                        borderLeft: '1px solid rgba(224, 224, 224, 1)',
+                        cursor: isWorkingHour ? 'pointer' : 'not-allowed',
+                        '&:hover': {
+                          backgroundColor: isWorkingHour ? '#f0f0f0' : 'grey.400', // Highlight on hover for interactive cells
+                        }
+                      }}
+                      onClick={() => {
+                        if (isWorkingHour) {
+                          handleAddSession(day, time, employee.id);
+                        }
                       }}>
                       </TableCell>
                     );
@@ -1602,7 +1619,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <Button
             variant="outlined"
             startIcon={<Add />}
-            onClick={handleAddSession}
+            onClick={() => handleAddSession()}
             disabled={employees.length === 0 || rooms.length === 0}
           >
             הוסף טיפול
@@ -1971,6 +1988,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   value={sessionForm.employeeId || ''}
                   label="עובד"
                   onChange={(e) => setSessionForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                  disabled={!!preselectedEmployeeId}
                 >
                   {[...employees].filter(employee => employee.isActive).sort((a, b) => 
                     `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
