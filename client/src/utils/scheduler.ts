@@ -221,11 +221,12 @@ class ScheduleGenerator {
   private assignSession(employee: Employee, room: Room, timeSlot: TimeSlot) {
     const session: Session = {
       id: `session_${Date.now()}_${Math.random()}`,
-      employeeId: employee.id,
+      employeeIds: [employee.id], // Single employee for automatic scheduling
       roomId: room.id,
       day: timeSlot.day,
       startTime: timeSlot.startTime,
       endTime: timeSlot.endTime,
+      employees: [employee], // Include the employee object
       patients: [], // No patient assignment during automatic scheduling
       patientIds: [],
     };
@@ -260,7 +261,7 @@ class ScheduleGenerator {
 
   private isEmployeeBusy(employeeId: string, day: WeekDay, startTime: string, endTime: string): boolean {
     return this.sessions.some(session => 
-      session.employeeId === employeeId &&
+      session.employeeIds && session.employeeIds.includes(employeeId) &&
       session.day === day &&
       timesOverlap(session.startTime, session.endTime, startTime, endTime)
     );
@@ -331,7 +332,9 @@ export function validateScheduleConstraints(
   rooms: Room[],
   activities: Activity[]
 ): { valid: boolean; error?: string; warning?: string; requiresConfirmation?: boolean } {
-  const employee = employees.find(e => e.id === session.employeeId);
+  // For single-employee sessions (from automatic scheduling), use the first employee
+  const employeeId = session.employeeIds?.[0];
+  const employee = employeeId ? employees.find(e => e.id === employeeId) : undefined;
   const room = rooms.find(r => r.id === session.roomId);
 
   if (!employee) return { valid: false, error: 'עובד לא נמצא' };
@@ -359,13 +362,14 @@ export function validateScheduleConstraints(
     return { valid: false, error: 'החדר תפוס בזמן זה' };
   }
 
-  // Check employee conflicts
-  const employeeConflicts = allSessions.filter(s =>
+  // Check employee conflicts (for automatic scheduling, we assume single employee)
+  const sessionEmployeeId = session.employeeIds?.[0];
+  const employeeConflicts = sessionEmployeeId ? allSessions.filter(s =>
     s.id !== session.id &&
-    s.employeeId === session.employeeId &&
+    s.employeeIds && s.employeeIds.includes(sessionEmployeeId) &&
     s.day === session.day &&
     timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
-  );
+  ) : [];
 
   if (employeeConflicts.length > 0) {
     return { valid: false, error: 'העובד תפוס בזמן זה' };

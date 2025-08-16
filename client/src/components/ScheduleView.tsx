@@ -95,10 +95,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   // Patient view states
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
 
-  // Patient assignment states
-  const [patientAssignmentDialogOpen, setPatientAssignmentDialogOpen] = useState(false);
-  const [assigningSession, setAssigningSession] = useState<Session | null>(null);
+  // Session editing states (renamed from patient assignment)
+  const [sessionEditDialogOpen, setSessionEditDialogOpen] = useState(false);
+  const [editingSessionForAssignment, setEditingSessionForAssignment] = useState<Session | null>(null);
   const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
 
   // Consecutive sessions warning states
   const [consecutiveWarningOpen, setConsecutiveWarningOpen] = useState(false);
@@ -328,7 +329,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       day: day || 'sunday',
       startTime: startTime || '09:00',
       endTime: startTime ? formatTime(new Date(parseTime(startTime).getTime() + 45 * 60 * 1000)) : '09:45',
-      employeeId: employeeId || employees[0]?.id || '',
+      employeeIds: employeeId ? [employeeId] : (employees[0]?.id ? [employees[0].id] : []),
       roomId: rooms[0]?.id || '',
       patientIds: [] // Initialize patientIds
     });
@@ -337,7 +338,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const handleSaveSession = async () => {
-    if (!sessionForm.employeeId || !sessionForm.roomId || !sessionForm.day || 
+    if (!sessionForm.employeeIds || sessionForm.employeeIds.length === 0 || !sessionForm.roomId || !sessionForm.day || 
         !sessionForm.startTime || !sessionForm.endTime) {
       setErrorInfo({
         title: 'שדות חסרים',
@@ -347,9 +348,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    const newSession: Omit<Session, 'patients' | 'patientIds'> = {
+    const newSession: Omit<Session, 'employees' | 'patients' | 'patientIds'> = {
       id: editingSession?.id || `manual_${Date.now()}_${Math.random()}`,
-      employeeId: sessionForm.employeeId!,
+      employeeIds: sessionForm.employeeIds!,
       roomId: sessionForm.roomId!,
       day: sessionForm.day as WeekDay,
       startTime: sessionForm.startTime!,
@@ -497,22 +498,44 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const handleSessionClick = (session: Session) => {
-    setAssigningSession(session);
+    setEditingSessionForAssignment(session);
     const currentPatients = session.patients?.map(p => p.id) || [];
+    const currentEmployees = session.employeeIds || [];
+    
     // Ensure at least one empty slot for adding patients
     setSelectedPatients(currentPatients.length > 0 ? currentPatients : ['']);
-    setPatientAssignmentDialogOpen(true);
+    // Ensure at least one employee is selected (required)
+    setSelectedEmployees(currentEmployees.length > 0 ? currentEmployees : []);
+    setSessionEditDialogOpen(true);
   };
 
-  const handleSavePatientAssignment = async (forceAssign: boolean = false) => {
-    if (!assigningSession) return;
+  const handleSaveSessionAssignment = async (forceAssign: boolean = false) => {
+    if (!editingSessionForAssignment) return;
 
     try {
-      // Filter out empty selections
+      // Validate that at least one employee is selected
+      if (selectedEmployees.length === 0) {
+        setErrorInfo({
+          title: 'שגיאה בעדכון',
+          message: 'יש לבחור לפחות עובד אחד לטיפול',
+          details: undefined
+        });
+        setErrorModalOpen(true);
+        return;
+      }
+
+      // Filter out empty patient selections
       const filteredPatients = selectedPatients.filter(id => id !== '');
-      await scheduleService.updateSessionPatients(assigningSession.id, filteredPatients, forceAssign);
+      
+      // Update both employees and patients
+      await scheduleService.updateSession(editingSessionForAssignment.id, {
+        employeeIds: selectedEmployees,
+        patientIds: filteredPatients,
+        scheduleId: editingSessionForAssignment.scheduleId
+      });
+      
       await setSchedule(); // Refresh the schedule from the server
-      setPatientAssignmentDialogOpen(false);
+      setSessionEditDialogOpen(false);
       
       // Clear any pending data
       setPendingAssignmentData(null);
@@ -532,7 +555,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         
         setConsecutiveWarnings(enrichedWarnings);
         setPendingAssignmentData({
-          sessionId: assigningSession.id,
+          sessionId: editingSessionForAssignment.id,
           patientIds: selectedPatients.filter(id => id !== '')
         });
         setConsecutiveWarningOpen(true);
@@ -569,6 +592,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setSelectedPatients(newSelectedPatients);
   };
 
+  const handleEmployeeChange = (event: any, newValue: Employee[]) => {
+    setSelectedEmployees(newValue.map(emp => emp.id));
+  };
+
   const handleConsecutiveWarningConfirm = async () => {
     if (!pendingAssignmentData) return;
     
@@ -581,7 +608,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         true // Force assign
       );
       await setSchedule(); // Refresh the schedule from the server
-      setPatientAssignmentDialogOpen(false);
+      setSessionEditDialogOpen(false);
       setPendingAssignmentData(null);
     } catch (error) {
       console.error('Error force updating session patients:', error);
@@ -636,6 +663,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     return employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע';
   };
 
+  const getEmployeeNames = (employeeIds: string[]) => {
+    if (!employeeIds || employeeIds.length === 0) return 'לא ידוע';
+    return employeeIds.map(id => getEmployeeName(id)).join(', ');
+  };
+
   const getRoomName = (roomId: string) => {
     const room = rooms.find(r => r.id === roomId);
     return room ? room.name : 'לא ידוע';
@@ -664,10 +696,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         schedule.sessions.forEach(session => {
           // Only count sessions where this patient is assigned
           if (session.patients?.some(p => p.id === patient.id)) {
-            const employee = employees.find(e => e.id === session.employeeId);
-            if (employee && employee.role?.roleStringKey) {
-              assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
-            }
+            // For multi-employee sessions, count for all employees assigned to the session
+            const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
+            sessionEmployees.forEach(employee => {
+              if (employee && employee.role?.roleStringKey) {
+                assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
+              }
+            });
           }
         });
       }
@@ -724,10 +759,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         schedule.sessions.forEach(session => {
           // Only count sessions where this patient is assigned
           if (session.patients?.some(p => p.id === patient.id)) {
-            const employee = employees.find(e => e.id === session.employeeId);
-            if (employee && employee.role?.roleStringKey) {
-              assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
-            }
+            // For multi-employee sessions, count for all employees assigned to the session
+            const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
+            sessionEmployees.forEach(employee => {
+              if (employee && employee.role?.roleStringKey) {
+                assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
+              }
+            });
           }
         });
       }
@@ -768,7 +806,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const getEmployeeSessionCount = (employeeId: string) => {
     if (!schedule) return 0;
-    return schedule.sessions.filter(s => s.employeeId === employeeId && s.patients && s.patients.length > 0).length;
+    return schedule.sessions.filter(s => 
+      s.employeeIds && s.employeeIds.includes(employeeId) && s.patients && s.patients.length > 0
+    ).length;
   };
 
   // Calendar grid helper functions
@@ -846,7 +886,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const getSessionAtTime = (sessions: Session[], time: string, employeeId?: string, roomId?: string): Session | null => {
     return sessions.find(session => {
-      const matchesEmployee = !employeeId || session.employeeId === employeeId;
+      const matchesEmployee = !employeeId || (session.employeeIds && session.employeeIds.includes(employeeId));
       const matchesRoom = !roomId || session.roomId === roomId;
       return matchesEmployee && matchesRoom && isTimeInRange(time, session.startTime, session.endTime);
     }) || null;
@@ -1096,7 +1136,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         html += '<ul class="sessions-list">';
         
         daySessions.forEach(session => {
-          const employee = employees.find(e => e.id === session.employeeId);
+          const employee = employees.find(e => e.id === session.employeeIds?.[0]);
           const room = rooms.find(r => r.id === session.roomId);
           
           html += `
@@ -1189,7 +1229,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         html += '<ul class="sessions-list">';
         
         daySessions.forEach(session => {
-          const employee = employees.find(e => e.id === session.employeeId);
+          const employee = employees.find(e => e.id === session.employeeIds?.[0]);
           const room = rooms.find(r => r.id === session.roomId);
           
           html += `
@@ -1285,7 +1325,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         html += '<ul class="sessions-list">';
         
         patientSessions.forEach(session => {
-          const employee = employees.find(e => e.id === session.employeeId);
+          const employee = employees.find(e => e.id === session.employeeIds?.[0]);
           const room = rooms.find(r => r.id === session.roomId);
           
           html += `
@@ -1334,7 +1374,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Typography>
         ) : (
           patientSessions.map(session => {
-            const employee = employees.find(e => e.id === session.employeeId);
+            // For multi-employee sessions, count for all employees assigned to the session
+            const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
             const room = rooms.find(r => r.id === session.roomId);
             
             return (
@@ -1354,10 +1395,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     {session.startTime} - {session.endTime}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    מטפל: {employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}
+                    מטפלים: {sessionEmployees.length > 0 ? sessionEmployees.map(emp => `${emp.firstName} ${emp.lastName}`).join(', ') : 'לא ידוע'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    טיפול: {employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}
+                    טיפול: {sessionEmployees.length > 0 ? sessionEmployees.map(emp => getRoleName(emp.role, emp.roleId)).join(', ') : 'לא ידוע'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     חדר: {room ? room.name : 'לא ידוע'}
@@ -1488,8 +1529,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                 </Typography>
                               ))
                             ) : (
-                              <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
-                                חסר מטופל
+                              <Typography variant="caption" display="block" color="error" sx={{ fontSize: '0.65rem' }}>
+                                (חסר מטופל)
+                              </Typography>
+                            )}
+                            {session.employeeIds && session.employeeIds.length > 1 && (
+                              <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
+                                + {session.employeeIds.length - 1} מטפלים נוספים
                               </Typography>
                             )}
                           </Box>
@@ -1499,7 +1545,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     
                     // Skip cells that are part of a session span
                     const hasSessionAbove = daySessions.some(s => 
-                      s.employeeId === employee.id && 
+                      s.employeeIds && s.employeeIds.includes(employee.id) && 
                       isTimeInRange(time, s.startTime, s.endTime) && 
                       s.startTime !== time
                     );
@@ -1601,13 +1647,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     
                     if (session && time === session.startTime) {
                       const duration = getSessionDurationInSlots(session);
-                      const employee = employees.find(e => e.id === session.employeeId);
+                      // For multi-employee sessions, count for all employees assigned to the session
+            // const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
                       return (
                         <TableCell key={room.id} 
                           rowSpan={duration}
                           sx={{ 
                             p: 1,
-                            backgroundColor: employee?.color || '#845ec2',
+                            backgroundColor: session.roomId ? rooms.find(r => r.id === session.roomId)?.color || '#845ec2' : '#845ec2',
                             textAlign: 'center',
                             fontSize: '0.8rem',
                             color: 'white',
@@ -1626,7 +1673,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                               {session.startTime} - {session.endTime}
                             </Typography>
                             <Typography variant="caption" display="block">
-                              {getEmployeeName(session.employeeId)}
+                              {getEmployeeNames(session.employeeIds)}
                             </Typography>
                             {/* Display patients or missing patient warning */}
                             {session.patients && session.patients.length > 0 ? (
@@ -1986,7 +2033,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   <strong>שעות:</strong> {editingSession.startTime} - {editingSession.endTime}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  <strong>עובד:</strong> {getEmployeeName(editingSession.employeeId)}
+                  <strong>עובדים:</strong> {getEmployeeNames(editingSession.employeeIds)}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
                   <strong>חדר:</strong> {getRoomName(editingSession.roomId)}
@@ -2033,23 +2080,30 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 />
               </Box>
 
-              <FormControl fullWidth>
-                <InputLabel>עובד</InputLabel>
-                <Select
-                  value={sessionForm.employeeId || ''}
-                  label="עובד"
-                  onChange={(e) => setSessionForm(prev => ({ ...prev, employeeId: e.target.value }))}
-                  disabled={!!preselectedEmployeeId}
-                >
-                  {[...employees].filter(employee => employee.isActive).sort((a, b) => 
-                    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-                  ).map(employee => (
-                    <MenuItem key={employee.id} value={employee.id}>
-                      {employee.firstName} {employee.lastName} - {getRoleName(employee.role, employee.roleId)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Autocomplete
+                multiple
+                id="employees-autocomplete-form"
+                options={employees.filter(e => e.isActive)}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName} - ${getRoleName(option.role, option.roleId)}`}
+                value={employees.filter(e => sessionForm.employeeIds && sessionForm.employeeIds.includes(e.id))}
+                onChange={(event, newValue) => {
+                  setSessionForm(prev => ({ ...prev, employeeIds: newValue.map(emp => emp.id) }));
+                }}
+                disabled={!!preselectedEmployeeId}
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="עובדים" placeholder="בחר עובדים" />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={`${option.firstName} ${option.lastName}`}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
+              />
               
               <FormControl fullWidth>
                 <InputLabel>חדר</InputLabel>
@@ -2101,13 +2155,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* Patient Assignment Dialog */}
-      <Dialog open={patientAssignmentDialogOpen} onClose={() => setPatientAssignmentDialogOpen(false)} maxWidth="md" fullWidth>
+      {/* Session Edit Dialog */}
+      <Dialog open={sessionEditDialogOpen} onClose={() => setSessionEditDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          השמת מטופלים לטיפול
+          עריכת טיפול
         </DialogTitle>
         <DialogContent>
-          {assigningSession && (
+          {editingSessionForAssignment && (
             <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography variant="body1" gutterBottom>
                 פרטי הטיפול:
@@ -2115,18 +2169,41 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               
               <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
                 <Typography variant="body2" gutterBottom>
-                  <strong>יום:</strong> {DAY_LABELS[assigningSession.day]}
+                  <strong>יום:</strong> {DAY_LABELS[editingSessionForAssignment.day]}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  <strong>שעות:</strong> {assigningSession.startTime} - {assigningSession.endTime}
+                  <strong>שעות:</strong> {editingSessionForAssignment.startTime} - {editingSessionForAssignment.endTime}
                 </Typography>
                 <Typography variant="body2" gutterBottom>
-                  <strong>עובד:</strong> {getEmployeeName(assigningSession.employeeId)}
-                </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>חדר:</strong> {getRoomName(assigningSession.roomId)}
+                  <strong>חדר:</strong> {getRoomName(editingSessionForAssignment.roomId)}
                 </Typography>
               </Box>
+
+              <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
+                עובדים:
+              </Typography>
+
+              <Autocomplete
+                multiple
+                id="employees-autocomplete"
+                options={employees.filter(e => e.isActive)}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                value={employees.filter(e => selectedEmployees.includes(e.id))}
+                onChange={handleEmployeeChange}
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="עובדים" placeholder="בחר עובדים" />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={`${option.firstName} ${option.lastName}`}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
+              />
 
               <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
                 מטופלים:
@@ -2169,8 +2246,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   color="error"
                   startIcon={<Delete />}
                   onClick={() => {
-                    setPatientAssignmentDialogOpen(false);
-                    setEditingSession(assigningSession);
+                    setSessionEditDialogOpen(false);
+                    setEditingSession(editingSessionForAssignment);
                     setEditDialogOpen(true);
                   }}
                 >
@@ -2181,8 +2258,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPatientAssignmentDialogOpen(false)}>ביטול</Button>
-          <Button onClick={() => handleSavePatientAssignment(false)} variant="contained">
+          <Button onClick={() => setSessionEditDialogOpen(false)}>ביטול</Button>
+          <Button onClick={() => handleSaveSessionAssignment(false)} variant="contained">
             שמור
           </Button>
         </DialogActions>

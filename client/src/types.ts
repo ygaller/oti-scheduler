@@ -81,11 +81,13 @@ export interface Activity {
 
 export interface Session {
   id: string;
-  employeeId: string;
+  scheduleId?: string; // Add scheduleId here
+  employeeIds: string[]; // Array of employee IDs assigned to this session
   roomId: string;
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
+  employees: Employee[]; // Array of employees assigned to this session
   patients: Patient[];
   patientIds: string[];
   consecutiveSessionsWarning?: ConsecutiveSessionsWarning;
@@ -152,8 +154,8 @@ export interface CreateEmployeeDto {
 }
 
 // DTOs for Session creation and update (excluding patients and patientIds which are managed separately)
-export interface CreateSessionDto extends Omit<Session, 'id' | 'patients' | 'patientIds' | 'consecutiveSessionsWarning' | 'consecutiveSessionsOverlap'> {}
-export interface UpdateSessionDto extends Partial<Omit<Session, 'patients' | 'patientIds' | 'consecutiveSessionsWarning' | 'consecutiveSessionsOverlap'>> {}
+export interface CreateSessionDto extends Omit<Session, 'id' | 'employees' | 'patients' | 'patientIds' | 'consecutiveSessionsWarning' | 'consecutiveSessionsOverlap'> {}
+export interface UpdateSessionDto extends Partial<Omit<Session, 'employees' | 'patients' | 'consecutiveSessionsWarning' | 'consecutiveSessionsOverlap'>> {}
 
 // DTOs for Blocked Periods
 export interface CreateActivityDto {

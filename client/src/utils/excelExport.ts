@@ -116,7 +116,7 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
       // Check for sessions for each employee
       sortedEmployees.forEach(employee => {
         const session = daySessions.find(s => 
-          s.employeeId === employee.id && 
+          s.employeeIds && s.employeeIds.includes(employee.id) && 
           s.startTime <= time && 
           s.endTime > time
         );
@@ -124,7 +124,8 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
         if (session) {
           const room = options.rooms.find(r => r.id === session.roomId);
           const patientNames = session.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
-          row.push(`${session.startTime}-${session.endTime}\n${room?.name || 'לא ידוע'}\n${patientNames}`);
+          const employeeNames = session.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+          row.push(`${session.startTime}-${session.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`);
         } else {
           row.push('');
         }
@@ -270,9 +271,9 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
         );
         
         if (session) {
-          const employee = employees.find(e => e.id === session.employeeId);
           const patientNames = session.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
-          row.push(`${session.startTime}-${session.endTime}\n${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}\n${patientNames}`);
+          const employeeNames = session.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+          row.push(`${session.startTime}-${session.endTime}\n${employeeNames}\n${patientNames}`);
         } else {
           row.push('');
         }
@@ -396,15 +397,18 @@ function createPatientScheduleWorksheet(patient: Patient, options: ExcelExportOp
       data.push([dayLabel, 'אין טיפולים', '', '', '', '']);
     } else {
       daySessions.forEach((session, index) => {
-        const employee = employees.find(e => e.id === session.employeeId);
         const room = rooms.find(r => r.id === session.roomId);
         
+        // For multi-employee sessions, get all employee names
+        const employeeNames = session.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+
         data.push([
           index === 0 ? dayLabel : '', // Show day only for first session
           session.startTime,
           session.endTime,
-          employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע',
-          employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע',
+          employeeNames,
+          // For roles, assuming either all employees have same role or just show for first if different
+          session.employeeIds?.length && employees.find(e => e.id === session.employeeIds[0]) ? getRoleName(employees.find(e => e.id === session.employeeIds[0])?.role, employees.find(e => e.id === session.employeeIds[0])?.roleId) : 'לא ידוע',
           room ? room.name : 'לא ידוע'
         ]);
       });
