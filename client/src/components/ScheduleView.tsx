@@ -1657,75 +1657,116 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         </Alert>
       ) : null}
 
-      {/* Unassigned Therapy Requirements Section */}
-      {schedule && patients.length > 0 && (
-        <Box display="flex" gap={3} flexWrap="wrap">
-          <Card sx={{ mb: 3, flex: 1, minWidth: '300px' }}>
-            <CardContent>
-              <Typography variant="h6" component="h2" mb={2}>
-                טיפולים נדרשים ללא השמה
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                {generateUnassignedTherapyChips().length > 0 ? (
-                  generateUnassignedTherapyChips().map(chip => (
-                    <Chip
-                      key={chip.id}
-                      label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        borderColor: chip.patientColor,
-                        color: chip.patientColor,
-                        backgroundColor: `${chip.patientColor}15`,
-                        '&:hover': {
-                          backgroundColor: `${chip.patientColor}25`,
-                        }
-                      }}
-                    />
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    כל הטיפולים הנדרשים הוקצו למטופלים
-                  </Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+      {/* Therapy Requirement and Statistics Sections */}
+      {schedule ? (
+        <Box display="flex" gap={3} flexWrap="wrap" sx={{ mb: 3 }}>
+          {/* Unassigned Therapy Requirements Section */}
+          {patients.length > 0 && (
+            <Card sx={{ flex: 1, minWidth: '300px' }}>
+              <CardContent>
+                <Typography variant="h6" component="h2" mb={2}>
+                  טיפולים נדרשים ללא השמה
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {generateUnassignedTherapyChips().length > 0 ? (
+                    generateUnassignedTherapyChips().map(chip => (
+                      <Chip
+                        key={chip.id}
+                        label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          borderColor: chip.patientColor,
+                          color: chip.patientColor,
+                          backgroundColor: `${chip.patientColor}15`,
+                          '&:hover': {
+                            backgroundColor: `${chip.patientColor}25`,
+                          }
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      כל הטיפולים הנדרשים הוקצו למטופלים
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Above Minimum Therapy Requirements Section */}
-          <Card sx={{ mb: 3, flex: 1, minWidth: '300px' }}>
+          {patients.length > 0 && (
+            <Card sx={{ flex: 1, minWidth: '300px' }}>
+              <CardContent>
+                <Typography variant="h6" component="h2" mb={2}>
+                  טיפולים מעבר למינימום הנדרש
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {generateAboveMinimumTherapyChips().length > 0 ? (
+                    generateAboveMinimumTherapyChips().map(chip => (
+                      <Chip
+                        key={chip.id}
+                        label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          borderColor: chip.patientColor,
+                          color: chip.patientColor,
+                          backgroundColor: `${chip.patientColor}15`,
+                          '&:hover': {
+                            backgroundColor: `${chip.patientColor}25`,
+                          }
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      אין מטופלים עם טיפולים מעבר למינימום הנדרש
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Statistics Card */}
+          <Card sx={{ flex: 1, minWidth: '300px' }}>
             <CardContent>
-              <Typography variant="h6" component="h2" mb={2}>
-                טיפולים מעבר למינימום הנדרש
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                {generateAboveMinimumTherapyChips().length > 0 ? (
-                  generateAboveMinimumTherapyChips().map(chip => (
+              <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" mb={2}>
+                <Typography variant="h6" component="h2">
+                טיפולים לפי עובד (עם מטופל):
+                </Typography>
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2}>
+                <Box display="flex" flexWrap="wrap" gap={1} sx={{ flex: 1 }}>
+                  {[...employees].sort((a, b) =>
+                    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                  ).map(employee => (
                     <Chip
-                      key={chip.id}
-                      label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
+                      key={employee.id}
+                      label={`${employee.firstName} ${employee.lastName}: ${getEmployeeSessionCount(employee.id)}/${employee.weeklySessionsCount}`}
                       variant="outlined"
                       size="small"
                       sx={{
-                        borderColor: chip.patientColor,
-                        color: chip.patientColor,
-                        backgroundColor: `${chip.patientColor}15`,
-                        '&:hover': {
-                          backgroundColor: `${chip.patientColor}25`,
-                        }
+                        borderColor: employee.color,
+                        color: employee.color,
+                        backgroundColor: getEmployeeSessionCount(employee.id) === employee.weeklySessionsCount
+                          ? `${employee.color}20`
+                          : 'transparent'
                       }}
                     />
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    אין מטופלים עם טיפולים מעבר למינימום הנדרש
-                  </Typography>
-                )}
+                  ))}
+                </Box>
               </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                סה"כ טיפולים (עם ובלי מטופל): {getTotalScheduledSessions()}
+              </Typography>
             </CardContent>
           </Card>
         </Box>
-      )}
+      ) : null}
 
       {schedule ? (
         <>
@@ -1858,49 +1899,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Typography>
         </Paper>
       )}
-
-      {/* Statistics Card */}
-      {schedule ? (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" mb={2}>
-              <Typography variant="h6" component="h2">
-              טיפולים לפי עובד (עם מטופל):
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={3} sx={{ mt: { xs: 1, md: 0 } }}>
-                <Typography variant="body2" color="text.secondary">
-                  סה"כ טיפולים: {getTotalScheduledSessions()}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  נוצר ב: {schedule.generatedAt.toLocaleString('he-IL')}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2}>
-              <Box display="flex" flexWrap="wrap" gap={1} sx={{ flex: 1 }}>
-                {[...employees].sort((a, b) => 
-                  `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-                ).map(employee => (
-                  <Chip
-                    key={employee.id}
-                    label={`${employee.firstName} ${employee.lastName}: ${getEmployeeSessionCount(employee.id)}/${employee.weeklySessionsCount}`}
-                    variant="outlined"
-                    size="small"
-                    sx={{
-                      borderColor: employee.color,
-                      color: employee.color,
-                      backgroundColor: getEmployeeSessionCount(employee.id) === employee.weeklySessionsCount 
-                        ? `${employee.color}20` 
-                        : 'transparent'
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      ) : null}
 
       {/* Edit/Add Session Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -2165,6 +2163,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+      {schedule && (
+        <Box sx={{ mt: 4, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography variant="body2">
+            נוצר ב: {schedule.generatedAt.toLocaleString('he-IL')}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
