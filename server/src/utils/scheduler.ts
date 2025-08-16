@@ -434,7 +434,7 @@ export async function validatePatientTimeConflict(
   prisma: any // PrismaClient type
 ): Promise<{ valid: boolean; error?: string; conflictingSession?: any }> {
   try {
-    console.log('Validating patient time conflict:', { patientId, sessionId, day, startTime, endTime });
+
     
     // Validate input parameters
     if (!patientId || !sessionId || !day || !startTime || !endTime) {
@@ -455,26 +455,31 @@ export async function validatePatientTimeConflict(
         }
       },
       include: {
-        employee: true,
-        room: true
+        room: true,
+        sessionEmployees: {
+          include: {
+            employee: true
+          }
+        }
       }
     });
 
   // Check for time conflicts
-  console.log('Found existing sessions:', existingSessions.length);
   for (const existingSession of existingSessions) {
-    console.log('Checking conflict with session:', existingSession.id, existingSession.startTime, existingSession.endTime);
     if (timesOverlap(existingSession.startTime, existingSession.endTime, startTime, endTime)) {
-      console.log('Time conflict detected!');
+      const employeeNames = existingSession.sessionEmployees
+        .map((se: any) => `${se.employee.firstName} ${se.employee.lastName}`)
+        .join(', ');
+      
       return {
         valid: false,
-        error: `המטופל כבר משויך לטיפול אחר באותו זמן: ${existingSession.startTime}-${existingSession.endTime} עם ${existingSession.employee.firstName} ${existingSession.employee.lastName} בחדר ${existingSession.room.name}`,
+        error: `המטופל כבר משויך לטיפול אחר באותו זמן: ${existingSession.startTime}-${existingSession.endTime} עם ${employeeNames} בחדר ${existingSession.room.name}`,
         conflictingSession: existingSession
       };
     }
   }
 
-  console.log('No time conflicts found for patient:', patientId);
+
   return { valid: true };
   
   } catch (error) {
@@ -499,7 +504,7 @@ export async function validatePatientConsecutiveSessions(
   prisma: any // PrismaClient type
 ): Promise<{ valid: boolean; warning?: string; consecutiveCount?: number }> {
   try {
-    console.log('Validating patient consecutive sessions:', { patientId, sessionId, day, startTime, endTime });
+
     
     // Validate input parameters
     if (!patientId || !sessionId || !day || !startTime || !endTime) {
@@ -520,8 +525,12 @@ export async function validatePatientConsecutiveSessions(
         }
       },
       include: {
-        employee: true,
-        room: true
+        room: true,
+        sessionEmployees: {
+          include: {
+            employee: true
+          }
+        }
       },
       orderBy: {
         startTime: 'asc'
@@ -541,7 +550,7 @@ export async function validatePatientConsecutiveSessions(
       timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime)
     );
 
-    console.log('All sessions for consecutive analysis:', allSessions.length);
+
 
     // Find the position of the new session in the sorted list
     const newSessionIndex = allSessions.findIndex(s => s.id === sessionId);
@@ -583,7 +592,7 @@ export async function validatePatientConsecutiveSessions(
       }
     }
 
-    console.log(`Patient ${patientId} will have ${consecutiveCount} consecutive sessions`);
+
 
     // If more than 2 consecutive sessions, return a warning
     if (consecutiveCount > 2) {
