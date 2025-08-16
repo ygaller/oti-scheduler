@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository } from './interfaces';
 import { Employee, CreateEmployeeDto, UpdateEmployeeDto } from '../types';
-import { mapPrismaEmployeeToAPI, mapAPIRoleToPrisma } from '../mappers';
+import { mapPrismaEmployeeToAPI } from '../mappers';
 
 export class PrismaEmployeeRepository implements EmployeeRepository {
   constructor(private prisma: PrismaClient) {}

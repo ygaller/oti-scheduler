@@ -15,7 +15,8 @@ import {
   createPatientFixture, 
   createActivityFixture,
   createSessionFixture,
-  createScheduleFixture
+  createScheduleFixture,
+  createRoleFixture
 } from './fixtures';
 import { Employee, Room, Activity, Session, Patient, CreateEmployeeDto, CreateRoomDto } from '../../src/types';
 
@@ -32,30 +33,40 @@ const convertRoomToEntity = (dto: CreateRoomDto): Room => ({
   isActive: dto.isActive ?? true
 });
 
-// Create full entities for testing
-const createMockEmployees = (): Employee[] => [
-  convertEmployeeToEntity(createEmployeeFixture({
-    firstName: 'Alice',
-    lastName: 'Smith',
-    role: 'occupational-therapist',
-    weeklySessionsCount: 5,
-    color: '#845ec2'
-  })),
-  convertEmployeeToEntity(createEmployeeFixture({
-    firstName: 'Bob',
-    lastName: 'Johnson',
-    role: 'physiotherapist',
-    weeklySessionsCount: 3,
-    color: '#4e9f3d'
-  })),
-  convertEmployeeToEntity(createEmployeeFixture({
-    firstName: 'Carol',
-    lastName: 'Davis',
-    role: 'speech-therapist',
-    weeklySessionsCount: 2,
-    color: '#d65db1'
-  }))
+// Create test roles for mock employees
+const createMockRoles = () => [
+  createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }),
+  createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' }),
+  createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_3' })
 ];
+
+// Create full entities for testing
+const createMockEmployees = (): Employee[] => {
+  const roles = createMockRoles();
+  return [
+    convertEmployeeToEntity(createEmployeeFixture({
+      firstName: 'Alice',
+      lastName: 'Smith',
+      roleId: roles[0].id,
+      weeklySessionsCount: 5,
+      color: '#845ec2'
+    })),
+    convertEmployeeToEntity(createEmployeeFixture({
+      firstName: 'Bob',
+      lastName: 'Johnson',
+      roleId: roles[1].id,
+      weeklySessionsCount: 3,
+      color: '#4e9f3d'
+    })),
+    convertEmployeeToEntity(createEmployeeFixture({
+      firstName: 'Carol',
+      lastName: 'Davis',
+      roleId: roles[2].id,
+      weeklySessionsCount: 2,
+      color: '#d65db1'
+    }))
+  ];
+};
 
 const createMockRooms = (): Room[] => [
   convertRoomToEntity(createRoomFixture({ name: 'Therapy Room 1', color: '#008dcd' })),

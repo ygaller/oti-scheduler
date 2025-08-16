@@ -13,7 +13,7 @@ export const createRoleFixture = (overrides: Partial<CreateRoleDto & { id?: stri
 export const createEmployeeFixture = (overrides: Partial<CreateEmployeeDto> = {}): CreateEmployeeDto => ({
   firstName: 'John',
   lastName: 'Doe',
-  roleId: generateTestUUID(),
+  roleId: overrides.roleId || generateTestUUID(), // Use provided roleId or generate one (tests should provide valid ones)
   workingHours: {
     sunday: { startTime: '08:00', endTime: '16:00' },
     monday: { startTime: '08:00', endTime: '16:00' },
@@ -194,3 +194,15 @@ export const createMockActivities = (): Activity[] => [
     isBlocking: true
   })
 ];
+
+// Helper function to get role IDs by role string keys
+export const getRoleIdsByStringKeys = (roles: Role[]): Record<string, string> => {
+  const roleMap: Record<string, string> = {};
+  roles.forEach(role => {
+    roleMap[role.roleStringKey] = role.id;
+  });
+  return roleMap;
+};
+
+// Test role string keys for compatibility with old tests
+export const testRoleStringKeys = ['role_1', 'role_2', 'role_3', 'role_4', 'role_5'];

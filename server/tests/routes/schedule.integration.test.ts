@@ -9,7 +9,7 @@ import request from 'supertest';
 import { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createTestApp } from '../utils/testServer';
-import { createEmployeeFixture, createRoomFixture, createPatientFixture } from '../utils/fixtures';
+import { createEmployeeFixture, createRoomFixture, createPatientFixture, createRoleFixture } from '../utils/fixtures';
 import { prisma } from '../setup';
 
 describe('Schedule API Integration Tests', () => {
@@ -27,21 +27,29 @@ describe('Schedule API Integration Tests', () => {
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.role.deleteMany();
     });
 
     it('should generate schedule and return proper HTTP response', async () => {
+      // Create test roles first
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' });
+      const role2 = createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' });
+      
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      const roleResponse2 = await request(app).post('/api/roles').send(role2);
+      
       // Create test employees via API
       const employee1 = createEmployeeFixture({
         firstName: 'Alice',
         lastName: 'Smith',
-        role: 'occupational-therapist',
+        roleId: roleResponse1.body.id,
         weeklySessionsCount: 10
       });
 
       const employee2 = createEmployeeFixture({
         firstName: 'Bob',
         lastName: 'Johnson', 
-        role: 'physiotherapist',
+        roleId: roleResponse2.body.id,
         weeklySessionsCount: 5
       });
 
@@ -445,17 +453,25 @@ describe('Schedule API Integration Tests', () => {
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
       await prisma.patient.deleteMany();
+      await prisma.role.deleteMany();
+
+      // Create test roles first
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' });
+      const role2 = createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' });
+      
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      const roleResponse2 = await request(app).post('/api/roles').send(role2);
 
       // Create test employees via API
       const employee1Data = createEmployeeFixture({
         firstName: 'Alice',
         lastName: 'Smith',
-        role: 'occupational-therapist'
+        roleId: roleResponse1.body.id
       });
       const employee2Data = createEmployeeFixture({
         firstName: 'Bob',
         lastName: 'Johnson',
-        role: 'physiotherapist'
+        roleId: roleResponse2.body.id
       });
 
       const employee1Response = await request(app).post('/api/employees').send(employee1Data);

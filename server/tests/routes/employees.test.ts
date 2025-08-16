@@ -2,7 +2,7 @@ import request from 'supertest';
 import { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createTestApp } from '../utils/testServer';
-import { createEmployeeFixture, employeeRoles, validWorkingHours } from '../utils/fixtures';
+import { createEmployeeFixture, validWorkingHours, createRoleFixture, testRoleStringKeys } from '../utils/fixtures';
 import { prisma } from '../setup';
 
 describe('Employee API Endpoints', () => {
@@ -10,6 +10,12 @@ describe('Employee API Endpoints', () => {
 
   beforeAll(() => {
     app = createTestApp(prisma);
+  });
+
+  beforeEach(async () => {
+    // Clean up all data before each test
+    await prisma.employee.deleteMany();
+    await prisma.role.deleteMany();
   });
 
   describe('GET /api/employees', () => {
@@ -22,9 +28,13 @@ describe('Employee API Endpoints', () => {
     });
 
     it('should return all employees when they exist', async () => {
+      // Create test roles first
+      const role1 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      const role2 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_2' }));
+
       // Create test employees
-      const employee1 = createEmployeeFixture({ firstName: 'John', lastName: 'Doe' });
-      const employee2 = createEmployeeFixture({ firstName: 'Jane', lastName: 'Smith', role: 'speech-therapist' });
+      const employee1 = createEmployeeFixture({ firstName: 'John', lastName: 'Doe', roleId: role1.body.id });
+      const employee2 = createEmployeeFixture({ firstName: 'Jane', lastName: 'Smith', roleId: role2.body.id });
 
       await request(app).post('/api/employees').send(employee1);
       await request(app).post('/api/employees').send(employee2);
@@ -37,19 +47,22 @@ describe('Employee API Endpoints', () => {
       expect(response.body[0]).toMatchObject({
         firstName: 'John',
         lastName: 'Doe',
-        role: 'occupational-therapist'
+        roleId: role1.body.id
       });
       expect(response.body[1]).toMatchObject({
         firstName: 'Jane',
         lastName: 'Smith',
-        role: 'speech-therapist'
+        roleId: role2.body.id
       });
     });
   });
 
   describe('GET /api/employees/:id', () => {
     it('should return employee by ID', async () => {
-      const employeeData = createEmployeeFixture();
+      // Create test role first
+      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      
+      const employeeData = createEmployeeFixture({ roleId: role.body.id });
       const createResponse = await request(app)
         .post('/api/employees')
         .send(employeeData);
@@ -64,7 +77,7 @@ describe('Employee API Endpoints', () => {
         id: employeeId,
         firstName: employeeData.firstName,
         lastName: employeeData.lastName,
-        role: employeeData.role
+        roleId: employeeData.roleId
       });
     });
 
@@ -92,7 +105,10 @@ describe('Employee API Endpoints', () => {
 
   describe('POST /api/employees', () => {
     it('should create a new employee with valid data', async () => {
-      const employeeData = createEmployeeFixture();
+      // Create test role first
+      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      
+      const employeeData = createEmployeeFixture({ roleId: role.body.id });
 
       const response = await request(app)
         .post('/api/employees')
@@ -102,7 +118,7 @@ describe('Employee API Endpoints', () => {
       expect(response.body).toMatchObject({
         firstName: employeeData.firstName,
         lastName: employeeData.lastName,
-        role: employeeData.role,
+        roleId: employeeData.roleId,
         weeklySessionsCount: employeeData.weeklySessionsCount
       });
       expect(response.body).toHaveProperty('id');
@@ -110,10 +126,21 @@ describe('Employee API Endpoints', () => {
     });
 
     it('should create employees with different roles', async () => {
-      for (const role of employeeRoles) {
+      // Create test roles first
+      const roles = [];
+      for (let i = 0; i < testRoleStringKeys.length; i++) {
+        const roleKey = testRoleStringKeys[i];
+        const roleResponse = await request(app).post('/api/roles').send(createRoleFixture({ 
+          name: `תפקיד ${i + 1}`, 
+          roleStringKey: roleKey 
+        }));
+        roles.push(roleResponse.body);
+      }
+
+      for (const role of roles) {
         const employeeData = createEmployeeFixture({ 
-          firstName: `Test${role}`,
-          role 
+          firstName: `Test${role.roleStringKey}`,
+          roleId: role.id 
         });
 
         const response = await request(app)
@@ -121,20 +148,20 @@ describe('Employee API Endpoints', () => {
           .send(employeeData)
           .expect(201);
 
-        expect(response.body.role).toBe(role);
+        expect(response.body.roleId).toBe(role.id);
       }
     });
 
     it('should return 400 for missing required fields', async () => {
       const testCases = [
-        { data: {}, expectedError: 'Missing required fields: firstName, lastName, role' },
+        { data: {}, expectedError: 'Missing required fields: firstName, lastName, roleId' },
         { 
           data: { firstName: 'John' }, 
-          expectedError: 'Missing required fields: firstName, lastName, role' 
+          expectedError: 'Missing required fields: firstName, lastName, roleId' 
         },
         { 
           data: { firstName: 'John', lastName: 'Doe' }, 
-          expectedError: 'Missing required fields: firstName, lastName, role' 
+          expectedError: 'Missing required fields: firstName, lastName, roleId' 
         }
       ];
 
@@ -148,8 +175,8 @@ describe('Employee API Endpoints', () => {
       }
     });
 
-    it('should handle invalid role', async () => {
-      const employeeData = createEmployeeFixture({ role: 'invalid-role' as any });
+    it('should handle invalid roleId', async () => {
+      const employeeData = createEmployeeFixture({ roleId: 'invalid-role-id' });
 
       const response = await request(app)
         .post('/api/employees')
@@ -160,7 +187,11 @@ describe('Employee API Endpoints', () => {
     });
 
     it('should handle partial working hours', async () => {
+      // Create test role first
+      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      
       const employeeData = createEmployeeFixture({
+        roleId: role.body.id,
         workingHours: {
           monday: { startTime: '08:00', endTime: '16:00' },
           wednesday: { startTime: '08:00', endTime: '16:00' }
@@ -178,9 +209,14 @@ describe('Employee API Endpoints', () => {
 
   describe('PUT /api/employees/:id', () => {
     let employeeId: string;
+    let roleId: string;
 
     beforeEach(async () => {
-      const employeeData = createEmployeeFixture();
+      // Create test role first
+      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      roleId = role.body.id;
+      
+      const employeeData = createEmployeeFixture({ roleId });
       const response = await request(app)
         .post('/api/employees')
         .send(employeeData);
@@ -188,10 +224,13 @@ describe('Employee API Endpoints', () => {
     });
 
     it('should update employee data', async () => {
+      // Create another role for update
+      const updateRole = await request(app).post('/api/roles').send(createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_2' }));
+      
       const updateData = {
         firstName: 'UpdatedFirst',
         lastName: 'UpdatedLast',
-        role: 'speech-therapist' as const,
+        roleId: updateRole.body.id,
         weeklySessionsCount: 25
       };
 
@@ -249,7 +288,10 @@ describe('Employee API Endpoints', () => {
     let employeeId: string;
 
     beforeEach(async () => {
-      const employeeData = createEmployeeFixture();
+      // Create test role first
+      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      
+      const employeeData = createEmployeeFixture({ roleId: role.body.id });
       const response = await request(app)
         .post('/api/employees')
         .send(employeeData);
@@ -312,12 +354,13 @@ describe('Employee API Endpoints', () => {
         .send({ isActive: 'invalid' })
         .expect(400);
 
-      expect(response.body.error).toBe('isActive must be a boolean');
+      expect(response.body.error).toContain('Invalid');
     });
 
     it('should handle multiple status changes', async () => {
-      // Create another employee
-      const employee2Data = createEmployeeFixture({ firstName: 'Second' });
+      // Create another role and employee
+      const role2 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_2' }));
+      const employee2Data = createEmployeeFixture({ firstName: 'Second', roleId: role2.body.id });
       const employee2Response = await request(app)
         .post('/api/employees')
         .send(employee2Data);

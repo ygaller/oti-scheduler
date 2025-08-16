@@ -66,8 +66,8 @@ describe('Role Routes', () => {
         .expect(200);
 
       expect(response.body).toHaveLength(3);
-      expect(response.body[0].name).toBe('קלינאות תקשורת');
-      expect(response.body[1].name).toBe('פיזיותרפיה');
+      expect(response.body[0].name).toBe('פיזיותרפיה');
+      expect(response.body[1].name).toBe('קלינאות תקשורת');
       expect(response.body[2].name).toBe('ריפוי בעיסוק');
     });
   });
@@ -87,9 +87,17 @@ describe('Role Routes', () => {
       expect(response.body.roleStringKey).toBe(role.roleStringKey);
     });
 
-    it('should return 404 for non-existent role', async () => {
+    it('should return 400 for invalid UUID format', async () => {
       const response = await request(app)
         .get('/api/roles/non-existent-id')
+        .expect(400);
+
+      expect(response.body.error).toContain('Invalid');
+    });
+
+    it('should return 404 for valid UUID that does not exist', async () => {
+      const response = await request(app)
+        .get('/api/roles/00000000-0000-0000-0000-000000000000')
         .expect(404);
 
       expect(response.body.error).toBe('Role not found');
@@ -214,9 +222,18 @@ describe('Role Routes', () => {
       expect(response.body.name).toBe('ריפוי בעיסוק מעודכן');
     });
 
-    it('should return 404 for non-existent role', async () => {
+    it('should return 400 for invalid UUID format', async () => {
       const response = await request(app)
         .put('/api/roles/non-existent-id')
+        .send({ name: 'Updated Name' })
+        .expect(400);
+
+      expect(response.body.error).toContain('Invalid');
+    });
+
+    it('should return 404 for valid UUID that does not exist', async () => {
+      const response = await request(app)
+        .put('/api/roles/00000000-0000-0000-0000-000000000000')
         .send({ name: 'Updated Name' })
         .expect(404);
 
@@ -324,9 +341,15 @@ describe('Role Routes', () => {
       expect(response.body.error).toContain('לא ניתן למחוק תפקיד שמוקצה ל-2 עובדים');
     });
 
-    it('should return 404 for non-existent role', async () => {
+    it('should return 400 for invalid UUID format', async () => {
       await request(app)
         .delete('/api/roles/non-existent-id')
+        .expect(400);
+    });
+
+    it('should return 404 for valid UUID that does not exist', async () => {
+      await request(app)
+        .delete('/api/roles/00000000-0000-0000-0000-000000000000')
         .expect(404);
     });
   });

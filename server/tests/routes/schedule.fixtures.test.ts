@@ -8,7 +8,8 @@ import {
   MockRoomRepository, 
   MockPatientRepository, 
   MockActivityRepository,
-  MockSessionRepository
+  MockSessionRepository,
+  MockRoleRepository
 } from '../utils/mockRepositories';
 import { 
   createEmployeeFixture, 
@@ -20,7 +21,8 @@ import {
   createMockEmployees,
   createMockRooms,
   createMockPatients,
-  createMockActivities
+  createMockActivities,
+  createRoleFixture
 } from '../utils/fixtures';
 import { createApiRouter } from '../../src/routes';
 import { Employee, Room, Patient, Activity, Session, Schedule } from '../../src/types';
@@ -33,6 +35,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
   let mockPatientRepo: MockPatientRepository;
   let mockActivityRepo: MockActivityRepository;
   let mockSessionRepo: MockSessionRepository;
+  let mockRoleRepo: MockRoleRepository;
 
   beforeAll(() => {
     // Initialize mock repositories
@@ -42,6 +45,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     mockPatientRepo = new MockPatientRepository();
     mockActivityRepo = new MockActivityRepository();
     mockSessionRepo = new MockSessionRepository();
+    mockRoleRepo = new MockRoleRepository();
 
     // Create test app with mock repositories
     app = express();
@@ -57,6 +61,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
       mockScheduleRepo, 
       mockSessionRepo, 
       mockActivityRepo, 
+      mockRoleRepo,
       null as any // prisma not needed for logical tests
     ));
     
@@ -421,16 +426,20 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
         isActive: true
       });
 
+      // Create test roles first
+      const role1 = await mockRoleRepo.create(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      const role2 = await mockRoleRepo.create(createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' }));
+
       // Create test employees
       employee1 = await mockEmployeeRepo.create(createEmployeeFixture({
         firstName: 'Alice',
         lastName: 'Smith',
-        role: 'occupational-therapist'
+        roleId: role1.id
       }));
       employee2 = await mockEmployeeRepo.create(createEmployeeFixture({
         firstName: 'Bob',
         lastName: 'Johnson',
-        role: 'physiotherapist'
+        roleId: role2.id
       }));
 
       // Create test rooms

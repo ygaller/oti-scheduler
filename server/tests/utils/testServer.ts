@@ -7,8 +7,8 @@ import {
   PrismaRoomRepository, 
   PrismaScheduleRepository, 
   PrismaSessionRepository, 
-
-  PrismaActivityRepository
+  PrismaActivityRepository,
+  PrismaRoleRepository
 } from '../../src/repositories';
 import { createApiRouter } from '../../src/routes';
 
@@ -26,11 +26,11 @@ export const createTestApp = (prisma: PrismaClient) => {
   const roomRepo = new PrismaRoomRepository(prisma);
   const scheduleRepo = new PrismaScheduleRepository(prisma);
   const sessionRepo = new PrismaSessionRepository(prisma);
-
   const activityRepo = new PrismaActivityRepository(prisma);
+  const roleRepo = new PrismaRoleRepository(prisma);
   
   // Setup API routes
-  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, prisma));
+  app.use('/api', createApiRouter(employeeRepo, patientRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, roleRepo, prisma));
   
   // Error handling
   app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -2,7 +2,7 @@ import request from 'supertest';
 import { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createTestApp } from '../utils/testServer';
-import { createEmployeeFixture, createRoomFixture } from '../utils/fixtures';
+import { createEmployeeFixture, createRoomFixture, createRoleFixture } from '../utils/fixtures';
 import { prisma } from '../setup';
 
 describe('System API Endpoints', () => {
@@ -28,14 +28,18 @@ describe('System API Endpoints', () => {
     });
 
     it('should return correct counts when data exists', async () => {
+      // Create test roles first
+      const role1 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      const role2 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_2' }));
+
       // Add some test data
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture({ firstName: 'John', lastName: 'Doe' }));
+        .send(createEmployeeFixture({ firstName: 'John', lastName: 'Doe', roleId: role1.body.id }));
       
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture({ firstName: 'Jane', lastName: 'Smith', role: 'speech-therapist' }));
+        .send(createEmployeeFixture({ firstName: 'Jane', lastName: 'Smith', roleId: role2.body.id }));
 
       await request(app)
         .post('/api/rooms')
