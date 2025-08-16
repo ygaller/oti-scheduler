@@ -1,4 +1,5 @@
-import { CreateEmployeeDto, CreateRoomDto, CreateRoleDto, Role, Activity, Patient, Session, Schedule, WeekDay } from '../../src/types';
+import { CreateEmployeeDto, CreateRoomDto, CreateRoleDto, Role, Activity, Patient, Session, Schedule, WeekDay, Employee, Room } from '../../src/types';
+import { v4 as uuidv4 } from 'uuid';
 
 export const createRoleFixture = (overrides: Partial<CreateRoleDto> = {}): CreateRoleDto => ({
   name: 'ריפוי בעיסוק',
@@ -16,10 +17,11 @@ export const createCompleteRoleFixture = (overrides: Partial<Role> = {}): Role =
   ...overrides
 });
 
-export const createEmployeeFixture = (overrides: Partial<CreateEmployeeDto> = {}): CreateEmployeeDto => ({
+export const createEmployeeFixture = (overrides: Partial<Employee> = {}): Employee => ({
+  id: overrides.id || uuidv4(),
   firstName: 'John',
   lastName: 'Doe',
-  roleId: overrides.roleId || generateTestUUID(), // Use provided roleId or generate one (tests should provide valid ones)
+  roleId: overrides.roleId || uuidv4(), // Use provided roleId or generate one (tests should provide valid ones)
   workingHours: {
     sunday: { startTime: '08:00', endTime: '16:00' },
     monday: { startTime: '08:00', endTime: '16:00' },
@@ -33,7 +35,8 @@ export const createEmployeeFixture = (overrides: Partial<CreateEmployeeDto> = {}
   ...overrides
 });
 
-export const createRoomFixture = (overrides: Partial<CreateRoomDto> = {}): CreateRoomDto => ({
+export const createRoomFixture = (overrides: Partial<Room> = {}): Room => ({
+  id: overrides.id || uuidv4(),
   name: 'Room A',
   color: '#008dcd',
   isActive: true,
@@ -131,31 +134,31 @@ export const createScheduleFixture = (overrides: Partial<Schedule> = {}): Schedu
 });
 
 // Mock data sets for comprehensive testing
-export const createMockEmployees = (roleIds: string[] = []): CreateEmployeeDto[] => [
+export const createMockEmployees = (roleIds: string[] = []): Employee[] => [
   createEmployeeFixture({
     firstName: 'Alice',
     lastName: 'Smith',
-    roleId: roleIds[0] || generateTestUUID(),
+    roleId: roleIds[0] || uuidv4(),
     weeklySessionsCount: 5,
     color: '#845ec2'
   }),
   createEmployeeFixture({
     firstName: 'Bob',
     lastName: 'Johnson',
-    roleId: roleIds[2] || generateTestUUID(),
+    roleId: roleIds[2] || uuidv4(),
     weeklySessionsCount: 3,
     color: '#4e9f3d'
   }),
   createEmployeeFixture({
     firstName: 'Carol',
     lastName: 'Davis',
-    roleId: roleIds[1] || generateTestUUID(),
+    roleId: roleIds[1] || uuidv4(),
     weeklySessionsCount: 2,
     color: '#d65db1'
   })
 ];
 
-export const createMockRooms = (): CreateRoomDto[] => [
+export const createMockRooms = (): Room[] => [
   createRoomFixture({ name: 'Therapy Room 1', color: '#008dcd' }),
   createRoomFixture({ name: 'Therapy Room 2', color: '#ff6b6b' }),
   createRoomFixture({ name: 'Speech Room', color: '#4ecdc4' })
