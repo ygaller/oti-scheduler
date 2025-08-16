@@ -1323,14 +1323,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
+              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center', borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
                 שעה
               </TableCell>
-              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100' }}>
+              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100', borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
                 פעילויות
               </TableCell>
               {sortedEmployees.map(employee => (
-                <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
+                <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120, borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
                   <div>{employee.firstName} {employee.lastName}</div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#666' }}>
                     ({getRoleName(employee.role, employee.roleId)})
@@ -1356,7 +1356,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     fontSize: '0.75rem',
                     textAlign: 'center',
                     backgroundColor: isHourMark ? (reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'grey.50') : 'transparent',
-                    fontWeight: isHourMark ? 'bold' : 'normal'
+                    fontWeight: isHourMark ? 'bold' : 'normal',
+                    borderLeft: '1px solid rgba(224, 224, 224, 1)'
                   }}>
                     {isHourMark ? time : ''}
                   </TableCell>
@@ -1368,7 +1369,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     textAlign: 'center',
                     fontSize: '0.7rem',
                     color: reservedSlot ? 'text.primary' : 'text.secondary',
-                    fontWeight: reservedSlot ? 'bold' : 'normal'
+                    fontWeight: reservedSlot ? 'bold' : 'normal',
+                    borderLeft: '1px solid rgba(224, 224, 224, 1)'
                   }}>
                     {reservedSlot?.isStartTime ? reservedSlot.label : ''}
                   </TableCell>
@@ -1391,6 +1393,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             cursor: 'pointer',
                             position: 'relative',
                             zIndex: 2, // Ensure sessions appear on top of activities
+                            borderLeft: '1px solid rgba(224, 224, 224, 1)',
                             '&:hover': { 
                               filter: 'brightness(0.8)'
                             }
@@ -1437,7 +1440,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     return (
                       <TableCell key={employee.id} sx={{
                         p: 0.5,
-                        backgroundColor: isWorkingHour ? 'transparent' : 'grey.400' // Darker grey for non-working hours
+                        backgroundColor: isWorkingHour ? 'transparent' : 'grey.400', // Darker grey for non-working hours
+                        borderLeft: '1px solid rgba(224, 224, 224, 1)'
                       }}>
                       </TableCell>
                     );
@@ -1461,14 +1465,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>
+              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center', borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
                 שעה
               </TableCell>
-              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100' }}>
+              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100', borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
                 פעילויות
               </TableCell>
               {sortedRooms.map(room => (
-                <TableCell key={room.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120 }}>
+                <TableCell key={room.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120, borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
                   {room.name}
                 </TableCell>
               ))}
@@ -1491,7 +1495,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     fontSize: '0.75rem',
                     textAlign: 'center',
                     backgroundColor: isHourMark ? (reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'grey.50') : 'transparent',
-                    fontWeight: isHourMark ? 'bold' : 'normal'
+                    fontWeight: isHourMark ? 'bold' : 'normal',
+                    borderLeft: '1px solid rgba(224, 224, 224, 1)'
                   }}>
                     {isHourMark ? time : ''}
                   </TableCell>
@@ -1503,7 +1508,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     textAlign: 'center',
                     fontSize: '0.7rem',
                     color: reservedSlot ? 'text.primary' : 'text.secondary',
-                    fontWeight: reservedSlot ? 'bold' : 'normal'
+                    fontWeight: reservedSlot ? 'bold' : 'normal',
+                    borderLeft: '1px solid rgba(224, 224, 224, 1)'
                   }}>
                     {reservedSlot?.isStartTime ? reservedSlot.label : ''}
                   </TableCell>
@@ -1526,6 +1532,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             cursor: 'pointer',
                             position: 'relative',
                             zIndex: 2, // Ensure sessions appear on top of activities
+                            borderLeft: '1px solid rgba(224, 224, 224, 1)',
                             '&:hover': { 
                               filter: 'brightness(0.8)'
                             }
@@ -1570,7 +1577,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     return (
                       <TableCell key={room.id} sx={{ 
                         p: 0.5,
-                        backgroundColor: 'transparent' // Let the row background show through
+                        backgroundColor: 'transparent', // Let the row background show through
+                        borderLeft: '1px solid rgba(224, 224, 224, 1)'
                       }}>
                       </TableCell>
                     );
