@@ -2,7 +2,7 @@ import request from 'supertest';
 import { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createTestApp } from '../utils/testServer';
-import { createEmployeeFixture, validWorkingHours, createRoleFixture, testRoleStringKeys } from '../utils/fixtures';
+import { createEmployeeFixture, validWorkingHours, createRoleFixture } from '../utils/fixtures';
 import { prisma } from '../setup';
 
 describe('Employee API Endpoints', () => {
@@ -134,11 +134,9 @@ describe('Employee API Endpoints', () => {
     it('should create employees with different roles', async () => {
       // Create test roles first
       const roles = [];
-      for (let i = 0; i < testRoleStringKeys.length; i++) {
-        const roleKey = testRoleStringKeys[i];
+      for (let i = 0; i < 3; i++) {
         const roleResponse = await request(app).post('/api/roles').send(createRoleFixture({ 
-          name: `תפקיד ${i + 1}`, 
-          roleStringKey: roleKey 
+          name: `תפקיד ${i + 1}` 
         }));
         roles.push(roleResponse.body);
       }
