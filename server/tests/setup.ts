@@ -51,7 +51,7 @@ beforeAll(async () => {
   }
   
   console.log('Test setup completed - database initialized');
-});
+}, 120000); // 2 minutes timeout for database setup
 
 beforeEach(async () => {
   // Skip database cleanup for fixture tests
@@ -120,6 +120,6 @@ afterAll(async () => {
     // Using embedded database, close it properly
     await closeDatabase();
   }
-});
+}, 60000); // 1 minute timeout for cleanup
 
 export { prisma };
