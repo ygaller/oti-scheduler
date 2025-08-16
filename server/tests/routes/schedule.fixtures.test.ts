@@ -392,7 +392,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
       });
 
       const sessionData = {
-        employeeId: employee.id,
+        employeeIds: [employee.id],
         roomId: room.id,
         day: 'monday',
         startTime: '10:00',
@@ -405,7 +405,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
         .expect(201);
 
       expect(response.body).toHaveProperty('id');
-      expect(response.body.employeeId).toBe(sessionData.employeeId);
+      expect(response.body.employeeIds).toEqual(sessionData.employeeIds);
       expect(response.body.roomId).toBe(sessionData.roomId);
       expect(response.body.day).toBe(sessionData.day);
       expect(response.body.startTime).toBe(sessionData.startTime);
@@ -459,7 +459,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
 
       // Create test sessions
       session1 = await mockSessionRepo.create({
-        employeeId: employee1.id,
+        employeeIds: [employee1.id],
         roomId: room1.id,
         day: 'monday',
         startTime: '10:00',
@@ -467,7 +467,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
         scheduleId: activeSchedule.id
       });
       session2 = await mockSessionRepo.create({
-        employeeId: employee2.id,
+        employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'monday',
         startTime: '10:30',
@@ -489,7 +489,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     it('should handle non-overlapping sessions correctly (fixture test)', async () => {
       // Create a non-overlapping session (12:00-13:00)
       const session3 = await mockSessionRepo.create({
-        employeeId: employee2.id,
+        employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'monday',
         startTime: '12:00',
@@ -515,7 +515,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     it('should allow assigning patient to sessions on different days (fixture test)', async () => {
       // Create session on different day
       const session3 = await mockSessionRepo.create({
-        employeeId: employee2.id,
+        employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'tuesday',
         startTime: '10:30',
@@ -541,7 +541,7 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
     it('should handle edge case: sessions that touch but do not overlap (fixture test)', async () => {
       // Create adjacent session (11:00-12:00) - touches session1 (10:00-11:00) but doesn't overlap
       const session3 = await mockSessionRepo.create({
-        employeeId: employee2.id,
+        employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'monday',
         startTime: '11:00',

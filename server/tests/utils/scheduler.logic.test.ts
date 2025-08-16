@@ -109,7 +109,9 @@ describe('Scheduler Business Logic Tests', () => {
       
       // Verify all sessions have required properties
       sessions.forEach(session => {
-        expect(session).toHaveProperty('employeeId');
+        expect(session).toHaveProperty('employeeIds');
+        expect(session.employeeIds).toBeInstanceOf(Array);
+        expect(session.employeeIds.length).toBeGreaterThan(0);
         expect(session).toHaveProperty('roomId');
         expect(session).toHaveProperty('day');
         expect(session).toHaveProperty('startTime');
@@ -219,18 +221,20 @@ describe('Scheduler Business Logic Tests', () => {
       
       // All sessions should be within working hours
       sessions.forEach(session => {
-        const employee = employees.find(e => e.id === session.employeeId);
-        const workingHours = employee?.workingHours[session.day];
-        
-        if (workingHours) {
-          const sessionStart = timeToMinutes(session.startTime);
-          const sessionEnd = timeToMinutes(session.endTime);
-          const workStart = timeToMinutes(workingHours.startTime);
-          const workEnd = timeToMinutes(workingHours.endTime);
+        session.employeeIds.forEach(employeeId => {
+          const employee = employees.find(e => e.id === employeeId);
+          const workingHours = employee?.workingHours[session.day];
           
-          expect(sessionStart).toBeGreaterThanOrEqual(workStart);
-          expect(sessionEnd).toBeLessThanOrEqual(workEnd);
-        }
+          if (workingHours) {
+            const sessionStart = timeToMinutes(session.startTime);
+            const sessionEnd = timeToMinutes(session.endTime);
+            const workStart = timeToMinutes(workingHours.startTime);
+            const workEnd = timeToMinutes(workingHours.endTime);
+            
+            expect(sessionStart).toBeGreaterThanOrEqual(workStart);
+            expect(sessionEnd).toBeLessThanOrEqual(workEnd);
+          }
+        });
       });
     });
   });
@@ -248,7 +252,7 @@ describe('Scheduler Business Logic Tests', () => {
 
     it('should validate valid session', () => {
       const session = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '10:00',
@@ -270,7 +274,7 @@ describe('Scheduler Business Logic Tests', () => {
 
     it('should reject session with non-existent employee', () => {
       const session = createSessionFixture({
-        employeeId: 'non-existent-employee',
+        employeeIds: ['non-existent-employee'],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '10:00',
@@ -292,7 +296,7 @@ describe('Scheduler Business Logic Tests', () => {
 
     it('should reject session with non-existent room', () => {
       const session = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: 'non-existent-room',
         day: 'monday',
         startTime: '10:00',
@@ -314,7 +318,7 @@ describe('Scheduler Business Logic Tests', () => {
 
     it('should reject session outside employee working hours', () => {
       const session = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '06:00', // Before working hours
@@ -344,7 +348,7 @@ describe('Scheduler Business Logic Tests', () => {
       activities.push(blockingActivity);
 
       const session = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '10:30',
@@ -374,7 +378,7 @@ describe('Scheduler Business Logic Tests', () => {
       activities.push(nonBlockingActivity);
 
       const session = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '10:30',
@@ -395,14 +399,14 @@ describe('Scheduler Business Logic Tests', () => {
 
     it('should reject overlapping sessions with same employee', () => {
       const existingSession = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '10:00',
         endTime: '11:00'
       });
       const newSession = createSessionFixture({
-        employeeId: employees[0].id, // Same employee
+        employeeIds: [employees[0].id], // Same employee
         roomId: rooms[1].id,
         day: 'monday',
         startTime: '10:30',
@@ -418,19 +422,19 @@ describe('Scheduler Business Logic Tests', () => {
       );
 
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('העובד תפוס בזמן זה'); // Hebrew: "Employee already has a session"
+      expect(result.error).toContain('תפוס בזמן זה'); // Hebrew: "Employee already has a session"
     });
 
     it('should reject overlapping sessions with same room', () => {
       const existingSession = createSessionFixture({
-        employeeId: employees[0].id,
+        employeeIds: [employees[0].id],
         roomId: rooms[0].id,
         day: 'monday',
         startTime: '10:00',
         endTime: '11:00'
       });
       const newSession = createSessionFixture({
-        employeeId: employees[1].id,
+        employeeIds: [employees[1].id],
         roomId: rooms[0].id, // Same room
         day: 'monday',
         startTime: '10:30',

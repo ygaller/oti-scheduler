@@ -436,7 +436,7 @@ describe('Schedule API Integration Tests', () => {
       const initialSessionCount = scheduleResponse.body.sessions.length;
 
       const sessionData = {
-        employeeId: employeeResponse.body.id,
+        employeeIds: [employeeResponse.body.id],
         roomId: roomResponse.body.id,
         day: 'monday',
         startTime: '10:00',
@@ -455,20 +455,24 @@ describe('Schedule API Integration Tests', () => {
       expect(response.status).toBe(201);
 
       expect(response.body).toHaveProperty('id');
-      expect(response.body.employeeId).toBe(sessionData.employeeId);
+      expect(response.body.employeeIds).toEqual(sessionData.employeeIds);
       expect(response.body.roomId).toBe(sessionData.roomId);
       expect(response.body.day).toBe(sessionData.day);
       expect(response.body.startTime).toBe(sessionData.startTime);
       expect(response.body.endTime).toBe(sessionData.endTime);
 
       // Verify database persistence - should have initial sessions + 1 new session
-      const sessionsInDb = await prisma.session.findMany();
+      const sessionsInDb = await prisma.session.findMany({
+        include: {
+          sessionEmployees: true
+        }
+      });
       expect(sessionsInDb).toHaveLength(initialSessionCount + 1);
       
       // Verify the new session was created correctly
       const newSession = sessionsInDb.find(s => s.id === response.body.id);
       expect(newSession).toBeDefined();
-      expect(newSession!.employeeId).toBe(sessionData.employeeId);
+      expect(newSession!.sessionEmployees.map(se => se.employeeId)).toEqual(sessionData.employeeIds);
       expect(newSession!.roomId).toBe(sessionData.roomId);
     });
 
