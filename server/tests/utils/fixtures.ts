@@ -105,7 +105,7 @@ export const createActivityFixture = (overrides: Partial<Activity> = {}): Activi
 
 export const createSessionFixture = (overrides: Partial<Session> = {}): Session => ({
   id: generateTestUUID(),
-  employeeId: generateTestUUID(),
+  employeeIds: [generateTestUUID()],
   roomId: generateTestUUID(),
   day: 'monday' as WeekDay,
   startTime: '10:00',

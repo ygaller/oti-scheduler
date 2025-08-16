@@ -436,7 +436,7 @@ describe('Schedule API Integration Tests', () => {
       const initialSessionCount = scheduleResponse.body.sessions.length;
 
       const sessionData = {
-        employeeId: employeeResponse.body.id,
+        employeeIds: [employeeResponse.body.id],
         roomId: roomResponse.body.id,
         day: 'monday',
         startTime: '10:00',
@@ -455,7 +455,7 @@ describe('Schedule API Integration Tests', () => {
       expect(response.status).toBe(201);
 
       expect(response.body).toHaveProperty('id');
-      expect(response.body.employeeId).toBe(sessionData.employeeId);
+      expect(response.body.employeeIds).toEqual([employeeResponse.body.id]);
       expect(response.body.roomId).toBe(sessionData.roomId);
       expect(response.body.day).toBe(sessionData.day);
       expect(response.body.startTime).toBe(sessionData.startTime);
@@ -468,8 +468,7 @@ describe('Schedule API Integration Tests', () => {
       // Verify the new session was created correctly
       const newSession = sessionsInDb.find(s => s.id === response.body.id);
       expect(newSession).toBeDefined();
-      expect(newSession!.employeeId).toBe(sessionData.employeeId);
-      expect(newSession!.roomId).toBe(sessionData.roomId);
+      expect(newSession!.employeeIds).toEqual([employeeResponse.body.id]);
     });
 
     it('should get all sessions via API', async () => {
@@ -543,14 +542,14 @@ describe('Schedule API Integration Tests', () => {
 
       // Create test sessions via API
       const session1Response = await request(app).post('/api/schedule/sessions').send({
-        employeeId: employee1.id,
+        employeeIds: [employee1.id],
         roomId: room1.id,
         day: 'monday',
         startTime: '10:00',
         endTime: '11:00'
       });
       const session2Response = await request(app).post('/api/schedule/sessions').send({
-        employeeId: employee2.id,
+        employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'monday',
         startTime: '10:30',
@@ -660,7 +659,7 @@ describe('Schedule API Integration Tests', () => {
       const response = await request(app)
         .post('/api/schedule/sessions')
         .send({
-          employeeId: 'invalid-id',
+          employeeIds: ['invalid-id'],
           roomId: 'invalid-id',
           day: 'invalid-day',
           startTime: 'invalid-time',
