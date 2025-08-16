@@ -68,9 +68,13 @@ describe('System API Endpoints', () => {
 
     it('should handle mixed data scenarios', async () => {
       // Add only employees
+      const role = await request(app)
+        .post('/api/roles')
+        .send(createRoleFixture({ name: 'Test Role' }));
+      
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture());
+        .send(createEmployeeFixture({ roleId: role.body.id }));
 
       const response1 = await request(app)
         .get('/api/system/status')
@@ -124,18 +128,18 @@ describe('System API Endpoints', () => {
   });
 
   describe('POST /api/system/reset', () => {
-    beforeEach(async () => {
-      // Add some test data before each reset test
+    
+    it('should reset all system data', async () => {
+      // Add some test data before reset
+      const role = await request(app).post('/api/roles').send(createRoleFixture());
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture({ firstName: 'TestEmployee' }));
+        .send(createEmployeeFixture({ firstName: 'TestEmployee', roleId: role.body.id }));
       
       await request(app)
         .post('/api/rooms')
         .send(createRoomFixture({ name: 'TestRoom' }));
-    });
-
-    it('should reset all system data', async () => {
+      
       // Verify data exists before reset
       const statusBefore = await request(app)
         .get('/api/system/status')
@@ -193,9 +197,10 @@ describe('System API Endpoints', () => {
       // Perform multiple resets
       for (let i = 0; i < 3; i++) {
         // Add some data
+        const role = await request(app).post('/api/roles').send(createRoleFixture({ name: `Role${i}` }));
         await request(app)
           .post('/api/employees')
-          .send(createEmployeeFixture({ firstName: `Employee${i}` }));
+          .send(createEmployeeFixture({ firstName: `Employee${i}`, roleId: role.body.id }));
 
         await request(app)
           .post('/api/rooms')
@@ -222,11 +227,13 @@ describe('System API Endpoints', () => {
       const employeePromises = [];
       const roomPromises = [];
 
+      const role = await request(app).post('/api/roles').send(createRoleFixture());
+
       for (let i = 0; i < 10; i++) {
         employeePromises.push(
           request(app)
             .post('/api/employees')
-            .send(createEmployeeFixture({ firstName: `Employee${i}`, lastName: `Last${i}` }))
+            .send(createEmployeeFixture({ firstName: `Employee${i}`, lastName: `Last${i}`, roleId: role.body.id }))
         );
 
         roomPromises.push(
@@ -279,9 +286,10 @@ describe('System API Endpoints', () => {
       expect(initialStatus.body.hasData).toBe(false);
 
       // Add data
+      const role = await request(app).post('/api/roles').send(createRoleFixture());
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture({ firstName: 'Integration', lastName: 'Test' }));
+        .send(createEmployeeFixture({ firstName: 'Integration', lastName: 'Test', roleId: role.body.id }));
 
       // Status should reflect new data
       const statusWithData = await request(app)
@@ -306,9 +314,10 @@ describe('System API Endpoints', () => {
 
     it('should handle concurrent status requests', async () => {
       // Add some data
+      const role = await request(app).post('/api/roles').send(createRoleFixture());
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture());
+        .send(createEmployeeFixture({ roleId: role.body.id }));
 
       // Make multiple concurrent status requests
       const statusPromises = Array(5).fill(null).map(() =>

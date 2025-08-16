@@ -17,6 +17,44 @@ async function startEmbeddedPostgres(config: any): Promise<number> {
   await fs.mkdir(dataDir, { recursive: true });
   await fs.mkdir(path.dirname(logFile), { recursive: true });
   
+  // --- Aggressive cleanup for test environment ---
+  // Attempt to stop any running postgres processes cleanly
+  try {
+    console.log('Attempting to stop any existing embedded PostgreSQL process...');
+    const stopProcess = spawn('pg_ctl', ['-D', dataDir, 'stop', '-m', 'fast'], {
+      stdio: 'pipe'
+    });
+    await new Promise<void>((resolve) => {
+      stopProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('✅ Existing PostgreSQL stopped successfully.');
+        } else {
+          console.warn(`⚠️  pg_ctl stop exited with code ${code}. Might be no process or an error.`);
+        }
+        resolve();
+      });
+      stopProcess.on('error', (err) => {
+        console.warn(`⚠️  Error trying to stop PostgreSQL: ${err.message}`);
+        resolve();
+      });
+    });
+  } catch (error) {
+    console.warn(`⚠️  Failed to attempt pg_ctl stop: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  // If stop fails or a stale postmaster.pid exists (indicating a crash), remove data directory
+  const lockFile = path.join(dataDir, 'postmaster.pid');
+  try {
+    await fs.access(lockFile);
+    console.log('Stale postmaster.pid found. Removing data directory for clean start.');
+    await fs.rm(dataDir, { recursive: true, force: true });
+    console.log('✅ Data directory removed.');
+    await fs.mkdir(dataDir, { recursive: true }); // Recreate directory
+  } catch (e) {
+    // No lock file, or directory doesn't exist, which is fine.
+  }
+  // --- End aggressive cleanup ---
+  
   // Find an available port (simple implementation)
   const findAvailablePort = async (): Promise<number> => {
     const net = require('net');
@@ -67,14 +105,15 @@ async function startEmbeddedPostgres(config: any): Promise<number> {
     });
   }
   
-  // Clean up any stale lock files
-  const lockFile = path.join(dataDir, 'postmaster.pid');
-  try {
-    await fs.unlink(lockFile);
-    console.log('Removed stale PostgreSQL lock file');
-  } catch {
-    // Lock file doesn't exist, which is fine
-  }
+  // Clean up any stale lock files - this part is less critical after aggressive removal above
+  // but good to keep for robustness in case directory wasn't fully removed
+  // const lockFile = path.join(dataDir, 'postmaster.pid');
+  // try {
+  //   await fs.unlink(lockFile);
+  //   console.log('Removed stale PostgreSQL lock file');
+  // } catch {
+  //   // Lock file doesn't exist, which is fine
+  // }
   
   console.log(`Starting embedded PostgreSQL on port ${port}...`);
   console.log(`Data directory: ${dataDir}`);
