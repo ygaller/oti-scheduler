@@ -32,7 +32,7 @@ const startEmbeddedServer = () => {
       PORT: '3001'
     };
 
-    serverProcess = spawn('node', [serverEntryPoint], {
+    serverProcess = spawn(process.execPath, [serverEntryPoint], {
       env,
       stdio: ['ignore', 'pipe', 'pipe']
     });
