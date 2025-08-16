@@ -109,9 +109,7 @@ describe('Scheduler Business Logic Tests', () => {
       
       // Verify all sessions have required properties
       sessions.forEach(session => {
-        expect(session).toHaveProperty('employeeIds');
-        expect(session.employeeIds).toBeInstanceOf(Array);
-        expect(session.employeeIds.length).toBeGreaterThan(0);
+        expect(session).toHaveProperty('employeeId');
         expect(session).toHaveProperty('roomId');
         expect(session).toHaveProperty('day');
         expect(session).toHaveProperty('startTime');
