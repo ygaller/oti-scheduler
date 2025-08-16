@@ -29,7 +29,6 @@ import {
 import { 
   CalendarToday, 
   Download, 
-  Add,
   Print,
   Warning,
   Delete
@@ -84,7 +83,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     title: string;
     message: string;
     details?: string;
-  }>({ title: '', message: '' });
+  } | null>(null);
   const [resetScheduleDialogOpen, setResetScheduleDialogOpen] = useState(false);
 
   // Patient view states
@@ -249,13 +248,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       printWindow.close();
     }, 250);
   };
-
-  // Currently unused but may be needed for future functionality
-  // const handleEditSession = (session: Session) => {
-  //   setEditingSession(session);
-  //   setSessionForm(session);
-  //   setEditDialogOpen(true);
-  // };
 
   const handleAddSession = (
     day?: WeekDay,
@@ -492,10 +484,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       });
       setErrorModalOpen(true);
     }
-  };
-
-  const handleAddPatientSlot = () => {
-    setSelectedPatients([...selectedPatients, '']);
   };
 
   const handlePatientChange = (index: number, patientId: string) => {
@@ -1641,14 +1629,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         </Typography>
         <Box display="flex" gap={2}>
           <Button
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() => handleAddSession()}
-            disabled={employees.length === 0 || rooms.length === 0}
-          >
-            הוסף טיפול
-          </Button>
-          <Button
             variant="contained"
             startIcon={isResetting ? <CircularProgress size={16} /> : <CalendarToday />}
             onClick={handleResetScheduleClick}
@@ -1920,7 +1900,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       ) : (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="body1" color="text.secondary">
-            לוח הזמנים ריק. תוכל להוסיף טיפולים באמצעות הכפתור "הוסף טיפול".
+            לוח הזמנים ריק. תוכל להוסיף טיפולים באמצעות לחיצה על משבצת ריקה בלוח הזמנים.
           </Typography>
         </Paper>
       )}
@@ -2144,15 +2124,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 </Box>
               ))}
 
-              <Button
-                variant="outlined"
-                startIcon={<Add />}
-                onClick={handleAddPatientSlot}
-                sx={{ alignSelf: 'flex-start' }}
-              >
-                הוסף מטופל
-              </Button>
-
               <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                 <Button
                   variant="outlined"
@@ -2189,9 +2160,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       {/* Error Modal */}
       <ErrorModal
         open={errorModalOpen}
-        title={errorInfo.title}
-        message={errorInfo.message}
-        details={errorInfo.details}
+        title={errorInfo?.title || 'שגיאה'}
+        message={errorInfo?.message || 'שגיאה לא ידועה'}
+        details={errorInfo?.details}
         onClose={() => setErrorModalOpen(false)}
       />
 
