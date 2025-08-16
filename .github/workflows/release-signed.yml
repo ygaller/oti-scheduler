@@ -47,13 +47,13 @@ jobs:
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [ -n "$APPLE_CERT_DATA" ]; then
+          if [ -n "${{ env.APPLE_CERT_DATA }}" ]; then
             echo "Setting up macOS code signing..."
-            echo $APPLE_CERT_DATA | base64 --decode > certificate.p12
+            echo ${{ env.APPLE_CERT_DATA }} | base64 --decode > certificate.p12
             security create-keychain -p mypassword build.keychain
             security default-keychain -s build.keychain
             security unlock-keychain -p mypassword build.keychain
-            security import certificate.p12 -k build.keychain -P $APPLE_CERT_PASSWORD -T /usr/bin/codesign
+            security import certificate.p12 -k build.keychain -P ${{ env.APPLE_CERT_PASSWORD }} -T /usr/bin/codesign
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k mypassword build.keychain
             rm certificate.p12
           else
@@ -67,9 +67,9 @@ jobs:
           WINDOWS_CERT_DATA: ${{ secrets.WINDOWS_CERT_DATA }}
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: |
-          if ($env:WINDOWS_CERT_DATA) {
+          if ("${{ env.WINDOWS_CERT_DATA }}") {
             Write-Host "Setting up Windows code signing..."
-            $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERT_DATA)
+            $certBytes = [Convert]::FromBase64String("${{ env.WINDOWS_CERT_DATA }}")
             [IO.File]::WriteAllBytes("certificate.p12", $certBytes)
             Write-Host "Certificate prepared for signing"
           } else {
@@ -87,7 +87,7 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [ -n "$APPLE_ID" ]; then
+          if [ -n "${{ env.APPLE_ID }}" ]; then
             echo "Building with notarization..."
             npm run dist:mac
           else
@@ -138,6 +138,8 @@ jobs:
   release-signed:
     needs: build-signed
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
