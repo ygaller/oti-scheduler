@@ -11,6 +11,15 @@ export class PrismaScheduleRepository implements ScheduleRepository {
       include: { 
         sessions: {
           include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
             sessionPatients: {
               include: {
                 patient: true
@@ -30,6 +39,15 @@ export class PrismaScheduleRepository implements ScheduleRepository {
       include: { 
         sessions: {
           include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
             sessionPatients: {
               include: {
                 patient: true
@@ -48,6 +66,15 @@ export class PrismaScheduleRepository implements ScheduleRepository {
       include: { 
         sessions: {
           include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
             sessionPatients: {
               include: {
                 patient: true
@@ -73,17 +100,35 @@ export class PrismaScheduleRepository implements ScheduleRepository {
         isActive: true, // New schedules are active by default
         sessions: {
           create: sessions.map(session => ({
-            employeeId: session.employeeId,
             roomId: session.roomId,
             day: mapAPIWeekDayToPrisma(session.day),
             startTime: session.startTime,
             endTime: session.endTime,
+            sessionEmployees: {
+              create: session.employeeIds.map(employeeId => ({
+                employeeId
+              }))
+            },
+            sessionPatients: {
+              create: (session.patients || []).map(patient => ({
+                patientId: patient.id
+              }))
+            }
           }))
         }
       },
       include: { 
         sessions: {
           include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
             sessionPatients: {
               include: {
                 patient: true
@@ -109,6 +154,15 @@ export class PrismaScheduleRepository implements ScheduleRepository {
       include: { 
         sessions: {
           include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
             sessionPatients: {
               include: {
                 patient: true

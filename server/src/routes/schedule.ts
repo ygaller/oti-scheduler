@@ -196,9 +196,9 @@ export const createScheduleRouter = (
         return res.status(404).json({ error: 'Session not found' });
       }
 
-      // If we're updating time/day/employee/room, validate constraints
+      // If we're updating time/day/employees/room, validate constraints
       if (sessionData.startTime || sessionData.endTime || sessionData.day || 
-          sessionData.employeeId || sessionData.roomId) {
+          sessionData.employeeIds || sessionData.roomId) {
         
         const employees = await employeeRepo.findAll();
         const rooms = await roomRepo.findAll();

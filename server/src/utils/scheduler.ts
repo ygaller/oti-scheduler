@@ -235,11 +235,13 @@ class ScheduleGenerator {
   private assignSession(employee: Employee, room: Room, timeSlot: TimeSlot) {
     const session: Session = {
       id: `session_${Date.now()}_${Math.random()}`,
-      employeeId: employee.id,
+      employeeIds: [employee.id],
       roomId: room.id,
       day: timeSlot.day,
       startTime: timeSlot.startTime,
-      endTime: timeSlot.endTime
+      endTime: timeSlot.endTime,
+      employees: [employee],
+      patients: []
     };
 
     this.sessions.push(session);
@@ -272,7 +274,7 @@ class ScheduleGenerator {
 
   private isEmployeeBusy(employeeId: string, day: WeekDay, startTime: string, endTime: string): boolean {
     return this.sessions.some(session => 
-      session.employeeId === employeeId &&
+      session.employeeIds.includes(employeeId) &&
       session.day === day &&
       this.timesOverlap(session.startTime, session.endTime, startTime, endTime)
     );
@@ -342,20 +344,39 @@ export function validateScheduleConstraints(
   rooms: Room[],
   activities: Activity[]
 ): { valid: boolean; error?: string } {
-  const employee = employees.find(e => e.id === session.employeeId);
-  const room = rooms.find(r => r.id === session.roomId);
-
-  if (!employee) return { valid: false, error: 'עובד לא נמצא' };
-  if (!room) return { valid: false, error: 'חדר לא נמצא' };
-
-  // Check working hours
-  const workingHours = employee.workingHours[session.day];
-  if (!workingHours) {
-    return { valid: false, error: 'העובד לא עובד ביום זה' };
+  if (!session.employeeIds || session.employeeIds.length === 0) {
+    return { valid: false, error: 'לפחות עובד אחד חייב להיות משויך לטיפול' };
   }
 
-  if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
-    return { valid: false, error: 'הטיפול מחוץ לשעות העבודה של העובד' };
+  const room = rooms.find(r => r.id === session.roomId);
+  if (!room) return { valid: false, error: 'חדר לא נמצא' };
+
+  // Validate each assigned employee
+  for (const employeeId of session.employeeIds) {
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee) return { valid: false, error: `עובד לא נמצא: ${employeeId}` };
+
+    // Check working hours for this employee
+    const workingHours = employee.workingHours[session.day];
+    if (!workingHours) {
+      return { valid: false, error: `העובד ${employee.firstName} ${employee.lastName} לא עובד ביום זה` };
+    }
+
+    if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
+      return { valid: false, error: `הטיפול מחוץ לשעות העבודה של העובד ${employee.firstName} ${employee.lastName}` };
+    }
+
+    // Check employee conflicts for this specific employee
+    const employeeConflicts = allSessions.filter(s =>
+      s.id !== session.id &&
+      s.employeeIds && s.employeeIds.includes(employeeId) &&
+      s.day === session.day &&
+      timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
+    );
+
+    if (employeeConflicts.length > 0) {
+      return { valid: false, error: `העובד ${employee.firstName} ${employee.lastName} תפוס בזמן זה` };
+    }
   }
 
   // Check room conflicts
@@ -368,18 +389,6 @@ export function validateScheduleConstraints(
 
   if (roomConflicts.length > 0) {
     return { valid: false, error: 'החדר תפוס בזמן זה' };
-  }
-
-  // Check employee conflicts
-  const employeeConflicts = allSessions.filter(s =>
-    s.id !== session.id &&
-    s.employeeId === session.employeeId &&
-    s.day === session.day &&
-    timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
-  );
-
-  if (employeeConflicts.length > 0) {
-    return { valid: false, error: 'העובד תפוס בזמן זה' };
   }
 
   // Check activities/blocked periods

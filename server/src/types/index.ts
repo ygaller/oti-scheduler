@@ -77,12 +77,13 @@ export interface Activity {
 
 export interface Session {
   id: string;
-  employeeId: string;
+  employeeIds: string[]; // Array of employee IDs assigned to this session
   roomId: string;
   scheduleId?: string; // Optional reference to parent schedule
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
+  employees?: Employee[]; // Optional array of employees assigned to this session
   patients?: Patient[]; // Optional array of patients assigned to this session
 }
 
@@ -127,7 +128,7 @@ export interface CreatePatientDto {
 export interface UpdatePatientDto extends Partial<CreatePatientDto> {}
 
 export interface CreateSessionDto {
-  employeeId: string;
+  employeeIds: string[]; // Array of employee IDs - must have at least one
   roomId: string;
   scheduleId: string; // Required - sessions must belong to a schedule
   day: WeekDay;
@@ -160,6 +161,15 @@ export interface CreateRoleDto {
 
 export interface UpdateRoleDto extends Partial<CreateRoleDto> {}
 
+// Session-Employee relationship
+export interface SessionEmployee {
+  id: string;
+  sessionId: string;
+  employeeId: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 // Session-Patient relationship
 export interface SessionPatient {
   id: string;
@@ -167,6 +177,11 @@ export interface SessionPatient {
   patientId: string;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface CreateSessionEmployeeDto {
+  sessionId: string;
+  employeeId: string;
 }
 
 export interface CreateSessionPatientDto {

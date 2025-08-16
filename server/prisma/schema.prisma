@@ -45,8 +45,8 @@ model Employee {
   updatedAt           DateTime   @updatedAt @map("updated_at")
   
   // Relations
-  role                Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  sessions            Session[]
+  role                Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessionEmployees    SessionEmployee[]
   
   @@map("employees")
 }
@@ -115,7 +115,6 @@ model Activity {
 
 model Session {
   id         String   @id @default(uuid())
-  employeeId String   @map("employee_id")
   roomId     String   @map("room_id")
   scheduleId String   @map("schedule_id") // Required - sessions must belong to a schedule
   day        WeekDay
@@ -125,12 +124,28 @@ model Session {
   updatedAt  DateTime @updatedAt @map("updated_at")
   
   // Relations
-  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   room            Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
   schedule        Schedule        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  sessionEmployees SessionEmployee[]
   sessionPatients SessionPatient[]
   
   @@map("sessions")
+}
+
+model SessionEmployee {
+  id         String   @id @default(uuid())
+  sessionId  String   @map("session_id")
+  employeeId String   @map("employee_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Ensure unique combination of session and employee
+  @@unique([sessionId, employeeId])
+  @@map("session_employees")
 }
 
 model SessionPatient {
