@@ -18,6 +18,7 @@ import {
   createActivityFixture,
   createSessionFixture,
   createScheduleFixture,
+  createCompleteRoleFixture,
   createMockEmployees,
   createMockRooms,
   createMockPatients,
@@ -427,8 +428,8 @@ describe('Schedule API Endpoints (Fixture-based Tests)', () => {
       });
 
       // Create test roles first
-      const role1 = await mockRoleRepo.create(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
-      const role2 = await mockRoleRepo.create(createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' }));
+      const role1 = await mockRoleRepo.create(createCompleteRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
+      const role2 = await mockRoleRepo.create(createCompleteRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' }));
 
       // Create test employees
       employee1 = await mockEmployeeRepo.create(createEmployeeFixture({

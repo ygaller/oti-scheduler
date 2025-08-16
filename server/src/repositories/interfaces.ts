@@ -73,7 +73,7 @@ export interface RoleRepository {
   create(role: CreateRoleDto): Promise<Role>;
   update(id: string, role: UpdateRoleDto): Promise<Role | null>;
   setActive(id: string, isActive: boolean): Promise<Role | null>;
-  delete(id: string): Promise<{ success: boolean; error?: string }>;
+  delete(id: string): Promise<{ success: boolean; error?: string; notFound?: boolean }>;
   getEmployeeCount(roleId: string): Promise<number>;
 }
 

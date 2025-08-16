@@ -29,8 +29,8 @@ describe('System API Endpoints', () => {
 
     it('should return correct counts when data exists', async () => {
       // Create test roles first
-      const role1 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }));
-      const role2 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_2' }));
+      const role1 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק' }));
+      const role2 = await request(app).post('/api/roles').send(createRoleFixture({ name: 'קלינאות תקשורת' }));
 
       // Add some test data
       await request(app)

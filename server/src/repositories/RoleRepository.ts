@@ -106,8 +106,21 @@ export class PrismaRoleRepository implements RoleRepository {
     }
   }
 
-  async delete(id: string): Promise<{ success: boolean; error?: string }> {
+  async delete(id: string): Promise<{ success: boolean; error?: string; notFound?: boolean }> {
     try {
+      // First check if the role exists
+      const existingRole = await this.prisma.role.findUnique({
+        where: { id }
+      });
+      
+      if (!existingRole) {
+        return {
+          success: false,
+          notFound: true,
+          error: 'Role not found'
+        };
+      }
+      
       // Check if role is being used by any employees
       const employeeCount = await this.prisma.employee.count({
         where: { roleId: id }

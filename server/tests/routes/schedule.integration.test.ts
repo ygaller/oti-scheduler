@@ -21,19 +21,21 @@ describe('Schedule API Integration Tests', () => {
 
   describe('POST /api/schedule/generate - API Integration', () => {
     beforeEach(async () => {
-      // Clean up before each test
+      // Clean up before each test - order matters due to foreign key constraints
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
       await prisma.role.deleteMany();
     });
 
     it('should generate schedule and return proper HTTP response', async () => {
       // Create test roles first
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' });
-      const role2 = createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' });
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const role2 = createRoleFixture({ name: 'פיזיותרפיה' });
       
       const roleResponse1 = await request(app).post('/api/roles').send(role1);
       const roleResponse2 = await request(app).post('/api/roles').send(role2);
@@ -99,10 +101,14 @@ describe('Schedule API Integration Tests', () => {
     });
 
     it('should return 400 when no rooms exist (API)', async () => {
-      // Create employees but no rooms
+      // Create role first, then employees but no rooms
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
       const employee1 = createEmployeeFixture({
         firstName: 'Test',
-        lastName: 'Employee'
+        lastName: 'Employee',
+        roleId: roleResponse1.body.id
       });
       await request(app).post('/api/employees').send(employee1);
 
@@ -114,10 +120,14 @@ describe('Schedule API Integration Tests', () => {
     });
 
     it('should handle blocking activities correctly (API)', async () => {
-      // Create employee and room
+      // Create role first, then employee and room
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
       const employee = createEmployeeFixture({
         firstName: 'Blocked',
         lastName: 'Employee',
+        roleId: roleResponse1.body.id,
         weeklySessionsCount: 15,
         workingHours: {
           sunday: { startTime: '08:00', endTime: '16:00' },
@@ -168,11 +178,15 @@ describe('Schedule API Integration Tests', () => {
 
   describe('GET /api/schedule/active - API Integration', () => {
     beforeEach(async () => {
+      // Clean up before each test - order matters due to foreign key constraints
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
+      await prisma.role.deleteMany();
     });
 
     it('should return null when no active schedule exists (API)', async () => {
@@ -185,7 +199,10 @@ describe('Schedule API Integration Tests', () => {
 
     it('should return active schedule when one exists (API)', async () => {
       // Set up test data via API
-      const employee = createEmployeeFixture();
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
+      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
       const room = createRoomFixture();
 
       await request(app).post('/api/employees').send(employee);
@@ -208,11 +225,15 @@ describe('Schedule API Integration Tests', () => {
 
   describe('GET /api/schedule/all - API Integration', () => {
     beforeEach(async () => {
+      // Clean up before each test - order matters due to foreign key constraints
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
+      await prisma.role.deleteMany();
     });
 
     it('should return empty array when no schedules exist (API)', async () => {
@@ -225,7 +246,10 @@ describe('Schedule API Integration Tests', () => {
 
     it('should return all schedules with proper data persistence (API)', async () => {
       // Set up test data
-      const employee = createEmployeeFixture();
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
+      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
       const room = createRoomFixture();
 
       await request(app).post('/api/employees').send(employee);
@@ -259,16 +283,23 @@ describe('Schedule API Integration Tests', () => {
 
   describe('PUT /api/schedule/:id/activate - API Integration', () => {
     beforeEach(async () => {
+      // Clean up before each test - order matters due to foreign key constraints
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
+      await prisma.role.deleteMany();
     });
 
     it('should activate a schedule and update database (API)', async () => {
       // Set up test data
-      const employee = createEmployeeFixture();
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
+      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
       const room = createRoomFixture();
 
       await request(app).post('/api/employees').send(employee);
@@ -322,16 +353,23 @@ describe('Schedule API Integration Tests', () => {
 
   describe('DELETE /api/schedule/:id - API Integration', () => {
     beforeEach(async () => {
+      // Clean up before each test - order matters due to foreign key constraints
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
+      await prisma.role.deleteMany();
     });
 
     it('should delete a schedule and update database (API)', async () => {
       // Set up test data
-      const employee = createEmployeeFixture();
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
+      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
       const room = createRoomFixture();
 
       await request(app).post('/api/employees').send(employee);
@@ -384,7 +422,10 @@ describe('Schedule API Integration Tests', () => {
 
     it('should create a session via API and persist to database', async () => {
       // Set up test data
-      const employee = createEmployeeFixture();
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse1 = await request(app).post('/api/roles').send(role1);
+      
+      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
       const room = createRoomFixture();
 
       const employeeResponse = await request(app).post('/api/employees').send(employee);
@@ -456,8 +497,8 @@ describe('Schedule API Integration Tests', () => {
       await prisma.role.deleteMany();
 
       // Create test roles first
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' });
-      const role2 = createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' });
+      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const role2 = createRoleFixture({ name: 'פיזיותרפיה' });
       
       const roleResponse1 = await request(app).post('/api/roles').send(role1);
       const roleResponse2 = await request(app).post('/api/roles').send(role2);
@@ -594,11 +635,15 @@ describe('Schedule API Integration Tests', () => {
 
   describe('Error Handling and Edge Cases (API)', () => {
     beforeEach(async () => {
+      // Clean up before each test - order matters due to foreign key constraints
+      await prisma.sessionPatient.deleteMany();
       await prisma.session.deleteMany();
       await prisma.schedule.deleteMany();
       await prisma.employee.deleteMany();
       await prisma.room.deleteMany();
       await prisma.activity.deleteMany();
+      await prisma.patient.deleteMany();
+      await prisma.role.deleteMany();
     });
 
     it('should handle server errors gracefully', async () => {

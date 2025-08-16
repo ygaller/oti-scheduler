@@ -60,12 +60,14 @@ beforeEach(async () => {
     return;
   }
   
-  // Clean up database before each test
+  // Clean up database before each test - order matters due to foreign key constraints
   try {
+    await prisma.sessionPatient.deleteMany();
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.room.deleteMany();
+    await prisma.activity.deleteMany();
     
     // Only try to delete patients if the table exists
     try {
@@ -73,6 +75,9 @@ beforeEach(async () => {
     } catch (patientError) {
       // Silently ignore if patients table doesn't exist - it's not needed for most tests
     }
+    
+    // Delete roles last due to foreign key constraints
+    await prisma.role.deleteMany();
   } catch (error) {
     console.warn('Database cleanup failed - tests may run against existing data:', error instanceof Error ? error.message : String(error));
   }
@@ -85,12 +90,14 @@ afterAll(async () => {
     return;
   }
   
-  // Clean up and close database connection
+  // Clean up and close database connection - order matters due to foreign key constraints
   try {
+    await prisma.sessionPatient.deleteMany();
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.room.deleteMany();
+    await prisma.activity.deleteMany();
     
     // Only try to delete patients if the table exists
     try {
@@ -98,6 +105,9 @@ afterAll(async () => {
     } catch (patientError) {
       // Silently ignore if patients table doesn't exist
     }
+    
+    // Delete roles last due to foreign key constraints
+    await prisma.role.deleteMany();
   } catch (error) {
     console.warn('Database cleanup failed during teardown:', error instanceof Error ? error.message : String(error));
   }

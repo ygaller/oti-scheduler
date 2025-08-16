@@ -1,6 +1,12 @@
 import { CreateEmployeeDto, CreateRoomDto, CreateRoleDto, Role, Activity, Patient, Session, Schedule, WeekDay } from '../../src/types';
 
-export const createRoleFixture = (overrides: Partial<CreateRoleDto & { id?: string; roleStringKey?: string }> = {}): Role => ({
+export const createRoleFixture = (overrides: Partial<CreateRoleDto> = {}): CreateRoleDto => ({
+  name: 'ריפוי בעיסוק',
+  isActive: true,
+  ...overrides
+});
+
+export const createCompleteRoleFixture = (overrides: Partial<Role> = {}): Role => ({
   id: overrides.id || generateTestUUID(),
   name: 'ריפוי בעיסוק',
   roleStringKey: overrides.roleStringKey || 'role_1',
@@ -37,27 +43,27 @@ export const createRoomFixture = (overrides: Partial<CreateRoomDto> = {}): Creat
 
 
 export const createMockRoles = (): Role[] => [
-  createRoleFixture({
+  createCompleteRoleFixture({
     id: generateTestUUID(),
     name: 'ריפוי בעיסוק',
     roleStringKey: 'role_1'
   }),
-  createRoleFixture({
+  createCompleteRoleFixture({
     id: generateTestUUID(),
     name: 'קלינאות תקשורת',
     roleStringKey: 'role_2'
   }),
-  createRoleFixture({
+  createCompleteRoleFixture({
     id: generateTestUUID(),
     name: 'פיזיותרפיה',
     roleStringKey: 'role_3'
   }),
-  createRoleFixture({
+  createCompleteRoleFixture({
     id: generateTestUUID(),
     name: 'עבודה סוציאלית',
     roleStringKey: 'role_4'
   }),
-  createRoleFixture({
+  createCompleteRoleFixture({
     id: generateTestUUID(),
     name: 'טיפול בהבעה ויציאה',
     roleStringKey: 'role_5'

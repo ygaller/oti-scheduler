@@ -116,6 +116,9 @@ export const createRoleRouter = (roleRepo: RoleRepository): Router => {
       const result = await roleRepo.delete(req.params.id);
       
       if (!result.success) {
+        if (result.notFound) {
+          return res.status(404).json({ error: result.error });
+        }
         return res.status(400).json({ error: result.error });
       }
       

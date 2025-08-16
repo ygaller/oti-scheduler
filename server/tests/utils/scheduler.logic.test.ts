@@ -16,7 +16,7 @@ import {
   createActivityFixture,
   createSessionFixture,
   createScheduleFixture,
-  createRoleFixture
+  createCompleteRoleFixture
 } from './fixtures';
 import { Employee, Room, Activity, Session, Patient, CreateEmployeeDto, CreateRoomDto } from '../../src/types';
 
@@ -35,9 +35,9 @@ const convertRoomToEntity = (dto: CreateRoomDto): Room => ({
 
 // Create test roles for mock employees
 const createMockRoles = () => [
-  createRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }),
-  createRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' }),
-  createRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_3' })
+  createCompleteRoleFixture({ name: 'ריפוי בעיסוק', roleStringKey: 'role_1' }),
+  createCompleteRoleFixture({ name: 'פיזיותרפיה', roleStringKey: 'role_2' }),
+  createCompleteRoleFixture({ name: 'קלינאות תקשורת', roleStringKey: 'role_3' })
 ];
 
 // Create full entities for testing
