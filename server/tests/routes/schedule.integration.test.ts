@@ -536,8 +536,8 @@ describe('Schedule API Integration Tests', () => {
         lastName: 'Doe',
         color: '#ff5733',
         therapyRequirements: {
-          'occupational-therapist': 2,
-          'physiotherapist': 1
+          'role_5': 2, // ריפוי בעיסוק (occupational therapy)
+          'role_3': 1  // פיזיותרפיה (physiotherapy)
         }
       });
       patient = patientResponse.body;
@@ -547,14 +547,14 @@ describe('Schedule API Integration Tests', () => {
 
       // Create test sessions via API
       const session1Response = await request(app).post('/api/schedule/sessions').send({
-        employeeId: employee1.id,
+        employeeIds: [employee1.id],
         roomId: room1.id,
         day: 'monday',
         startTime: '10:00',
         endTime: '11:00'
       });
       const session2Response = await request(app).post('/api/schedule/sessions').send({
-        employeeId: employee2.id,
+        employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'monday',
         startTime: '10:30',
@@ -614,7 +614,7 @@ describe('Schedule API Integration Tests', () => {
         firstName: 'Jane',
         lastName: 'Smith',
         color: '#33ff57',
-        therapyRequirements: { 'occupational-therapist': 1 }
+        therapyRequirements: { 'role_5': 1 } // ריפוי בעיסוק (occupational therapy)
       });
       const patient2 = patient2Response.body;
 
@@ -664,7 +664,7 @@ describe('Schedule API Integration Tests', () => {
       const response = await request(app)
         .post('/api/schedule/sessions')
         .send({
-          employeeId: 'invalid-id',
+          employeeIds: ['invalid-id'],
           roomId: 'invalid-id',
           day: 'invalid-day',
           startTime: 'invalid-time',
