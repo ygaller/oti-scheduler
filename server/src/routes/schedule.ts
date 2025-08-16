@@ -154,7 +154,8 @@ export const createScheduleRouter = (
       // Validate the session constraints
       const employees = await employeeRepo.findAll();
       const rooms = await roomRepo.findAll();
-      const allSessions = await sessionRepo.findAll();
+      // Only validate against sessions in the active schedule
+      const allSessions = await sessionRepo.findByScheduleId(activeSchedule.id!);
       const activities = await activityRepo.findAll(true); // Include all active activities
 
       const validation = validateScheduleConstraints(
@@ -182,22 +183,25 @@ export const createScheduleRouter = (
     try {
       const sessionData: UpdateSessionDto = req.body;
       
-      // Note: scheduleId is immutable and not part of UpdateSessionDto
-      
+      // Get the current session to merge with updates
+      const currentSession = await sessionRepo.findById(req.params.id);
+      if (!currentSession) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
       // If we're updating time/day/employee/room, validate constraints
       if (sessionData.startTime || sessionData.endTime || sessionData.day || 
           sessionData.employeeId || sessionData.roomId) {
         
         const employees = await employeeRepo.findAll();
         const rooms = await roomRepo.findAll();
-        const allSessions = await sessionRepo.findAll();
-        const activities = await activityRepo.findAll(true); // Include all active activities
-
-        // Get the current session to merge with updates
-        const currentSession = await sessionRepo.findById(req.params.id);
-        if (!currentSession) {
-          return res.status(404).json({ error: 'Session not found' });
+        // Only validate against sessions in the active schedule
+        // We fetch all sessions and filter the current one out later
+        if (!currentSession.scheduleId) {
+          return res.status(500).json({ error: 'Session is not associated with any schedule.' });
         }
+        const allSessions = await sessionRepo.findByScheduleId(currentSession.scheduleId);
+        const activities = await activityRepo.findAll(true); // Include all active activities
 
         const updatedSession = { ...currentSession, ...sessionData };
         

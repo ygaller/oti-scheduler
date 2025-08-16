@@ -1865,7 +1865,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <CardContent>
             <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" mb={2}>
               <Typography variant="h6" component="h2">
-                סטטיסטיקות לוח הזמנים
+              טיפולים לפי עובד (עם מטופל):
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={3} sx={{ mt: { xs: 1, md: 0 } }}>
                 <Typography variant="body2" color="text.secondary">
@@ -1878,9 +1878,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2}>
-              <Typography variant="subtitle1" sx={{ minWidth: 'fit-content', mb: { xs: 1, sm: 0 } }}>
-                טיפולים לפי עובד (עם מטופל):
-              </Typography>
               <Box display="flex" flexWrap="wrap" gap={1} sx={{ flex: 1 }}>
                 {[...employees].sort((a, b) => 
                   `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
