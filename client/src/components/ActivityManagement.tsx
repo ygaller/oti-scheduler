@@ -34,10 +34,12 @@ import {
   CreateActivityDto, 
   UpdateActivityDto, 
   AVAILABLE_COLORS, 
+} from '../types';
+import {
   DAY_LABELS,
   WeekDay,
   WEEK_DAYS
-} from '../types';
+} from '../utils/scheduler';
 import ColorPicker from './ColorPicker';
 
 interface ActivityManagementProps {

@@ -136,7 +136,7 @@ export interface CreateSessionDto {
 }
 
 export interface UpdateSessionDto extends Partial<Omit<CreateSessionDto, 'scheduleId'>> {
-  // scheduleId is immutable after creation - sessions cannot be moved between schedules
+  patientIds?: string[]; // Allow updating patient assignments directly
 }
 
 export interface CreateActivityDto {

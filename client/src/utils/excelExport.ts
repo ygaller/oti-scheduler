@@ -1,5 +1,6 @@
 import * as XLSX from 'sheetjs-style';
-import { Session, Employee, Room, Patient, Activity, DAY_LABELS, getRoleName, WeekDay, WEEK_DAYS } from '../types';
+import { Session, Employee, Room, Patient, Activity, getRoleName } from '../types';
+import { DAY_LABELS, WeekDay, WEEK_DAYS } from '../utils/scheduler';
 
 interface ExcelExportOptions {
   sessions: Session[];

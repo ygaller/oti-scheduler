@@ -27,7 +27,8 @@ import {
 } from '@mui/material';
 import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { Employee, DAY_LABELS, WEEK_DAYS, getRandomColor, getRoleName } from '../types';
+import { Employee, getRandomColor, getRoleName } from '../types';
+import { DAY_LABELS, WEEK_DAYS, WeekDay } from '../utils/scheduler';
 import { employeeService } from '../services';
 import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';

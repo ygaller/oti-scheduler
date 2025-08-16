@@ -1,3 +1,5 @@
+import { ConsecutiveSessionsWarning } from './services/api';
+
 // Role entity - now a proper database entity instead of an enum
 export interface Role {
   id: string;
@@ -40,8 +42,10 @@ export interface Patient {
   firstName: string;
   lastName: string;
   color: string;
-  therapyRequirements: TherapyRequirements;
   isActive: boolean;
+  therapyRequirements: { [roleStringKey: string]: number }; // e.g., { 'role_1': 2, 'role_2': 1 }
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Room {
@@ -82,7 +86,10 @@ export interface Session {
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
-  patients?: Patient[]; // Optional array of patients assigned to this session
+  patients: Patient[];
+  patientIds: string[];
+  consecutiveSessionsWarning?: ConsecutiveSessionsWarning;
+  consecutiveSessionsOverlap?: Session[];
 }
 
 export interface Schedule {
@@ -101,17 +108,6 @@ export const getRoleName = (role: Role | undefined, roleStringKey?: string): str
   }
   return 'תפקיד לא ידוע';
 };
-
-export const DAY_LABELS = {
-  sunday: 'יום ראשון',
-  monday: 'יום שני',
-  tuesday: 'יום שלישי',
-  wednesday: 'יום רביעי',
-  thursday: 'יום חמישי'
-};
-
-export type WeekDay = keyof typeof DAY_LABELS;
-export const WEEK_DAYS: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
 // Available colors for rooms and employees (sorted by hex value)
 export const AVAILABLE_COLORS = [
@@ -153,6 +149,10 @@ export interface CreateEmployeeDto {
   color: string;
   isActive?: boolean;
 }
+
+// DTOs for Session creation and update (excluding patients and patientIds which are managed separately)
+export interface CreateSessionDto extends Omit<Session, 'id' | 'patients' | 'patientIds' | 'consecutiveSessionsWarning' | 'consecutiveSessionsOverlap'> {}
+export interface UpdateSessionDto extends Partial<Omit<Session, 'patients' | 'patientIds' | 'consecutiveSessionsWarning' | 'consecutiveSessionsOverlap'>> {}
 
 // DTOs for Blocked Periods
 export interface CreateActivityDto {

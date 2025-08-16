@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -40,9 +40,6 @@ import {
   Room, 
   Schedule, 
   Session, 
-  DAY_LABELS, 
-  WEEK_DAYS,
-  WeekDay,
   getRoleName,
   Activity,
   Patient 
@@ -50,9 +47,20 @@ import {
 import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
-import { validateScheduleConstraints } from '../utils/scheduler';
+import {
+  generateScheduleWithActivities,
+  validateScheduleConstraints,
+  timeStringToMinutes,
+  minutesToTimeString,
+  timesOverlap,
+  WeekDay,
+  WEEK_DAYS,
+  DAY_LABELS
+} from '../utils/scheduler';
 import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../services';
 import { useActivities } from '../hooks';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -71,7 +79,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
-  const [sessionForm, setSessionForm] = useState<Partial<Session>>({});
+  const [sessionForm, setSessionForm] = useState<Partial<Session>>({
+    patientIds: []
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -320,7 +330,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       startTime: startTime || '09:00',
       endTime: startTime ? formatTime(new Date(parseTime(startTime).getTime() + 45 * 60 * 1000)) : '09:45',
       employeeId: employeeId || employees[0]?.id || '',
-      roomId: rooms[0]?.id || ''
+      roomId: rooms[0]?.id || '',
+      patientIds: [] // Initialize patientIds
     });
     setPreselectedEmployeeId(employeeId || null);
     setEditDialogOpen(true);
@@ -337,13 +348,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    const newSession: Session = {
+    const newSession: Omit<Session, 'patients' | 'patientIds'> = {
       id: editingSession?.id || `manual_${Date.now()}_${Math.random()}`,
-      employeeId: sessionForm.employeeId,
-      roomId: sessionForm.roomId,
+      employeeId: sessionForm.employeeId!,
+      roomId: sessionForm.roomId!,
       day: sessionForm.day as WeekDay,
-      startTime: sessionForm.startTime,
-      endTime: sessionForm.endTime
+      startTime: sessionForm.startTime!,
+      endTime: sessionForm.endTime!,
     };
 
     // Validate the session
@@ -353,10 +364,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       : currentSessions;
 
     const validation = validateScheduleConstraints(
-      newSession, 
-      otherSessions, 
-      employees, 
-      rooms, 
+      newSession as Session, // Cast to Session for validation, as patients/patientIds aren't strictly required for core validation
+      otherSessions,
+      employees,
+      rooms,
       activities
     );
 
@@ -371,12 +382,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
     // Update schedule via API
     try {
+      let savedSession: Session;
       if (editingSession) {
-        await scheduleService.updateSession(editingSession.id, newSession);
+        savedSession = await scheduleService.updateSession(editingSession.id, newSession as Partial<Session>);
       } else {
-        await scheduleService.createSession(newSession);
+        savedSession = await scheduleService.createSession(newSession);
       }
       
+      // If patient assignments were changed, update them separately
+      if (sessionForm.patientIds !== undefined) {
+        await scheduleService.updateSessionPatients(savedSession.id, sessionForm.patientIds);
+      }
+
       await setSchedule(); // Refresh the schedule from the server
       setEditDialogOpen(false);
       setPreselectedEmployeeId(null);
@@ -1957,26 +1974,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <TimePicker
                   label="שעת התחלה"
                   value={sessionForm.startTime ? parseTime(sessionForm.startTime) : null}
-                  onChange={(newValue) => setSessionForm(prev => ({ 
-                    ...prev, 
-                    startTime: formatTime(newValue) 
-                  }))}
-                  ampm={false}
-                  slotProps={{ textField: { fullWidth: true } }}
+                  onChange={(time) => setSessionForm(prev => ({ ...prev, startTime: time ? formatTime(time) : '' }))}
+                  sx={{ width: '50%' }}
                 />
-                
                 <TimePicker
                   label="שעת סיום"
                   value={sessionForm.endTime ? parseTime(sessionForm.endTime) : null}
-                  onChange={(newValue) => setSessionForm(prev => ({ 
-                    ...prev, 
-                    endTime: formatTime(newValue) 
-                  }))}
-                  ampm={false}
-                  slotProps={{ textField: { fullWidth: true } }}
+                  onChange={(time) => setSessionForm(prev => ({ ...prev, endTime: time ? formatTime(time) : '' }))}
+                  sx={{ width: '50%' }}
                 />
               </Box>
-              
+
               <FormControl fullWidth>
                 <InputLabel>עובד</InputLabel>
                 <Select
@@ -2009,6 +2017,20 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   ))}
                 </Select>
               </FormControl>
+
+              <Autocomplete
+                multiple
+                id="patients-autocomplete"
+                options={patients}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                value={patients.filter(p => sessionForm.patientIds?.includes(p.id))}
+                onChange={(event, newValue) => {
+                  setSessionForm(prev => ({ ...prev, patientIds: newValue.map(p => p.id) }));
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="מטופלים" placeholder="בחר מטופלים" />
+                )}
+              />
             </Box>
           )}
         </DialogContent>

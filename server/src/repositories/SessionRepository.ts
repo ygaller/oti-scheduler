@@ -84,7 +84,41 @@ export class PrismaSessionRepository implements SessionRepository {
     if (sessionData.day !== undefined) updateData.day = mapAPIWeekDayToPrisma(sessionData.day);
     if (sessionData.startTime !== undefined) updateData.startTime = sessionData.startTime;
     if (sessionData.endTime !== undefined) updateData.endTime = sessionData.endTime;
-    
+
+    // Handle patient assignments
+    if (sessionData.patientIds !== undefined) {
+      const existingPatientIds = (await this.prisma.sessionPatient.findMany({
+        where: { sessionId: id },
+        select: { patientId: true }
+      })).map(sp => sp.patientId);
+
+      const patientsToConnect = sessionData.patientIds.filter(
+        (patientId) => !existingPatientIds.includes(patientId)
+      );
+      const patientsToDisconnect = existingPatientIds.filter(
+        (patientId) => !sessionData.patientIds!.includes(patientId)
+      );
+
+      if (patientsToConnect.length > 0) {
+        await this.prisma.sessionPatient.createMany({
+          data: patientsToConnect.map(patientId => ({
+            sessionId: id,
+            patientId: patientId
+          })),
+          skipDuplicates: true // Important for idempotency
+        });
+      }
+
+      if (patientsToDisconnect.length > 0) {
+        await this.prisma.sessionPatient.deleteMany({
+          where: {
+            sessionId: id,
+            patientId: { in: patientsToDisconnect }
+          }
+        });
+      }
+    }
+
     const session = await this.prisma.session.update({
       where: { id },
       data: updateData,

@@ -1,4 +1,4 @@
-import { Schedule, Session } from '../types';
+import { Schedule, Session, CreateSessionDto, UpdateSessionDto } from '../types';
 import { api } from './api';
 
 export const scheduleService = {
@@ -35,11 +35,11 @@ export const scheduleService = {
     return api.get<Session[]>('/schedule/sessions');
   },
 
-  async createSession(session: Omit<Session, 'id'>): Promise<Session> {
+  async createSession(session: CreateSessionDto): Promise<Session> {
     return api.post<Session>('/schedule/sessions', session);
   },
 
-  async updateSession(id: string, session: Partial<Session>): Promise<Session> {
+  async updateSession(id: string, session: UpdateSessionDto): Promise<Session> {
     return api.put<Session>(`/schedule/sessions/${id}`, session);
   },
 

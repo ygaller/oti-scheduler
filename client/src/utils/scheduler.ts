@@ -1,4 +1,15 @@
-import { Employee, Room, Session, WeekDay, WEEK_DAYS, Activity } from '../types';
+import { Employee, Room, Session, Activity } from '../types';
+
+export type WeekDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
+export const WEEK_DAYS: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+
+export const DAY_LABELS = {
+  sunday: 'יום ראשון',
+  monday: 'יום שני',
+  tuesday: 'יום שלישי',
+  wednesday: 'יום רביעי',
+  thursday: 'יום חמישי'
+};
 
 // Helper function to get the effective time range for a blocked period on a specific day
 function getActivityTimeForDay(activity: Activity, day: WeekDay): { startTime: string; endTime: string } | null {
@@ -214,7 +225,9 @@ class ScheduleGenerator {
       roomId: room.id,
       day: timeSlot.day,
       startTime: timeSlot.startTime,
-      endTime: timeSlot.endTime
+      endTime: timeSlot.endTime,
+      patients: [], // No patient assignment during automatic scheduling
+      patientIds: [],
     };
 
     this.sessions.push(session);
@@ -241,7 +254,7 @@ class ScheduleGenerator {
     return !this.sessions.some(session => 
       session.roomId === roomId &&
       session.day === day &&
-      this.timesOverlap(session.startTime, session.endTime, startTime, endTime)
+      timesOverlap(session.startTime, session.endTime, startTime, endTime)
     );
   }
 
@@ -249,17 +262,8 @@ class ScheduleGenerator {
     return this.sessions.some(session => 
       session.employeeId === employeeId &&
       session.day === day &&
-      this.timesOverlap(session.startTime, session.endTime, startTime, endTime)
+      timesOverlap(session.startTime, session.endTime, startTime, endTime)
     );
-  }
-
-  private timesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
-    const start1Min = this.timeStringToMinutes(start1);
-    const end1Min = this.timeStringToMinutes(end1);
-    const start2Min = this.timeStringToMinutes(start2);
-    const end2Min = this.timeStringToMinutes(end2);
-
-    return start1Min < end2Min && start2Min < end1Min;
   }
 
   private isTimeSlotBlocked(day: WeekDay, startTime: string, endTime: string): boolean {
@@ -274,7 +278,7 @@ class ScheduleGenerator {
         return false; // No blocking for this day
       }
       
-      return this.timesOverlap(periodTime.startTime, periodTime.endTime, startTime, endTime);
+      return timesOverlap(periodTime.startTime, periodTime.endTime, startTime, endTime);
     });
   }
 
@@ -298,6 +302,26 @@ export function generateScheduleWithActivities(
 ): Session[] {
   const generator = new ScheduleGenerator(employees, rooms, activities);
   return generator.generateSchedule();
+}
+
+export function timeStringToMinutes(timeStr: string): number {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+export function minutesToTimeString(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+}
+
+export function timesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+  const start1Min = timeStringToMinutes(start1);
+  const end1Min = timeStringToMinutes(end1);
+  const start2Min = timeStringToMinutes(start2);
+  const end2Min = timeStringToMinutes(end2);
+
+  return start1Min < end2Min && start2Min < end1Min;
 }
 
 export function validateScheduleConstraints(
@@ -360,18 +384,4 @@ export function validateScheduleConstraints(
   }
 
   return { valid: true };
-}
-
-function timesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
-  const timeStringToMinutes = (timeStr: string): number => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
-
-  const start1Min = timeStringToMinutes(start1);
-  const end1Min = timeStringToMinutes(end1);
-  const start2Min = timeStringToMinutes(start2);
-  const end2Min = timeStringToMinutes(end2);
-
-  return start1Min < end2Min && start2Min < end1Min;
 }
