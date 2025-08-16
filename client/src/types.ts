@@ -90,6 +90,7 @@ export interface Session {
   patientIds: string[];
   consecutiveSessionsWarning?: ConsecutiveSessionsWarning;
   consecutiveSessionsOverlap?: Session[];
+  forceCreate?: boolean; // Added for client-side validation bypass
 }
 
 export interface Schedule {

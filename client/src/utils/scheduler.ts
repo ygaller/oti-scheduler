@@ -330,7 +330,7 @@ export function validateScheduleConstraints(
   employees: Employee[],
   rooms: Room[],
   activities: Activity[]
-): { valid: boolean; error?: string } {
+): { valid: boolean; error?: string; warning?: string; requiresConfirmation?: boolean } {
   const employee = employees.find(e => e.id === session.employeeId);
   const room = rooms.find(r => r.id === session.roomId);
 
@@ -348,7 +348,7 @@ export function validateScheduleConstraints(
   }
 
   // Check room conflicts
-  const roomConflicts = allSessions.filter(s => 
+  const roomConflicts = allSessions.filter(s =>
     s.id !== session.id &&
     s.roomId === session.roomId &&
     s.day === session.day &&
@@ -360,7 +360,7 @@ export function validateScheduleConstraints(
   }
 
   // Check employee conflicts
-  const employeeConflicts = allSessions.filter(s => 
+  const employeeConflicts = allSessions.filter(s =>
     s.id !== session.id &&
     s.employeeId === session.employeeId &&
     s.day === session.day &&
@@ -374,12 +374,21 @@ export function validateScheduleConstraints(
   // Check activities/blocked periods
   for (const activity of activities) {
     if (!activity.isBlocking || !activity.isActive) continue;
-    
+
     const activityTime = getActivityTimeForDay(activity, session.day);
     if (!activityTime) continue;
-    
+
     if (timesOverlap(activityTime.startTime, activityTime.endTime, session.startTime, session.endTime)) {
-      return { valid: false, error: `הזמן חופף עם ${activity.name}` };
+      // If forceCreate is true, bypass this validation
+      // This is a client-side validation that should match the server-side behavior
+      if (session.forceCreate) { // Check for forceCreate on the session object
+        return { valid: true };
+      }
+      return {
+        valid: false,
+        warning: `הטיפול מתנגש עם פעילות חוסמת (${activity.name}). האם ברצונך ליצור את הטיפול בכל זאת?`,
+        requiresConfirmation: true
+      };
     }
   }
 

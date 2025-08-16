@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
@@ -42,17 +42,14 @@ import {
   Session, 
   getRoleName,
   Activity,
-  Patient 
+  Patient,
+  CreateSessionDto
 } from '../types';
 import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import {
-  generateScheduleWithActivities,
   validateScheduleConstraints,
-  timeStringToMinutes,
-  minutesToTimeString,
-  timesOverlap,
   WeekDay,
   WEEK_DAYS,
   DAY_LABELS
@@ -61,6 +58,7 @@ import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../servic
 import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
+import { ApiError as ScheduleApiError } from '../services/api'; // Import ApiError from api.ts
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -84,7 +82,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmCreateSessionOpen, setConfirmCreateSessionOpen] = useState(false); // New state for session creation confirmation
+  const [pendingSessionCreationData, setPendingSessionCreationData] = useState<Partial<Session> | null>(null); // New state for pending session data
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorInfo, setErrorInfo] = useState<{
     title: string;
@@ -372,6 +371,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     );
 
     if (!validation.valid) {
+      if (validation.requiresConfirmation) {
+        setPendingSessionCreationData(sessionForm);
+        setConfirmCreateSessionOpen(true);
+        return; // Exit, confirmation dialog will handle further action
+      }
       setErrorInfo({
         title: 'שגיאה בוולידציה',
         message: validation.error || 'שגיאה לא ידועה בוולידציה'
@@ -399,6 +403,50 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setPreselectedEmployeeId(null);
     } catch (error) {
       console.error('Error saving session:', error);
+      console.log('Received error object:', error); // Add this line for debugging
+      
+      // Handle blocking activity confirmation
+      if (error instanceof ScheduleApiError && error.status === 409 && error.details?.includes('requiresConfirmation')) {
+        setPendingSessionCreationData(sessionForm);
+        setConfirmCreateSessionOpen(true);
+        return; // Exit, confirmation dialog will handle further action
+      }
+      
+      let errorMessage = 'שגיאה בשמירת הטיפול';
+      let errorDetails = '';
+      
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+        errorDetails = error.details || '';
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setErrorInfo({
+        title: 'שגיאה בשמירה',
+        message: errorMessage,
+        details: errorDetails
+      });
+      setErrorModalOpen(true);
+    }
+  };
+
+  const handleConfirmCreateSession = async (force: boolean) => {
+    setConfirmCreateSessionOpen(false);
+    if (!force || !pendingSessionCreationData) {
+      setPendingSessionCreationData(null);
+      return; // User cancelled or no pending data
+    }
+
+    try {
+      const sessionToCreate = { ...pendingSessionCreationData, forceCreate: true } as CreateSessionDto;
+      await scheduleService.createSession(sessionToCreate, true); // Pass true for forceCreate
+      await setSchedule();
+      setEditDialogOpen(false);
+      setPreselectedEmployeeId(null);
+      setPendingSessionCreationData(null); // Clear pending data on success
+    } catch (error) {
+      console.error('Error force creating session:', error);
       
       let errorMessage = 'שגיאה בשמירת הטיפול';
       let errorDetails = '';
@@ -2185,6 +2233,31 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirmation Dialog for creating session over blocking activity */}
+      <Dialog
+        open={confirmCreateSessionOpen}
+        onClose={() => handleConfirmCreateSession(false)}
+        aria-labelledby="confirm-create-session-title"
+        aria-describedby="confirm-create-session-description"
+      >
+        <DialogTitle id="confirm-create-session-title">
+          <Warning color="warning" sx={{ verticalAlign: 'middle', mr: 1 }} />
+          אישור יצירת טיפול על פעילות חוסמת
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="confirm-create-session-description">
+            הטיפול שאתה מנסה ליצור חופף עם פעילות חוסמת קיימת. האם אתה בטוח שברצונך ליצור את הטיפול בכל זאת?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleConfirmCreateSession(false)} autoFocus>ביטול</Button>
+          <Button onClick={() => handleConfirmCreateSession(true)} variant="contained" color="primary">
+            אישור יצירה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {schedule && (
         <Box sx={{ mt: 4, textAlign: 'center', color: 'text.secondary' }}>
           <Typography variant="body2">
