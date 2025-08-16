@@ -32,7 +32,9 @@
     "release:major": "node scripts/release.js --type major"
   },
   "dependencies": {
-    "electron-updater": "^6.1.7"
+    "@types/uuid": "^10.0.0",
+    "electron-updater": "^6.1.7",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
