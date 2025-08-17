@@ -42,6 +42,11 @@ export const createPatientRouter = (patientRepo: PatientRepository): Router => {
         return res.status(400).json({ error: 'Missing required fields: firstName' });
       }
 
+      // Explicitly remove lastName if it's empty or null to ensure it's treated as truly optional
+      if (patientData.lastName === '' || patientData.lastName === null) {
+        delete patientData.lastName;
+      }
+
       const patient = await patientRepo.create(patientData);
       res.status(201).json(patient);
     } catch (error) {
@@ -54,6 +59,12 @@ export const createPatientRouter = (patientRepo: PatientRepository): Router => {
   router.put('/:id', validateUUID(), async (req, res) => {
     try {
       const patientData: UpdatePatientDto = req.body;
+
+      // Explicitly remove lastName if it's empty or null to ensure it's treated as truly optional
+      if (patientData.lastName === '' || patientData.lastName === null) {
+        delete patientData.lastName;
+      }
+
       const patient = await patientRepo.update(req.params.id, patientData);
       res.json(patient);
     } catch (error) {
