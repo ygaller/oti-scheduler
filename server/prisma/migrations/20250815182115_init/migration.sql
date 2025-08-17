@@ -17,7 +17,7 @@ CREATE TABLE "roles" (
 CREATE TABLE "employees" (
     "id" TEXT NOT NULL,
     "first_name" TEXT NOT NULL,
-    "last_name" TEXT NOT NULL,
+    "last_name" TEXT,
     "role_id" TEXT NOT NULL,
     "weekly_sessions_count" INTEGER NOT NULL,
     "working_hours" JSONB NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE "employees" (
 CREATE TABLE "patients" (
     "id" TEXT NOT NULL,
     "first_name" TEXT NOT NULL,
-    "last_name" TEXT NOT NULL,
+    "last_name" TEXT,
     "color" TEXT NOT NULL DEFAULT '#845ec2',
     "therapy_requirements" JSONB NOT NULL DEFAULT '{}',
     "is_active" BOOLEAN NOT NULL DEFAULT true,

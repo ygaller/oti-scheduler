@@ -24,7 +24,7 @@ export class PrismaPatientRepository implements PatientRepository {
     const patient = await this.prisma.patient.create({
       data: {
         firstName: patientData.firstName,
-        lastName: patientData.lastName,
+        lastName: patientData.lastName ?? '',
         color: patientData.color,
         therapyRequirements: patientData.therapyRequirements || {},
         isActive: patientData.isActive ?? true,

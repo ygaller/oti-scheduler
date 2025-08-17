@@ -16,7 +16,7 @@ const defaultRoles = [
 const demoEmployees = [
   {
     firstName: 'שרה',
-    lastName: 'כהן',
+    // lastName: 'כהן', // Made optional
     roleName: 'ריפוי בעיסוק',
     weeklySessionsCount: 12,
     workingHours: {
@@ -31,7 +31,7 @@ const demoEmployees = [
   },
   {
     firstName: 'דוד',
-    lastName: 'לוי',
+    // lastName: 'לוי', // Made optional
     roleName: 'קלינאות תקשורת',
     weeklySessionsCount: 10,
     workingHours: {
@@ -63,7 +63,7 @@ const demoEmployees = [
 const demoPatients = [
   {
     firstName: 'אמיר',
-    lastName: 'רוזן',
+    // lastName: 'רוזן', // Made optional
     color: '#4b4453',
     therapyRequirementsMap: {
       'ריפוי בעיסוק': 2,
@@ -73,7 +73,7 @@ const demoPatients = [
   },
   {
     firstName: 'דנה',
-    lastName: 'ברק',
+    // lastName: 'ברק', // Made optional
     color: '#b0a8b9',
     therapyRequirementsMap: {
       'פיזיותרפיה': 3,
@@ -163,7 +163,7 @@ async function seed() {
         return prisma.employee.create({
           data: {
             firstName: employee.firstName,
-            lastName: employee.lastName,
+            lastName: employee.lastName ?? '',
             roleId: role.id,
             weeklySessionsCount: employee.weeklySessionsCount,
             workingHours: employee.workingHours,
@@ -192,7 +192,7 @@ async function seed() {
         return prisma.patient.create({
           data: {
             firstName: patient.firstName,
-            lastName: patient.lastName,
+            lastName: patient.lastName ?? '',
             color: patient.color,
             therapyRequirements,
             isActive: patient.isActive

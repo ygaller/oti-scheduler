@@ -38,8 +38,8 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
       const employeeData: CreateEmployeeDto = req.body;
       
       // Basic validation
-      if (!employeeData.firstName || !employeeData.lastName || !employeeData.roleId) {
-        return res.status(400).json({ error: 'Missing required fields: firstName, lastName, roleId' });
+      if (!employeeData.firstName || !employeeData.roleId) {
+        return res.status(400).json({ error: 'Missing required fields: firstName, roleId' });
       }
 
       const employee = await employeeRepo.create(employeeData);

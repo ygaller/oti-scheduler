@@ -36,7 +36,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     const employee = await this.prisma.employee.create({
       data: {
         firstName: employeeData.firstName,
-        lastName: employeeData.lastName,
+        lastName: employeeData.lastName ?? '',
         roleId: employeeData.roleId,
         workingHours: employeeData.workingHours as any,
         weeklySessionsCount: employeeData.weeklySessionsCount,

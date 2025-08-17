@@ -38,8 +38,8 @@ export const createPatientRouter = (patientRepo: PatientRepository): Router => {
       const patientData: CreatePatientDto = req.body;
       
       // Basic validation
-      if (!patientData.firstName || !patientData.lastName) {
-        return res.status(400).json({ error: 'Missing required fields: firstName, lastName' });
+      if (!patientData.firstName) {
+        return res.status(400).json({ error: 'Missing required fields: firstName' });
       }
 
       const patient = await patientRepo.create(patientData);

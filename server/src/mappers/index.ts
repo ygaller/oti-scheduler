@@ -34,7 +34,7 @@ export const mapPrismaEmployeeToAPI = (prismaEmployee: PrismaEmployee & { role?:
   return {
     id: prismaEmployee.id,
     firstName: prismaEmployee.firstName,
-    lastName: prismaEmployee.lastName,
+    lastName: prismaEmployee.lastName ?? '',
     roleId: prismaEmployee.roleId,
     role: prismaEmployee.role ? mapPrismaRoleToAPI(prismaEmployee.role) : undefined,
     workingHours: prismaEmployee.workingHours as Employee['workingHours'],
@@ -71,7 +71,7 @@ export const mapPrismaPatientToAPI = (prismaPatient: PrismaPatient): Patient => 
   return {
     id: prismaPatient.id,
     firstName: prismaPatient.firstName,
-    lastName: prismaPatient.lastName,
+    lastName: prismaPatient.lastName ?? '',
     color: prismaPatient.color,
     therapyRequirements: prismaPatient.therapyRequirements as Patient['therapyRequirements'],
     isActive: prismaPatient.isActive,
