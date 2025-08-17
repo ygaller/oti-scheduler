@@ -83,7 +83,10 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
   };
 
   const handleSave = async () => {
-    if (!formData.firstName || !formData.lastName) return;
+    if (!formData.firstName) {
+      alert('שם פרטי נדרש.'); // Simple alert for now, can be replaced with better UX
+      return;
+    }
 
     try {
       // Filter out 0 values from therapy requirements
@@ -93,7 +96,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
 
       const patientData: Omit<Patient, 'id' | 'isActive'> = {
         firstName: formData.firstName,
-        lastName: formData.lastName,
+        lastName: formData.lastName ?? '', // Ensure lastName is an empty string if undefined
         color: formData.color || getRandomColor(),
         therapyRequirements: filteredTherapyRequirements
       };

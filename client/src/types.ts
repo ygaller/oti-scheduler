@@ -18,7 +18,7 @@ export interface WorkingHours {
 export interface Employee {
   id: string;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   roleId: string;
   role?: Role; // Optional populated role object
   workingHours: {
@@ -40,7 +40,7 @@ export interface TherapyRequirements {
 export interface Patient {
   id: string;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   color: string;
   isActive: boolean;
   therapyRequirements: { [roleStringKey: string]: number }; // e.g., { 'role_1': 2, 'role_2': 1 }
@@ -139,7 +139,7 @@ export const getRandomColor = (): string => {
 // DTOs for Employee creation
 export interface CreateEmployeeDto {
   firstName: string;
-  lastName: string;
+  lastName?: string;
   roleId: string;
   workingHours: {
     sunday?: WorkingHours;

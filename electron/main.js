@@ -17,9 +17,12 @@ let updater;
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
+  console.log('Another instance is already running. Quitting this instance.');
   app.quit();
 } else {
+  console.log('Successfully acquired single instance lock. This is the primary instance.');
   app.on('second-instance', (event, commandLine, workingDirectory) => {
+    console.log('Second instance detected. Focusing the primary window.');
     // Someone tried to run a second instance, we should focus our window.
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -95,8 +98,8 @@ if (!gotTheLock) {
       createApplicationMenu();
 
     } catch (error) {
-      console.error('Error creating window:', error);
-      dialog.showErrorBox('Startup Error', `Failed to start application: ${error.message}`);
+      console.error('Error during application startup:', error);
+      dialog.showErrorBox('Startup Error', `Failed to start application: ${error.message}. Please ensure the server can start successfully.`);
       app.quit();
     }
   };

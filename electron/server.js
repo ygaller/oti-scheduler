@@ -32,7 +32,7 @@ const startEmbeddedServer = () => {
       PORT: '3001'
     };
 
-    serverProcess = spawn(process.execPath, [serverEntryPoint], {
+    serverProcess = spawn('node', [serverEntryPoint], {
       env,
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -52,26 +52,30 @@ const startEmbeddedServer = () => {
     });
 
     serverProcess.stderr.on('data', (data) => {
-      console.error('[SERVER ERROR]', data.toString());
+      const errorOutput = data.toString();
+      console.error('[SERVER ERROR]', errorOutput);
+      if (errorOutput.includes('Error: P1001') || errorOutput.includes('Failed to start server')) {
+        reject(new Error(`Server startup error: ${errorOutput}`));
+      }
     });
 
     serverProcess.on('error', (error) => {
-      console.error('Failed to start server:', error);
+      console.error('Failed to spawn server process:', error);
       reject(error);
     });
 
     serverProcess.on('close', (code) => {
       console.log(`Server process exited with code ${code}`);
+      if (code !== 0 && !serverReady) { // If server exited with an error code and wasn't ready
+        reject(new Error(`Server process exited with code ${code} during startup.`));
+      } else if (serverReady && code !== 0) {
+        console.warn('Server process exited after being ready, this might be unexpected.');
+      }
       serverProcess = null;
     });
 
-    // Timeout fallback
-    setTimeout(() => {
-      if (!serverReady) {
-        console.log('Server startup timeout - assuming ready');
-        resolve();
-      }
-    }, 10000);
+    // Removed the setTimeout that resolves assuming ready;
+    // rely on 'Ready to accept requests' or explicit error/close.
   });
 };
 

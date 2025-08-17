@@ -7,7 +7,6 @@ export const createDemoEmployees = (): Employee[] => [
   {
     id: 'emp1',
     firstName: 'שרה',
-    lastName: 'כהן',
     roleId: 'role-id-placeholder', // This needs to be fetched from role service
     weeklySessionsCount: 12,
     workingHours: {
@@ -23,7 +22,6 @@ export const createDemoEmployees = (): Employee[] => [
   {
     id: 'emp2',
     firstName: 'דוד',
-    lastName: 'לוי',
     roleId: 'role-id-placeholder', // This needs to be fetched from role service
     weeklySessionsCount: 10,
     workingHours: {
@@ -56,7 +54,6 @@ export const createDemoPatients = (): Patient[] => [
   {
     id: 'patient1',
     firstName: 'אמיר',
-    lastName: 'רוזן',
     color: AVAILABLE_COLORS[2],
     therapyRequirements: {
       'role_5': 2, // ריפוי בעיסוק
@@ -67,7 +64,6 @@ export const createDemoPatients = (): Patient[] => [
   {
     id: 'patient2',
     firstName: 'דנה',
-    lastName: 'ברק',
     color: AVAILABLE_COLORS[6],
     therapyRequirements: {
       'role_3': 3, // פיזיותרפיה

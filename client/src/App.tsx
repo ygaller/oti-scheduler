@@ -244,7 +244,7 @@ function AppContent() {
               <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
                 <Box display="flex" alignItems="center" gap={2}>
                   <img 
-                    src="/oti-header-logo.png" 
+                    src={process.env.PUBLIC_URL + '/oti-header-logo.png'} 
                     alt="OTI Logo" 
                     style={{ 
                       height: '60px', 

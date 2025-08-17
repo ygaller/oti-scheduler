@@ -81,12 +81,15 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
   };
 
   const handleSave = async () => {
-    if (!formData.firstName || !formData.lastName || !formData.roleId) return;
+    if (!formData.firstName || !formData.roleId) {
+      alert('שם פרטי ותפקיד נדרשים.'); // Simple alert for now, can be replaced with better UX
+      return;
+    }
 
     try {
       const employeeData: Omit<Employee, 'id' | 'isActive' | 'role'> = {
         firstName: formData.firstName,
-        lastName: formData.lastName,
+        lastName: formData.lastName ?? '', // Ensure lastName is an empty string if undefined
         roleId: formData.roleId,
         weeklySessionsCount: formData.weeklySessionsCount || 10,
         workingHours: formData.workingHours || {},
