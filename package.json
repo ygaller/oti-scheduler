@@ -122,6 +122,8 @@
     },
     "dmg": {
       "title": "OTI Scheduler",
+      "background": "electron/icons/oti-icon.png",
+      "iconSize": 128,
       "contents": [
         {
           "x": 110,
