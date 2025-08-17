@@ -486,12 +486,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   };
 
-  const handlePatientChange = (index: number, patientId: string) => {
-    const newSelectedPatients = [...selectedPatients];
-    newSelectedPatients[index] = patientId;
-    setSelectedPatients(newSelectedPatients);
-  };
-
   const handleEmployeeChange = (event: any, newValue: Employee[]) => {
     setSelectedEmployees(newValue.map(emp => emp.id));
   };
