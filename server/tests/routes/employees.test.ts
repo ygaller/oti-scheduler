@@ -110,11 +110,15 @@ describe('Employee API Endpoints', () => {
   });
 
   describe('POST /api/employees', () => {
+    let roleId: string;
+
+    beforeEach(async () => {
+      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'Default Role' }));
+      roleId = role.body.id;
+    });
+
     it('should create a new employee with valid data', async () => {
-      // Create test role first
-      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק' }));
-      
-      const employeeData = createEmployeeFixture({ roleId: role.body.id });
+      const employeeData = createEmployeeFixture({ roleId });
 
       const response = await request(app)
         .post('/api/employees')
@@ -164,7 +168,7 @@ describe('Employee API Endpoints', () => {
           expectedError: 'Missing required fields: roleId' 
         },
         { 
-          data: { roleId: 'some-role-id' }, 
+          data: { roleId: roleId }, // Use a valid roleId here as firstName is missing
           expectedError: 'Missing required fields: firstName' 
         },
         { 
@@ -195,11 +199,8 @@ describe('Employee API Endpoints', () => {
     });
 
     it('should handle partial working hours', async () => {
-      // Create test role first
-      const role = await request(app).post('/api/roles').send(createRoleFixture({ name: 'ריפוי בעיסוק' }));
-      
       const employeeData = createEmployeeFixture({
-        roleId: role.body.id,
+        roleId: roleId,
         workingHours: {
           monday: { startTime: '08:00', endTime: '16:00' },
           wednesday: { startTime: '08:00', endTime: '16:00' }

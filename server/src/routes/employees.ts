@@ -37,9 +37,16 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
     try {
       const employeeData: CreateEmployeeDto = req.body;
       
-      // Basic validation
-      if (!employeeData.firstName || !employeeData.roleId) {
-        return res.status(400).json({ error: 'Missing required fields: firstName, roleId' });
+      const missingFields = [];
+      if (!employeeData.firstName) {
+        missingFields.push('firstName');
+      }
+      if (!employeeData.roleId) {
+        missingFields.push('roleId');
+      }
+
+      if (missingFields.length > 0) {
+        return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
       }
 
       const employee = await employeeRepo.create(employeeData);
