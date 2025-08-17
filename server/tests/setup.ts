@@ -51,6 +51,22 @@ beforeAll(async () => {
   }
   
   console.log('Test setup completed - database initialized');
+  
+  // Create a default role for tests that require a valid roleId
+  try {
+    await prisma.role.upsert({
+      where: { name: 'Default Test Role' },
+      update: {},
+      create: {
+        id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef', // Consistent ID for testing
+        name: 'Default Test Role',
+        roleStringKey: 'default_test_role',
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create default test role:', error);
+  }
+
 }, 120000); // 2 minutes timeout for database setup
 
 beforeEach(async () => {

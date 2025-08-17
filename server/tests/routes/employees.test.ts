@@ -158,14 +158,18 @@ describe('Employee API Endpoints', () => {
 
     it('should return 400 for missing required fields', async () => {
       const testCases = [
-        { data: {}, expectedError: 'Missing required fields: firstName, lastName, roleId' },
+        { data: {}, expectedError: 'Missing required fields: firstName, roleId' },
         { 
           data: { firstName: 'John' }, 
-          expectedError: 'Missing required fields: firstName, lastName, roleId' 
+          expectedError: 'Missing required fields: roleId' 
+        },
+        { 
+          data: { roleId: 'some-role-id' }, 
+          expectedError: 'Missing required fields: firstName' 
         },
         { 
           data: { firstName: 'John', lastName: 'Doe' }, 
-          expectedError: 'Missing required fields: firstName, lastName, roleId' 
+          expectedError: 'Missing required fields: roleId' 
         }
       ];
 
