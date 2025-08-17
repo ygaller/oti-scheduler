@@ -2102,28 +2102,32 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 מטופלים:
               </Typography>
 
-              {selectedPatients.map((patientId, index) => (
-                <Box key={index} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <FormControl fullWidth>
-                    <InputLabel>מטופל {index + 1}</InputLabel>
-                    <Select
-                      value={patientId}
-                      label={`מטופל ${index + 1}`}
-                      onChange={(e) => handlePatientChange(index, e.target.value)}
-                    >
-                      <MenuItem value="">ללא מטופל</MenuItem>
-                      {patients.filter(patient => patient.isActive).sort((a, b) => 
-                        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-                      ).map(patient => (
-                        <MenuItem key={patient.id} value={patient.id}>
-                          {patient.firstName} {patient.lastName}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              ))}
-
+              <Autocomplete
+                multiple /* Added multiple prop */
+                id="patients-autocomplete-edit-session"
+                options={patients.filter(patient => patient.isActive).sort((a, b) => 
+                  `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+                )}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                value={patients.filter(p => selectedPatients.includes(p.id))} /* Adjusted value to filter by array */
+                onChange={(event, newValue) => {
+                  setSelectedPatients(newValue.map(p => p.id)); /* Adjusted onChange to map new value */
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="מטופלים" placeholder="בחר מטופלים" />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={`${option.firstName} ${option.lastName}`}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
+              />
+              
               <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                 <Button
                   variant="outlined"
