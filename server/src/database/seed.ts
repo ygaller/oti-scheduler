@@ -166,7 +166,7 @@ async function seed() {
             lastName: employee.lastName ?? '',
             roleId: role.id,
             weeklySessionsCount: employee.weeklySessionsCount,
-            workingHours: employee.workingHours,
+            workingHours: JSON.stringify(employee.workingHours),
             color: employee.color,
             isActive: employee.isActive
           }
@@ -194,7 +194,7 @@ async function seed() {
             firstName: patient.firstName,
             lastName: patient.lastName ?? '',
             color: patient.color,
-            therapyRequirements,
+            therapyRequirements: JSON.stringify(therapyRequirements),
             isActive: patient.isActive
           }
         });

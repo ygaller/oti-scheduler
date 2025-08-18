@@ -1,4 +1,4 @@
-import { Employee as PrismaEmployee, Room as PrismaRoom, Session as PrismaSession, Schedule as PrismaSchedule, Role as PrismaRole, WeekDay as PrismaWeekDay, Patient as PrismaPatient, SessionPatient as PrismaSessionPatient } from '@prisma/client';
+import { Employee as PrismaEmployee, Room as PrismaRoom, Session as PrismaSession, Schedule as PrismaSchedule, Role as PrismaRole, Patient as PrismaPatient, SessionPatient as PrismaSessionPatient } from '@prisma/client';
 
 // Import SessionEmployee type manually since it might not be exported directly
 type PrismaSessionEmployee = {
@@ -13,7 +13,8 @@ type PrismaSessionEmployee = {
 import { Employee, Room, Session, Schedule, Role, WeekDay, Patient } from '../types';
 
 // WeekDay mapping
-const PRISMA_TO_API_WEEKDAY: Record<PrismaWeekDay, WeekDay> = {
+// WeekDay mapping for SQLite (now using strings instead of enums)
+const PRISMA_TO_API_WEEKDAY: Record<string, WeekDay> = {
   SUNDAY: 'sunday',
   MONDAY: 'monday',
   TUESDAY: 'tuesday',
@@ -21,7 +22,7 @@ const PRISMA_TO_API_WEEKDAY: Record<PrismaWeekDay, WeekDay> = {
   THURSDAY: 'thursday',
 };
 
-const API_TO_PRISMA_WEEKDAY: Record<WeekDay, PrismaWeekDay> = {
+const API_TO_PRISMA_WEEKDAY: Record<WeekDay, string> = {
   sunday: 'SUNDAY',
   monday: 'MONDAY',
   tuesday: 'TUESDAY',
@@ -37,7 +38,7 @@ export const mapPrismaEmployeeToAPI = (prismaEmployee: PrismaEmployee & { role?:
     lastName: prismaEmployee.lastName ?? '',
     roleId: prismaEmployee.roleId,
     role: prismaEmployee.role ? mapPrismaRoleToAPI(prismaEmployee.role) : undefined,
-    workingHours: prismaEmployee.workingHours as Employee['workingHours'],
+    workingHours: JSON.parse(prismaEmployee.workingHours) as Employee['workingHours'],
     weeklySessionsCount: prismaEmployee.weeklySessionsCount,
     color: prismaEmployee.color,
     isActive: prismaEmployee.isActive,
@@ -73,7 +74,7 @@ export const mapPrismaPatientToAPI = (prismaPatient: PrismaPatient): Patient => 
     firstName: prismaPatient.firstName,
     lastName: prismaPatient.lastName ?? '',
     color: prismaPatient.color,
-    therapyRequirements: prismaPatient.therapyRequirements as Patient['therapyRequirements'],
+    therapyRequirements: JSON.parse(prismaPatient.therapyRequirements) as Patient['therapyRequirements'],
     isActive: prismaPatient.isActive,
   };
 };
@@ -113,7 +114,7 @@ export const mapPrismaSessionWithPatientsToAPI = (
   };
 };
 
-export const mapAPIWeekDayToPrisma = (weekDay: WeekDay): PrismaWeekDay => {
+export const mapAPIWeekDayToPrisma = (weekDay: WeekDay): string => {
   return API_TO_PRISMA_WEEKDAY[weekDay];
 };
 

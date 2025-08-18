@@ -154,7 +154,7 @@ export class PrismaSessionRepository implements SessionRepository {
             sessionId: id,
             employeeId: employeeId
           })),
-          skipDuplicates: true // Important for idempotency
+          // Note: skipDuplicates removed for SQLite compatibility
         });
       }
 
@@ -188,7 +188,7 @@ export class PrismaSessionRepository implements SessionRepository {
             sessionId: id,
             patientId: patientId
           })),
-          skipDuplicates: true // Important for idempotency
+          // Note: skipDuplicates removed for SQLite compatibility
         });
       }
 
