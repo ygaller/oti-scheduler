@@ -10,9 +10,15 @@ const startEmbeddedServer = () => {
     const isDev = process.env.NODE_ENV === 'development';
     const disableEmbedded = process.env.DISABLE_EMBEDDED_SERVER === '1';
     
-    if (isDev || disableEmbedded) {
-      // In development, assume server is already running
-      console.log(`${disableEmbedded ? 'Embedded server disabled via env' : 'Development mode'} - expecting external server on port 3001`);
+    // Also check if we're running from source (not packaged)
+    const isPackaged = app.isPackaged;
+    
+    if (isDev || disableEmbedded || !isPackaged) {
+      // In development or unpackaged mode, assume server is already running
+      const reason = !isPackaged ? 'Unpackaged mode' : 
+                    disableEmbedded ? 'Embedded server disabled via env' : 
+                    'Development mode';
+      console.log(`${reason} - expecting external server on port 3001`);
       resolve();
       return;
     }
@@ -21,29 +27,127 @@ const startEmbeddedServer = () => {
     const appPath = app.getAppPath();
     const userDataPath = app.getPath('userData');
     
-    // Try different possible locations for the server entry point
+    // Debug: Log all available paths and environment
+    console.log('🔍 Debug info:');
+    console.log('  process.execPath:', process.execPath);
+    console.log('  __dirname:', __dirname);
+    console.log('  appPath:', appPath);
+    console.log('  process.resourcesPath:', process.resourcesPath);
+    console.log('  app.isPackaged:', app.isPackaged);
+    
+    // For Windows, the unpacked files are in resources/app.asar.unpacked
+    // Based on the error path: C:\Users\mirol\AppData\Local\Programs\oti-scheduler\resources\app.asar\server\dist\index.js
+    // The correct path should be: C:\Users\mirol\AppData\Local\Programs\oti-scheduler\resources\app.asar.unpacked\server\dist\index.js
+    
     const serverEntryPointCandidates = [
-      path.join(appPath, 'server', 'dist', 'index.js'),
+      // Primary location: unpacked files next to asar
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist', 'index.js'),
+      // Alternative: in the parent of asar file
       path.join(path.dirname(appPath), 'app.asar.unpacked', 'server', 'dist', 'index.js'),
+      // Fallback: inside asar (shouldn't work but let's try)
+      path.join(appPath, 'server', 'dist', 'index.js'),
+      // Alternative resource paths
       path.join(process.resourcesPath, 'app', 'server', 'dist', 'index.js'),
-      path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist', 'index.js')
+      // Direct resources path
+      path.join(path.dirname(process.execPath), 'resources', 'app.asar.unpacked', 'server', 'dist', 'index.js')
     ];
     
     let serverEntryPoint = null;
+    console.log('🔍 Checking server entry point candidates:');
     for (const candidate of serverEntryPointCandidates) {
-      console.log('Checking server entry candidate:', candidate);
-      if (require('fs').existsSync(candidate)) {
-        serverEntryPoint = candidate;
-        console.log('✅ Found server entry point:', candidate);
-        break;
+      console.log(`  Trying: ${candidate}`);
+      try {
+        if (require('fs').existsSync(candidate)) {
+          serverEntryPoint = candidate;
+          console.log(`  ✅ Found server entry point: ${candidate}`);
+          break;
+        } else {
+          console.log(`  ❌ Not found: ${candidate}`);
+        }
+      } catch (error) {
+        console.log(`  ❌ Error checking: ${candidate} - ${error.message}`);
       }
     }
     
     if (!serverEntryPoint) {
-      const error = new Error(`Could not find server entry point. Tried: ${serverEntryPointCandidates.join(', ')}`);
-      console.error('❌ Server entry point not found');
-      reject(error);
-      return;
+      // List what's actually in the directories to help debug
+      console.log('🔍 Directory contents for debugging:');
+      const debugPaths = [
+        appPath, 
+        process.resourcesPath, 
+        path.dirname(appPath),
+        path.join(process.resourcesPath, 'app.asar.unpacked'),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'server')
+      ];
+      
+      for (const debugPath of debugPaths) {
+        try {
+          if (require('fs').existsSync(debugPath)) {
+            const contents = require('fs').readdirSync(debugPath);
+            console.log(`  ${debugPath}: [${contents.join(', ')}]`);
+            
+            // If this is the unpacked server directory, also check the dist folder
+            if (debugPath.includes('server') && contents.includes('dist')) {
+              const distPath = path.join(debugPath, 'dist');
+              if (require('fs').existsSync(distPath)) {
+                const distContents = require('fs').readdirSync(distPath);
+                console.log(`    ${distPath}: [${distContents.join(', ')}]`);
+              }
+            }
+          } else {
+            console.log(`  ${debugPath}: does not exist`);
+          }
+        } catch (error) {
+          console.log(`  ${debugPath}: error reading - ${error.message}`);
+        }
+      }
+      
+      // Last resort: try to extract server files from asar if they exist there
+      console.log('🔄 Attempting to extract server files from asar as fallback...');
+      try {
+        const asarServerPath = path.join(appPath, 'server', 'dist', 'index.js');
+        const tempServerDir = path.join(userDataPath, 'server', 'dist');
+        const tempServerEntry = path.join(tempServerDir, 'index.js');
+        
+        // Check if server files exist in asar
+        if (require('fs').existsSync(asarServerPath)) {
+          console.log('✅ Found server files in asar, extracting to temp location...');
+          
+          // Create temp directory
+          require('fs').mkdirSync(tempServerDir, { recursive: true });
+          
+          // Copy the entire server dist directory
+          const asarDistDir = path.join(appPath, 'server', 'dist');
+          const copyRecursive = (src, dest) => {
+            const stats = require('fs').statSync(src);
+            if (stats.isDirectory()) {
+              require('fs').mkdirSync(dest, { recursive: true });
+              const entries = require('fs').readdirSync(src);
+              for (const entry of entries) {
+                copyRecursive(path.join(src, entry), path.join(dest, entry));
+              }
+            } else {
+              require('fs').copyFileSync(src, dest);
+            }
+          };
+          
+          copyRecursive(asarDistDir, tempServerDir);
+          
+          if (require('fs').existsSync(tempServerEntry)) {
+            serverEntryPoint = tempServerEntry;
+            console.log('✅ Successfully extracted server to:', tempServerEntry);
+          }
+        }
+      } catch (extractError) {
+        console.error('❌ Failed to extract server files:', extractError.message);
+      }
+      
+      if (!serverEntryPoint) {
+        const error = new Error(`Could not find server entry point. Tried ${serverEntryPointCandidates.length} locations and extraction failed.`);
+        console.error('❌ Server entry point not found after all attempts');
+        reject(error);
+        return;
+      }
     }
     
     console.log('Starting embedded server...');

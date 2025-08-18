@@ -1,5 +1,5 @@
 {
-  "name": "scheduling-app",
+  "name": "oti-scheduler",
   "version": "1.0.0",
   "private": true,
   "main": "electron/main.js",
@@ -62,7 +62,7 @@
     "url": "https://github.com/ygaller/oti-scheduler/issues"
   },
   "build": {
-    "appId": "com.oti.scheduling-app",
+    "appId": "com.oti.oti-scheduler",
     "productName": "oti-scheduler",
     "directories": {
       "output": "dist-electron"
@@ -80,17 +80,10 @@
       "server/dist/",
       "server/package.json",
       "server/node_modules/",
-      "server/prisma/",
-      "!server/src/",
-      "!server/tests/",
-      "!server/jest.config.js",
-      "!server/tsconfig.json"
+      "server/prisma/"
     ],
     "asarUnpack": [
-      "server/node_modules/@prisma/**",
-      "server/node_modules/.prisma/**",
-      "server/prisma/**",
-      "server/dist/**"
+      "server/**"
     ],
     "extraResources": [
       {
