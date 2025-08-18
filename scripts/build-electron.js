@@ -8,9 +8,33 @@ console.log('🚀 Building Electron application...');
 console.log('📦 Installing dependencies...');
 execSync('npm run install:all', { stdio: 'inherit' });
 
-// Build the server
+// Build the server (ensure dev dependencies are available for TypeScript compilation)
 console.log('🏗️  Building server...');
-execSync('npm run server:build', { stdio: 'inherit' });
+console.log('📦 Ensuring server dev dependencies are available...');
+execSync('cd server && npm ci', { stdio: 'inherit' });
+
+console.log('🔍 Checking TypeScript availability...');
+try {
+  execSync('cd server && npx tsc --version', { stdio: 'inherit' });
+} catch (error) {
+  console.error('❌ TypeScript not available, installing...');
+  execSync('cd server && npm install --save-dev typescript', { stdio: 'inherit' });
+}
+
+console.log('🔨 Compiling TypeScript...');
+try {
+  execSync('npm run server:build', { stdio: 'inherit' });
+} catch (buildError) {
+  console.error('❌ Server build failed:', buildError.message);
+  console.log('🔍 Checking server directory structure...');
+  try {
+    execSync('ls -la server/', { stdio: 'inherit' });
+    execSync('ls -la server/src/', { stdio: 'inherit' });
+  } catch (e) {
+    console.error('Failed to list directories:', e.message);
+  }
+  throw buildError;
+}
 
 // Install server production dependencies in the correct location
 console.log('📦 Installing server production dependencies...');
