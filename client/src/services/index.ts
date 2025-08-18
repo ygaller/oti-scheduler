@@ -1,4 +1,4 @@
-export { api, ApiError, ConsecutiveSessionsWarning } from './api';
+export { api, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from './api';
 export { employeeService } from './employeeService';
 export { patientService } from './patientService';
 export { roomService } from './roomService';

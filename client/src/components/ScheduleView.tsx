@@ -50,11 +50,11 @@ import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
-import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../services';
+import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from '../services';
 import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
-import { ApiError as ScheduleApiError } from '../services/api'; // Import ApiError from api.ts
+
 import { getContrastingTextColor } from '../utils/colorUtils';
 
 interface ScheduleViewProps {
@@ -85,6 +85,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [scheduleViewTab, setScheduleViewTab] = useState(0); // Renamed from activeTab to avoid conflict
   const [confirmCreateSessionOpen, setConfirmCreateSessionOpen] = useState(false); // New state for session creation confirmation
   const [pendingSessionCreationData, setPendingSessionCreationData] = useState<Partial<Session> | null>(null); // New state for pending session data
+  const [pendingSessionUpdateData, setPendingSessionUpdateData] = useState<{sessionId: string, data: Partial<Session>} | null>(null); // New state for pending session update data
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorInfo, setErrorInfo] = useState<{
     title: string;
@@ -318,9 +319,16 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       console.log('Received error object:', error); // Add this line for debugging
       
       // Handle blocking activity confirmation
-      if (error instanceof ScheduleApiError && error.status === 409 && error.details?.includes('requiresConfirmation')) {
-        setPendingSessionCreationData(sessionForm);
-        setConfirmCreateSessionOpen(true);
+      if (error instanceof BlockingActivityWarning) {
+        if (editingSession) {
+          // Session update - handle differently
+          setPendingSessionUpdateData({ sessionId: editingSession.id, data: newSession as Partial<Session> });
+          setConfirmCreateSessionOpen(true); // Reuse the same dialog
+        } else {
+          // Session creation
+          setPendingSessionCreationData(sessionForm);
+          setConfirmCreateSessionOpen(true);
+        }
         return; // Exit, confirmation dialog will handle further action
       }
       
@@ -345,20 +353,55 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const handleConfirmCreateSession = async (force: boolean) => {
     setConfirmCreateSessionOpen(false);
-    if (!force || !pendingSessionCreationData) {
+    if (!force) {
       setPendingSessionCreationData(null);
-      return; // User cancelled or no pending data
+      setPendingSessionUpdateData(null);
+      return; // User cancelled
     }
 
     try {
-      const sessionToCreate = { ...pendingSessionCreationData, forceCreate: true } as CreateSessionDto;
-      await scheduleService.createSession(sessionToCreate, true); // Pass true for forceCreate
+      let savedSession: Session;
+
+      if (pendingSessionUpdateData) {
+        // Handle session update with force
+        const sessionToUpdate = { ...pendingSessionUpdateData.data, forceCreate: true };
+        savedSession = await scheduleService.updateSession(pendingSessionUpdateData.sessionId, sessionToUpdate);
+        
+        // If patient assignments were included in the original session update, handle them now
+        if (sessionForm.patientIds !== undefined) {
+          try {
+            await scheduleService.updateSessionPatients(savedSession.id, sessionForm.patientIds, true); // Force assign patients
+          } catch (patientError) {
+            console.warn('Error assigning patients after force session update:', patientError);
+            // Continue even if patient assignment fails - the session is updated
+          }
+        }
+      } else if (pendingSessionCreationData) {
+        // Handle session creation with force
+        const sessionToCreate = { ...pendingSessionCreationData, forceCreate: true } as CreateSessionDto;
+        savedSession = await scheduleService.createSession(sessionToCreate, true); // Pass true for forceCreate
+        
+        // If patient assignments were included in the original session creation, handle them now
+        if (pendingSessionCreationData.patientIds && pendingSessionCreationData.patientIds.length > 0) {
+          try {
+            await scheduleService.updateSessionPatients(savedSession.id, pendingSessionCreationData.patientIds, true); // Force assign patients
+          } catch (patientError) {
+            console.warn('Error assigning patients after force session creation:', patientError);
+            // Continue even if patient assignment fails - the session is created
+          }
+        }
+      } else {
+        console.error('No pending data for confirmation');
+        return;
+      }
+      
       await setSchedule();
       setEditDialogOpen(false);
       setPreselectedEmployeeId(null);
       setPendingSessionCreationData(null); // Clear pending data on success
+      setPendingSessionUpdateData(null);
     } catch (error) {
-      console.error('Error force creating session:', error);
+      console.error('Error force saving session:', error);
       
       let errorMessage = 'שגיאה בשמירת הטיפול';
       let errorDetails = '';
@@ -438,12 +481,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       // Filter out empty patient selections
       const filteredPatients = selectedPatients.filter(id => id !== '');
       
-      // Update both employees and patients
-      await scheduleService.updateSession(editingSessionForAssignment.id, {
-        employeeIds: selectedEmployees,
-        patientIds: filteredPatients,
-        scheduleId: editingSessionForAssignment.scheduleId
-      });
+      // Check if employees changed
+      const originalEmployees = editingSessionForAssignment.employeeIds || [];
+      const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
+      
+      if (employeesChanged) {
+        // Employees changed - need to update session properties (may trigger blocking validation)
+        await scheduleService.updateSession(editingSessionForAssignment.id, {
+          employeeIds: selectedEmployees,
+          scheduleId: editingSessionForAssignment.scheduleId
+        });
+        
+        // Then update patients separately
+        await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, forceAssign);
+      } else {
+        // Only patients changed - just update patient assignments (no blocking validation)
+        await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, forceAssign);
+      }
       
       await setSchedule(); // Refresh the schedule from the server
       setSessionEditDialogOpen(false);
@@ -451,7 +505,30 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       // Clear any pending data
       setPendingAssignmentData(null);
     } catch (error) {
-      console.error('Error updating session patients:', error);
+      console.error('Error updating session:', error);
+      
+      // Handle blocking activity confirmation for session updates (only when employees change)
+      if (error instanceof BlockingActivityWarning) {
+        // This should only happen when employees changed and triggered blocking validation
+        const originalEmployees = editingSessionForAssignment.employeeIds || [];
+        const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
+        
+        if (employeesChanged) {
+          setPendingSessionUpdateData({ 
+            sessionId: editingSessionForAssignment.id, 
+            data: {
+              employeeIds: selectedEmployees,
+              patientIds: selectedPatients.filter(id => id !== ''),
+              scheduleId: editingSessionForAssignment.scheduleId
+            }
+          });
+          setConfirmCreateSessionOpen(true); // Reuse the same dialog
+          return;
+        } else {
+          // This shouldn't happen for patient-only changes, but log it as an error
+          console.error('Unexpected BlockingActivityWarning for patient-only assignment');
+        }
+      }
       
       // Handle consecutive sessions warning
       if (error instanceof ConsecutiveSessionsWarning) {

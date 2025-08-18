@@ -18,22 +18,36 @@ class ConsecutiveSessionsWarning extends Error {
   }
 }
 
+class BlockingActivityWarning extends Error {
+  constructor(
+    public status: number,
+    public warning: string,
+    public requiresConfirmation: boolean = true
+  ) {
+    super('Blocking activity warning');
+    this.name = 'BlockingActivityWarning';
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));
     
-    // Handle consecutive sessions warnings (status 409)
+    // Handle 409 warnings that require confirmation
     if (response.status === 409 && errorData.requiresConfirmation) {
       if (errorData.warnings) {
-        // Multiple warnings
+        // Multiple warnings - this is always consecutive sessions
         throw new ConsecutiveSessionsWarning(response.status, errorData.warnings);
-      } else if (errorData.warning) {
-        // Single warning
+      } else if (errorData.warning && (errorData.consecutiveCount || errorData.warning.includes('טיפולים רצופים'))) {
+        // Single warning - consecutive sessions
         throw new ConsecutiveSessionsWarning(response.status, [{
           patientId: '',
           warning: errorData.warning,
           consecutiveCount: errorData.consecutiveCount || 0
         }]);
+      } else if (errorData.warning) {
+        // Single warning that's not consecutive sessions - blocking activity
+        throw new BlockingActivityWarning(response.status, errorData.warning);
       }
     }
     
@@ -104,5 +118,5 @@ export const api = {
   },
 };
 
-export { ApiError, ConsecutiveSessionsWarning };
+export { ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning };
 

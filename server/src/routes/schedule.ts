@@ -5,6 +5,54 @@ import { validateScheduleConstraints, validatePatientTimeConflict, validatePatie
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
+// Helper function to check if a session overlaps with blocking activities
+async function checkSessionOverlapsBlocking(
+  session: any,
+  activityRepo: ActivityRepository
+): Promise<boolean> {
+  const activities = await activityRepo.findAll(true); // Get active blocking activities
+  
+  for (const activity of activities) {
+    if (!activity.isBlocking || !activity.isActive) continue;
+    
+    // Helper function to get activity time for day (copied from scheduler.ts)
+    const getActivityTimeForDay = (activity: any, day: string) => {
+      const dayOverride = activity.dayOverrides[day];
+      if (dayOverride !== undefined) {
+        if (dayOverride === null) return null;
+        return dayOverride;
+      }
+      if (activity.defaultStartTime && activity.defaultEndTime) {
+        return {
+          startTime: activity.defaultStartTime,
+          endTime: activity.defaultEndTime
+        };
+      }
+      return null;
+    };
+
+    // Helper function to check time overlap (copied from scheduler.ts)
+    const timesOverlap = (start1: string, end1: string, start2: string, end2: string) => {
+      const timeStringToMinutes = (timeStr: string) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+      };
+      const start1Min = timeStringToMinutes(start1);
+      const end1Min = timeStringToMinutes(end1);
+      const start2Min = timeStringToMinutes(start2);
+      const end2Min = timeStringToMinutes(end2);
+      return start1Min < end2Min && start2Min < end1Min;
+    };
+    
+    const activityTime = getActivityTimeForDay(activity, session.day);
+    if (activityTime && timesOverlap(activityTime.startTime, activityTime.endTime, session.startTime, session.endTime)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export const createScheduleRouter = (
   employeeRepo: EmployeeRepository,
   roomRepo: RoomRepository,
@@ -200,7 +248,7 @@ export const createScheduleRouter = (
         const allSessions = await sessionRepo.findByScheduleId(currentSession.scheduleId);
         const activities = await activityRepo.findAll(true); // Include all active activities
 
-        const updatedSession = { ...currentSession, ...sessionData };
+        const updatedSession = { ...currentSession, ...sessionData, forceCreate: sessionData.forceCreate };
         
         const validation = validateScheduleConstraints(
           updatedSession as any,
@@ -210,7 +258,14 @@ export const createScheduleRouter = (
           activities
         );
 
+        // Check if the validation failed due to a blocking activity conflict
         if (!validation.valid) {
+          if (validation.error === 'לא ניתן לתזמן טיפול בזמן חסום' && !sessionData.forceCreate) {
+            return res.status(409).json({ 
+              warning: 'הטיפול מתנגש עם פעילות חוסמת. האם ברצונך לעדכן את הטיפול בכל זאת?',
+              requiresConfirmation: true
+            });
+          }
           return res.status(400).json({ error: validation.error });
         }
       }
@@ -287,21 +342,29 @@ export const createScheduleRouter = (
       // Skip validation for fixture tests (when prisma is null)
       if (!forceAssign && prisma) {
         try {
-          const consecutiveValidation = await validatePatientConsecutiveSessions(
-            patientId,
-            sessionId,
-            session.day,
-            session.startTime,
-            session.endTime,
-            prisma
-          );
+          // Check if this session was created over a blocked period (force created)
+          // If so, we should skip consecutive session validation
+          const sessionOverlapsBlocking = await checkSessionOverlapsBlocking(session, activityRepo);
+          
+          // If session overlaps with blocking activity, skip consecutive session validation
+          // as it was likely force-created over a blocked period
+          if (!sessionOverlapsBlocking) {
+            const consecutiveValidation = await validatePatientConsecutiveSessions(
+              patientId,
+              sessionId,
+              session.day,
+              session.startTime,
+              session.endTime,
+              prisma
+            );
 
-          if (!consecutiveValidation.valid) {
-            return res.status(409).json({ 
-              warning: consecutiveValidation.warning,
-              consecutiveCount: consecutiveValidation.consecutiveCount,
-              requiresConfirmation: true
-            });
+            if (!consecutiveValidation.valid) {
+              return res.status(409).json({ 
+                warning: consecutiveValidation.warning,
+                consecutiveCount: consecutiveValidation.consecutiveCount,
+                requiresConfirmation: true
+              });
+            }
           }
         } catch (validationError) {
           console.error('Error during consecutive sessions validation:', validationError);
@@ -395,21 +458,29 @@ export const createScheduleRouter = (
 
             // Check for consecutive sessions (only if not forcing assignment)
             if (!forceAssign) {
-              const consecutiveValidation = await validatePatientConsecutiveSessions(
-                patientId,
-                sessionId,
-                session.day,
-                session.startTime,
-                session.endTime,
-                prisma
-              );
-
-              if (!consecutiveValidation.valid) {
-                consecutiveWarnings.push({
+              // Check if this session was created over a blocked period (force created)
+              // If so, we should skip consecutive session validation
+              const sessionOverlapsBlocking = await checkSessionOverlapsBlocking(session, activityRepo);
+              
+              // If session overlaps with blocking activity, skip consecutive session validation
+              // as it was likely force-created over a blocked period
+              if (!sessionOverlapsBlocking) {
+                const consecutiveValidation = await validatePatientConsecutiveSessions(
                   patientId,
-                  warning: consecutiveValidation.warning || '',
-                  consecutiveCount: consecutiveValidation.consecutiveCount || 0
-                });
+                  sessionId,
+                  session.day,
+                  session.startTime,
+                  session.endTime,
+                  prisma
+                );
+
+                if (!consecutiveValidation.valid) {
+                  consecutiveWarnings.push({
+                    patientId,
+                    warning: consecutiveValidation.warning || '',
+                    consecutiveCount: consecutiveValidation.consecutiveCount || 0
+                  });
+                }
               }
             }
           } catch (validationError) {
