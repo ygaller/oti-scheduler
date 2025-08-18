@@ -53,6 +53,7 @@ import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import { ApiError as ScheduleApiError } from '../services/api'; // Import ApiError from api.ts
+import { getContrastingTextColor } from '../utils/colorUtils';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -1389,15 +1390,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     if (session && time === session.startTime) {
                       const duration = getSessionDurationInSlots(session);
                       const room = rooms.find(r => r.id === session.roomId);
+                      const backgroundColor = room?.color || '#845ec2';
+                      const textColor = getContrastingTextColor(backgroundColor);
                       return (
                         <TableCell key={employee.id} 
                           rowSpan={duration}
                           sx={{ 
                             p: 1,
-                            backgroundColor: room?.color || '#845ec2',
+                            backgroundColor: backgroundColor,
                             textAlign: 'center',
                             fontSize: '0.8rem',
-                            color: 'white',
+                            color: textColor,
                             cursor: 'pointer',
                             position: 'relative',
                             zIndex: 2, // Ensure sessions appear on top of activities
