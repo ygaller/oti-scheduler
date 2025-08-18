@@ -128,10 +128,21 @@ async function startServer() {
     
     // Run migrations
     console.log('Running database migrations...');
-    const { execSync } = require('child_process');
-    execSync('npx prisma migrate deploy', { 
+    const { execFileSync } = require('child_process');
+    const isWin = process.platform === 'win32';
+    const appPath = path.join(__dirname, '..', '..');
+    // Prefer local prisma binary, avoid npx in packaged app
+    const prismaBinCandidates = [
+      path.join(appPath, 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+      path.join(appPath, '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+      path.join(__dirname, '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma')
+    ];
+    const prismaBin = prismaBinCandidates.find((p: string) => {
+      try { return require('fs').existsSync(p); } catch { return false; }
+    }) || 'prisma';
+    execFileSync(prismaBin, ['migrate', 'deploy'], {
       cwd: path.join(__dirname, '..'),
-      stdio: 'inherit' 
+      stdio: 'inherit'
     });
     
     // Initialize repositories

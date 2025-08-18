@@ -1,22 +1,25 @@
 const { app } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const fs = require('fs');
 
 let serverProcess = null;
 
 const startEmbeddedServer = () => {
   return new Promise((resolve, reject) => {
     const isDev = process.env.NODE_ENV === 'development';
+    const disableEmbedded = process.env.DISABLE_EMBEDDED_SERVER === '1';
     
-    if (isDev) {
+    if (isDev || disableEmbedded) {
       // In development, assume server is already running
-      console.log('Development mode - expecting external server on port 3001');
+      console.log(`${disableEmbedded ? 'Embedded server disabled via env' : 'Development mode'} - expecting external server on port 3001`);
       resolve();
       return;
     }
 
     // In production, start the bundled server
-    const serverEntryPoint = path.join(__dirname, '..', 'server', 'dist', 'index.js');
+    const appPath = app.getAppPath();
+    const serverEntryPoint = path.join(appPath, 'server', 'dist', 'index.js');
     const userDataPath = app.getPath('userData');
     
     console.log('Starting embedded server...');
@@ -29,15 +32,24 @@ const startEmbeddedServer = () => {
       NODE_ENV: 'production',
       ELECTRON: 'true',
       USER_DATA_PATH: userDataPath,
-      PORT: '3001'
+      PORT: '3001',
+      ELECTRON_RUN_AS_NODE: '1'
     };
 
     serverProcess = spawn(process.execPath, [serverEntryPoint], {
       env,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true
     });
 
     let serverReady = false;
+
+    // Persist server output to disk for post-mortem debugging
+    const logDir = userDataPath;
+    const outStream = fs.createWriteStream(path.join(logDir, 'server-out.log'), { flags: 'a' });
+    const errStream = fs.createWriteStream(path.join(logDir, 'server-err.log'), { flags: 'a' });
+    serverProcess.stdout.pipe(outStream);
+    serverProcess.stderr.pipe(errStream);
 
     // Handle server output
     serverProcess.stdout.on('data', (data) => {

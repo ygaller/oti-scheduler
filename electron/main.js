@@ -35,9 +35,11 @@ if (!gotTheLock) {
       // Set up secure environment for server
       const serverEnv = secureConfig.getServerEnvironment();
       Object.assign(process.env, serverEnv);
-      
-      // Start the server first
-      await startEmbeddedServer();
+
+      // Optionally enable Chromium logging when requested
+      if (process.env.ELECTRON_ENABLE_LOGGING === '1') {
+        app.commandLine.appendSwitch('enable-logging');
+      }
 
       // Create the browser window
       mainWindow = new BrowserWindow({
@@ -56,13 +58,22 @@ if (!gotTheLock) {
         show: false // Don't show until ready
       });
 
+      // Start the embedded server in the background (do not block the UI)
+      startEmbeddedServer().catch((error) => {
+        console.error('Embedded server failed to start:', error);
+        dialog.showErrorBox('Server Startup Error', `Failed to start the embedded server.\n${error?.message || error}`);
+      });
+
       // Load the React app
-      const startUrl = isDev 
-        ? 'http://localhost:3000' 
-        : `file://${path.join(__dirname, '..', 'client', 'build', 'index.html')}`;
-      
-      console.log('Loading URL:', startUrl);
-      await mainWindow.loadURL(startUrl);
+      if (isDev) {
+        const devUrl = 'http://localhost:3000';
+        console.log('Loading URL (dev):', devUrl);
+        await mainWindow.loadURL(devUrl);
+      } else {
+        const indexHtml = path.join(__dirname, '..', 'client', 'build', 'index.html');
+        console.log('Loading file (prod):', indexHtml);
+        await mainWindow.loadFile(indexHtml);
+      }
 
       // Show window when ready
       mainWindow.once('ready-to-show', () => {
@@ -82,6 +93,28 @@ if (!gotTheLock) {
           mainWindow.webContents.openDevTools();
         }
       });
+
+      // Extra diagnostics for renderer problems
+      mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        console.error('did-fail-load', { errorCode, errorDescription, validatedURL, isMainFrame });
+        if (!mainWindow.isVisible()) {
+          mainWindow.show();
+        }
+      });
+      mainWindow.webContents.on('render-process-gone', (event, details) => {
+        console.error('render-process-gone', details);
+      });
+      mainWindow.webContents.on('unresponsive', () => {
+        console.error('window unresponsive');
+      });
+
+      // Fallback: ensure we show something even if 'ready-to-show' never fires
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isVisible()) {
+          console.warn('Forcing window to show after timeout');
+          try { mainWindow.show(); } catch {}
+        }
+      }, 15000);
 
       // Handle window closed
       mainWindow.on('closed', () => {
