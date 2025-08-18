@@ -6,33 +6,42 @@ import {
   List,
   ListItem,
   ListItemText,
-  Button
+  Button,
+  IconButton
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, HelpOutline } from '@mui/icons-material';
 import { Room } from '../types';
 
 interface SimpleRoomListProps {
   rooms: Room[];
   onRefresh: () => Promise<void>;
+  setShowHelpModal: (show: boolean) => void;
+  activeTab: number;
 }
 
-const SimpleRoomList: React.FC<SimpleRoomListProps> = ({ rooms, onRefresh }) => {
+const SimpleRoomList: React.FC<SimpleRoomListProps> = ({ rooms, onRefresh, setShowHelpModal, activeTab }) => {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           חדרי טיפול
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            // For now, just refresh to show it's working
-            onRefresh();
-          }}
-        >
-          הוסף חדר
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              // For now, just refresh to show it's working
+              onRefresh();
+            }}
+          >
+            הוסף חדר
+          </Button>
+          {/* Help Button for Rooms Tab */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
+        </Box>
       </Box>
 
       <Paper>

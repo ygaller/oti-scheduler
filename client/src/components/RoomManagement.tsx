@@ -23,7 +23,7 @@ import {
   Chip,
   Tooltip
 } from '@mui/material';
-import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
+import { Add, Edit, PowerOff, Power, HelpOutline } from '@mui/icons-material';
 import { Room, getRandomColor } from '../types';
 import { roomService } from '../services';
 import ColorPicker from './ColorPicker';
@@ -32,9 +32,11 @@ interface RoomManagementProps {
   rooms: Room[];
   setRooms: (includeInactive?: boolean) => Promise<void>;
   setRoomActive: (id: string, isActive: boolean) => Promise<Room>;
+  setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
+  activeTab: number; // Add prop to pass active tab index
 }
 
-const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms, setRoomActive }) => {
+const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms, setRoomActive, setShowHelpModal, activeTab }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [roomName, setRoomName] = useState('');
@@ -122,6 +124,10 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms, setRoo
           >
             הוסף חדר טיפול
           </Button>
+          {/* Help Button for Rooms Tab */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
         </Box>
       </Box>
 

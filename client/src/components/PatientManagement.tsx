@@ -21,7 +21,7 @@ import {
   FormControlLabel,
   Tooltip
 } from '@mui/material';
-import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
+import { Add, Edit, PowerOff, Power, HelpOutline } from '@mui/icons-material';
 import { Patient, getRandomColor } from '../types';
 import { patientService } from '../services';
 import { useRoles } from '../hooks';
@@ -31,9 +31,11 @@ interface PatientManagementProps {
   patients: Patient[];
   setPatients: (includeInactive?: boolean) => Promise<void>;
   setPatientActive: (id: string, isActive: boolean) => Promise<Patient>;
+  setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
+  activeTab: number; // Add prop to pass active tab index
 }
 
-const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPatients, setPatientActive }) => {
+const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPatients, setPatientActive, setShowHelpModal, activeTab }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
@@ -175,6 +177,10 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
           >
             הוסף מטופל
           </Button>
+          {/* Help Button for Patients Tab */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
         </Box>
       </Box>
 

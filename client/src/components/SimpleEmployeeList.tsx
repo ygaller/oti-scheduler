@@ -7,33 +7,41 @@ import {
   ListItem,
   ListItemText,
   Chip,
-  Button
+  Button,
+  IconButton
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, HelpOutline } from '@mui/icons-material';
 import { Employee, getRoleName } from '../types';
 
 interface SimpleEmployeeListProps {
   employees: Employee[];
   onRefresh: () => Promise<void>;
+  setShowHelpModal: (show: boolean) => void;
+  activeTab: number;
 }
 
-const SimpleEmployeeList: React.FC<SimpleEmployeeListProps> = ({ employees, onRefresh }) => {
+const SimpleEmployeeList: React.FC<SimpleEmployeeListProps> = ({ employees, onRefresh, setShowHelpModal, activeTab }) => {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           עובדים
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            // For now, just refresh to show it's working
-            onRefresh();
-          }}
-        >
-          הוסף עובד
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              onRefresh();
+            }}
+          >
+            הוסף עובד
+          </Button>
+          {/* Help Button for Employees Tab */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
+        </Box>
       </Box>
 
       <Paper>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, Box, Tabs, Tab, Button, Alert, CircularProgress } from '@mui/material';
+import { CssBaseline, Container, Box, Tabs, Tab, Button, Alert, CircularProgress, IconButton } from '@mui/material'; // Added IconButton
+import { HelpOutline } from '@mui/icons-material'; // Added HelpOutline
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import rtlPlugin from 'stylis-plugin-rtl';
@@ -11,6 +12,7 @@ import './App.css';
 import SimpleEmployeeList from './components/SimpleEmployeeList';
 import SimpleRoomList from './components/SimpleRoomList';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
+import HelpModal from './components/HelpModal'; // Added HelpModal
 import { useEmployees, useRooms, useSchedule } from './hooks';
 import { demoService } from './services/demoService';
 
@@ -58,6 +60,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false); // Added state for HelpModal
 
   // Use custom hooks for data management
   const employeesState = useEmployees();
@@ -146,6 +149,8 @@ function App() {
                   <SimpleEmployeeList 
                     employees={employeesState.employees} 
                     onRefresh={employeesState.refetch}
+                    setShowHelpModal={setShowHelpModal} // Pass prop
+                    activeTab={activeTab} // Pass prop
                   />
                 )}
                 
@@ -153,22 +158,37 @@ function App() {
                   <SimpleRoomList 
                     rooms={roomsState.rooms} 
                     onRefresh={roomsState.refetch}
+                    setShowHelpModal={setShowHelpModal} // Pass prop
+                    activeTab={activeTab} // Pass prop
                   />
                 )}
                 
                 {activeTab === 2 && (
-                  <ScheduleConfiguration />
+                  <ScheduleConfiguration 
+                    onDataChange={async () => {
+                      await Promise.all([
+                        employeesState.refetch(),
+                        roomsState.refetch(),
+                      ]);
+                    }}
+                    setShowHelpModal={setShowHelpModal} // Pass prop
+                    activeTab={activeTab} // Pass prop
+                  />
                 )}
                 
                 {activeTab === 3 && (
                   <div>
                     <h2>לוח זמנים</h2>
                     <p>תכונה זו תהיה זמינה בקרוב</p>
+                    <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+                      <HelpOutline sx={{ fontSize: 24 }} />
+                    </IconButton>
                   </div>
                 )}
               </>
             )}
           </Container>
+          <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} activeTab={activeTab} />
           </Box>
         </ThemeProvider>
       </LocalizationProvider>

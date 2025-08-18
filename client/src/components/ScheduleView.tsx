@@ -24,14 +24,16 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  IconButton
 } from '@mui/material';
 import { 
   CalendarToday, 
   Download, 
   Print,
   Warning,
-  Delete
+  Delete,
+  HelpOutline // Import HelpOutline
 } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { 
@@ -61,6 +63,8 @@ interface ScheduleViewProps {
   patients: Patient[];
   schedule: Schedule | null;
   setSchedule: () => Promise<void>;
+  setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
+  activeTab: number; // Add prop to pass active tab index
 }
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -68,7 +72,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   rooms,
   patients,
   schedule,
-  setSchedule
+  setSchedule,
+  setShowHelpModal, // Destructure new prop
+  activeTab // Destructure new prop
 }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
@@ -76,7 +82,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     patientIds: []
   });
   const [isResetting, setIsResetting] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+  const [scheduleViewTab, setScheduleViewTab] = useState(0); // Renamed from activeTab to avoid conflict
   const [confirmCreateSessionOpen, setConfirmCreateSessionOpen] = useState(false); // New state for session creation confirmation
   const [pendingSessionCreationData, setPendingSessionCreationData] = useState<Partial<Session> | null>(null); // New state for pending session data
   const [errorModalOpen, setErrorModalOpen] = useState(false);
@@ -1654,6 +1660,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           >
             הדפס
           </Button>
+          {/* Help Button for Schedule Tab */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
         </Box>
       </Box>
 
@@ -1778,8 +1788,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         <>
           <Box sx={{ mb: 2 }}>
             <Tabs 
-              value={activeTab} 
-              onChange={(_, newValue) => setActiveTab(newValue)} 
+              value={scheduleViewTab} 
+              onChange={(_, newValue) => setScheduleViewTab(newValue)} 
               variant="fullWidth"
               sx={{
                 bgcolor: '#b540801A', // 10% opacity
@@ -1805,7 +1815,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </Box>
 
           {/* Patient Selection Dropdown - only show when Patient View tab is active */}
-          {activeTab === 2 && (
+          {scheduleViewTab === 2 && (
             <Box sx={{ mb: 3 }}>
               <FormControl sx={{ minWidth: 300 }}>
                 <InputLabel>בחר מטופל</InputLabel>
@@ -1826,7 +1836,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </Box>
           )}
 
-          {activeTab === 2 ? (
+          {scheduleViewTab === 2 ? (
             // Patient view - show all days in a grid without horizontal scroll
             <Box 
               sx={{ 
@@ -1891,8 +1901,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   </Typography>
                   
                   {/* Always render calendar views, even if no sessions are scheduled */}
-                  {activeTab === 0 && <EmployeeCalendarView day={day} />}
-                  {activeTab === 1 && <RoomCalendarView day={day} />}
+                  {scheduleViewTab === 0 && <EmployeeCalendarView day={day} />}
+                  {scheduleViewTab === 1 && <RoomCalendarView day={day} />}
                 </Paper>
               ))}
             </Box>

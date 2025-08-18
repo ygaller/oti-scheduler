@@ -9,10 +9,11 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  CircularProgress
+  CircularProgress,
+  IconButton
 } from '@mui/material';
 
-import { Delete as DeleteIcon, Warning as WarningIcon, DataObject as DemoIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Warning as WarningIcon, DataObject as DemoIcon, HelpOutline } from '@mui/icons-material';
 
 import { systemService } from '../services';
 import { demoService } from '../services/demoService';
@@ -22,9 +23,11 @@ import RoleManagement from './RoleManagement';
 
 interface ScheduleConfigurationProps {
   onDataChange?: () => Promise<void>; // Callback to refresh data after demo load
+  setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
+  activeTab: number; // Add prop to pass active tab index
 }
 
-const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataChange }) => {
+const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataChange, setShowHelpModal, activeTab }) => {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -107,7 +110,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
         <Typography variant="h4" component="h1">
           הגדרות מערכת הזמנים
         </Typography>
-        <Box display="flex" gap={2}>
+        <Box display="flex" gap={2} alignItems="center"> {/* Added alignItems="center" for vertical alignment */}
           {(process.env.NODE_ENV === 'development' || !process.env.NODE_ENV || window.location.hostname === 'localhost') && (
             <Button
               variant="contained"
@@ -127,6 +130,10 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
           >
             איפוס כל הנתונים
           </Button>
+          {/* Help Button for Settings Tab - Moved */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
         </Box>
       </Box>
 

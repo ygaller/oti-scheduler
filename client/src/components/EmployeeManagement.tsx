@@ -25,7 +25,7 @@ import {
   FormControlLabel,
   Tooltip
 } from '@mui/material';
-import { Add, Edit, PowerOff, Power } from '@mui/icons-material';
+import { Add, Edit, PowerOff, Power, HelpOutline } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { Employee, getRandomColor, getRoleName } from '../types';
 import { DAY_LABELS, WEEK_DAYS, WeekDay } from '../types/schedule';
@@ -37,9 +37,11 @@ interface EmployeeManagementProps {
   employees: Employee[];
   setEmployees: (includeInactive?: boolean) => Promise<void>;
   setEmployeeActive: (id: string, isActive: boolean) => Promise<Employee>;
+  setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
+  activeTab: number; // Add prop to pass active tab index
 }
 
-const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setEmployees, setEmployeeActive }) => {
+const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setEmployees, setEmployeeActive, setShowHelpModal, activeTab }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
@@ -184,6 +186,10 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
           >
             הוסף עובד
           </Button>
+          {/* Help Button for Employees Tab */}
+          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
+            <HelpOutline sx={{ fontSize: 24 }} />
+          </IconButton>
         </Box>
       </Box>
 

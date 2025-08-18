@@ -16,6 +16,7 @@ import PatientManagement from './components/PatientManagement';
 import RoomManagement from './components/RoomManagement';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
 import ScheduleView from './components/ScheduleView';
+import HelpModal from './components/HelpModal'; // Import the new HelpModal component
 
 import { employeeService, patientService, roomService, scheduleService } from './services';
 
@@ -110,8 +111,8 @@ const theme = createTheme({
 
 // Main App Content Component (everything except routing)
 function AppContent() {
+  const [showHelpModal, setShowHelpModal] = useState(false); // State for help modal visibility
 
-  
   // Load saved tab from localStorage or default to 0
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('scheduling-app-active-tab');
@@ -257,12 +258,9 @@ function AppContent() {
                     ניהול לוח זמנים לגני תקשורת
                   </Typography>
                 </Box>
-                
-
+                {/* Removed Global Help Button */}
               </Box>
 
-
-              
               {/* Main content */}
                   <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs value={activeTab} onChange={handleTabChange} aria-label="navigation tabs">
@@ -291,6 +289,8 @@ function AppContent() {
                                 fetchData()
                               ]);
                             }}
+                            setShowHelpModal={setShowHelpModal} // Pass to ScheduleConfiguration
+                            activeTab={activeTab}
                           />
                           
                           {/* System status - only show in settings tab */}
@@ -315,6 +315,8 @@ function AppContent() {
                           employees={employees} 
                           setEmployees={refreshEmployees}
                           setEmployeeActive={setEmployeeActive}
+                          setShowHelpModal={setShowHelpModal} // Pass to EmployeeManagement
+                          activeTab={activeTab}
                         />
                       )}
                       
@@ -323,6 +325,8 @@ function AppContent() {
                           patients={patients} 
                           setPatients={refreshPatients}
                           setPatientActive={setPatientActive}
+                          setShowHelpModal={setShowHelpModal} // Pass to PatientManagement
+                          activeTab={activeTab}
                         />
                       )}
                       
@@ -331,6 +335,8 @@ function AppContent() {
                           rooms={rooms} 
                           setRooms={refreshRooms}
                           setRoomActive={setRoomActive}
+                          setShowHelpModal={setShowHelpModal} // Pass to RoomManagement
+                          activeTab={activeTab}
                         />
                       )}
                       
@@ -341,11 +347,14 @@ function AppContent() {
                           patients={patients}
                           schedule={schedule}
                           setSchedule={refreshSchedule} 
+                          setShowHelpModal={setShowHelpModal} // Pass to ScheduleView
+                          activeTab={activeTab}
                         />
                       )}
                     </>
                   )}
             </Container>
+            <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} activeTab={activeTab} />
           </Box>
         </ThemeProvider>
       </LocalizationProvider>
