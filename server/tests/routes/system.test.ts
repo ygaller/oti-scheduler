@@ -338,9 +338,10 @@ describe('System API Endpoints', () => {
 
     it('should handle status check immediately after reset', async () => {
       // Add data
+      const role = await request(app).post('/api/roles').send(createRoleFixture());
       await request(app)
         .post('/api/employees')
-        .send(createEmployeeFixture());
+        .send(createEmployeeFixture({ roleId: role.body.id }));
 
       // Reset and immediately check status
       await request(app).post('/api/system/reset').expect(200);
