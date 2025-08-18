@@ -27,13 +27,24 @@ const startEmbeddedServer = () => {
     const appPath = app.getAppPath();
     const userDataPath = app.getPath('userData');
     
+    // Write debug info to file for post-mortem analysis
+    const debugLogPath = path.join(userDataPath, 'server-debug.log');
+    const logDebug = (message) => {
+      console.log(message);
+      try {
+        require('fs').appendFileSync(debugLogPath, `${new Date().toISOString()} - ${message}\n`);
+      } catch (e) {
+        console.error('Failed to write debug log:', e.message);
+      }
+    };
+
     // Debug: Log all available paths and environment
-    console.log('🔍 Debug info:');
-    console.log('  process.execPath:', process.execPath);
-    console.log('  __dirname:', __dirname);
-    console.log('  appPath:', appPath);
-    console.log('  process.resourcesPath:', process.resourcesPath);
-    console.log('  app.isPackaged:', app.isPackaged);
+    logDebug('🔍 Debug info:');
+    logDebug(`  process.execPath: ${process.execPath}`);
+    logDebug(`  __dirname: ${__dirname}`);
+    logDebug(`  appPath: ${appPath}`);
+    logDebug(`  process.resourcesPath: ${process.resourcesPath}`);
+    logDebug(`  app.isPackaged: ${app.isPackaged}`);
     
     // For Windows, the unpacked files are in resources/app.asar.unpacked
     // Based on the error path: C:\Users\mirol\AppData\Local\Programs\oti-scheduler\resources\app.asar\server\dist\index.js
@@ -53,25 +64,25 @@ const startEmbeddedServer = () => {
     ];
     
     let serverEntryPoint = null;
-    console.log('🔍 Checking server entry point candidates:');
+    logDebug('🔍 Checking server entry point candidates:');
     for (const candidate of serverEntryPointCandidates) {
-      console.log(`  Trying: ${candidate}`);
+      logDebug(`  Trying: ${candidate}`);
       try {
         if (require('fs').existsSync(candidate)) {
           serverEntryPoint = candidate;
-          console.log(`  ✅ Found server entry point: ${candidate}`);
+          logDebug(`  ✅ Found server entry point: ${candidate}`);
           break;
         } else {
-          console.log(`  ❌ Not found: ${candidate}`);
+          logDebug(`  ❌ Not found: ${candidate}`);
         }
       } catch (error) {
-        console.log(`  ❌ Error checking: ${candidate} - ${error.message}`);
+        logDebug(`  ❌ Error checking: ${candidate} - ${error.message}`);
       }
     }
     
     if (!serverEntryPoint) {
       // List what's actually in the directories to help debug
-      console.log('🔍 Directory contents for debugging:');
+      logDebug('🔍 Directory contents for debugging:');
       const debugPaths = [
         appPath, 
         process.resourcesPath, 
@@ -84,34 +95,36 @@ const startEmbeddedServer = () => {
         try {
           if (require('fs').existsSync(debugPath)) {
             const contents = require('fs').readdirSync(debugPath);
-            console.log(`  ${debugPath}: [${contents.join(', ')}]`);
+            logDebug(`  ${debugPath}: [${contents.join(', ')}]`);
             
             // If this is the unpacked server directory, also check the dist folder
             if (debugPath.includes('server') && contents.includes('dist')) {
               const distPath = path.join(debugPath, 'dist');
               if (require('fs').existsSync(distPath)) {
                 const distContents = require('fs').readdirSync(distPath);
-                console.log(`    ${distPath}: [${distContents.join(', ')}]`);
+                logDebug(`    ${distPath}: [${distContents.join(', ')}]`);
               }
             }
           } else {
-            console.log(`  ${debugPath}: does not exist`);
+            logDebug(`  ${debugPath}: does not exist`);
           }
         } catch (error) {
-          console.log(`  ${debugPath}: error reading - ${error.message}`);
+          logDebug(`  ${debugPath}: error reading - ${error.message}`);
         }
       }
       
       // Last resort: try to extract server files from asar if they exist there
-      console.log('🔄 Attempting to extract server files from asar as fallback...');
+      logDebug('🔄 Attempting to extract server files from asar as fallback...');
       try {
         const asarServerPath = path.join(appPath, 'server', 'dist', 'index.js');
         const tempServerDir = path.join(userDataPath, 'server', 'dist');
         const tempServerEntry = path.join(tempServerDir, 'index.js');
         
+        logDebug(`🔍 Checking asar server path: ${asarServerPath}`);
+        
         // Check if server files exist in asar
         if (require('fs').existsSync(asarServerPath)) {
-          console.log('✅ Found server files in asar, extracting to temp location...');
+          logDebug('✅ Found server files in asar, extracting to temp location...');
           
           // Create temp directory
           require('fs').mkdirSync(tempServerDir, { recursive: true });
@@ -119,6 +132,7 @@ const startEmbeddedServer = () => {
           // Copy the entire server dist directory
           const asarDistDir = path.join(appPath, 'server', 'dist');
           const copyRecursive = (src, dest) => {
+            logDebug(`📁 Copying: ${src} -> ${dest}`);
             const stats = require('fs').statSync(src);
             if (stats.isDirectory()) {
               require('fs').mkdirSync(dest, { recursive: true });
@@ -135,11 +149,37 @@ const startEmbeddedServer = () => {
           
           if (require('fs').existsSync(tempServerEntry)) {
             serverEntryPoint = tempServerEntry;
-            console.log('✅ Successfully extracted server to:', tempServerEntry);
+            logDebug(`✅ Successfully extracted server to: ${tempServerEntry}`);
+          } else {
+            logDebug(`❌ Extraction completed but entry point not found: ${tempServerEntry}`);
+          }
+        } else {
+          logDebug(`❌ Server files not found in asar at: ${asarServerPath}`);
+          
+          // Try to find what IS in the asar
+          logDebug('🔍 Checking what exists in asar root:');
+          try {
+            const asarRoot = appPath;
+            if (require('fs').existsSync(asarRoot)) {
+              const asarContents = require('fs').readdirSync(asarRoot);
+              logDebug(`  Asar root contents: [${asarContents.join(', ')}]`);
+              
+              // Check if there's a server directory at all
+              const asarServerDir = path.join(appPath, 'server');
+              if (require('fs').existsSync(asarServerDir)) {
+                const serverContents = require('fs').readdirSync(asarServerDir);
+                logDebug(`  Server dir contents: [${serverContents.join(', ')}]`);
+              } else {
+                logDebug('  No server directory found in asar');
+              }
+            }
+          } catch (listError) {
+            logDebug(`❌ Error listing asar contents: ${listError.message}`);
           }
         }
       } catch (extractError) {
-        console.error('❌ Failed to extract server files:', extractError.message);
+        logDebug(`❌ Failed to extract server files: ${extractError.message}`);
+        logDebug(`❌ Extract error stack: ${extractError.stack}`);
       }
       
       if (!serverEntryPoint) {

@@ -43,6 +43,21 @@ iconFiles.forEach(iconFile => {
   }
 });
 
+// Verify server files exist before packaging
+console.log('🔍 Verifying server build...');
+const serverDistPath = path.join(__dirname, '..', 'server', 'dist', 'index.js');
+if (fs.existsSync(serverDistPath)) {
+  console.log('✅ Server dist files found');
+  console.log(`  Main entry: ${serverDistPath}`);
+  const distDir = path.dirname(serverDistPath);
+  const distContents = fs.readdirSync(distDir);
+  console.log(`  Dist contents: [${distContents.join(', ')}]`);
+} else {
+  console.error('❌ Server dist files not found! Build may be incomplete.');
+  console.error(`  Expected: ${serverDistPath}`);
+  process.exit(1);
+}
+
 console.log('✅ Build preparation complete!');
 console.log('');
 console.log('Next steps:');
