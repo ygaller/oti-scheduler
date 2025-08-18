@@ -1272,30 +1272,32 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             // For multi-employee sessions, count for all employees assigned to the session
             const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
             const room = rooms.find(r => r.id === session.roomId);
+            const backgroundColor = room?.color || '#845ec2'; // Use room color or default
+            const textColor = getContrastingTextColor(backgroundColor);
             
             return (
               <Card
                 key={session.id}
                 sx={{ 
-                  backgroundColor: '#f5f5f5', // Light grey for good print contrast
+                  backgroundColor: backgroundColor, 
                   cursor: 'pointer',
                   '&:hover': { 
-                    backgroundColor: '#e0e0e0'
+                    filter: 'brightness(0.8)'
                   }
                 }}
                 onClick={() => handleSessionClick(session)}
               >
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: textColor }}>
                     {session.startTime} - {session.endTime}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{ color: textColor }}>
                     מטפלים: {sessionEmployees.length > 0 ? sessionEmployees.map(emp => `${emp.firstName} ${emp.lastName}`).join(', ') : 'לא ידוע'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{ color: textColor }}>
                     טיפול: {sessionEmployees.length > 0 ? sessionEmployees.map(emp => getRoleName(emp.role, emp.roleId)).join(', ') : 'לא ידוע'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{ color: textColor }}>
                     חדר: {room ? room.name : 'לא ידוע'}
                   </Typography>
                 </CardContent>
@@ -1546,15 +1548,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       const duration = getSessionDurationInSlots(session);
                       // For multi-employee sessions, count for all employees assigned to the session
             // const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
+                      const backgroundColor = session.roomId ? rooms.find(r => r.id === session.roomId)?.color || '#845ec2' : '#845ec2';
+                      const textColor = getContrastingTextColor(backgroundColor);
                       return (
                         <TableCell key={room.id} 
                           rowSpan={duration}
                           sx={{ 
                             p: 1,
-                            backgroundColor: session.roomId ? rooms.find(r => r.id === session.roomId)?.color || '#845ec2' : '#845ec2',
+                            backgroundColor: backgroundColor,
                             textAlign: 'center',
                             fontSize: '0.8rem',
-                            color: 'white',
+                            color: textColor,
                             cursor: 'pointer',
                             position: 'relative',
                             zIndex: 2, // Ensure sessions appear on top of activities
