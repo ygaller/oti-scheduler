@@ -166,6 +166,10 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
+      - name: List downloaded artifacts
+        shell: bash
+        run: ls -la dist-electron/
+
       - name: Create Production Release
         uses: softprops/action-gh-release@v2
         env:
@@ -221,6 +225,7 @@ jobs:
             - 💬 Discussions: [GitHub Discussions](https://github.com/ygaller/oti-scheduler/discussions)
           draft: false
           prerelease: false
+          if_exists: replace
           files: |
             dist-electron/oti-scheduler-${{ steps.version.outputs.version }}.dmg
             dist-electron/oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
