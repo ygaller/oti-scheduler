@@ -38,7 +38,36 @@ try {
 
 // Install server production dependencies in the correct location
 console.log('📦 Installing server production dependencies...');
-execSync('cd server && npm ci --production', { stdio: 'inherit' });
+execSync('cd server && npm ci --only=production', { stdio: 'inherit' });
+
+// Generate Prisma client for production
+console.log('🔧 Generating Prisma client...');
+execSync('cd server && npx prisma generate', { stdio: 'inherit' });
+
+// Verify production dependencies are installed
+console.log('🔍 Verifying server production dependencies...');
+const serverNodeModulesPath = path.join(__dirname, '..', 'server', 'node_modules');
+if (fs.existsSync(serverNodeModulesPath)) {
+  const nodeModulesContents = fs.readdirSync(serverNodeModulesPath);
+  console.log(`✅ Server node_modules found with ${nodeModulesContents.length} packages`);
+  
+  // Check for key dependencies
+  const keyDeps = ['express', 'cors', 'dotenv'];
+  const scopedDeps = ['@prisma']; // Check for scoped packages
+  
+  const missingDeps = keyDeps.filter(dep => !nodeModulesContents.includes(dep));
+  const missingScopedDeps = scopedDeps.filter(dep => !nodeModulesContents.includes(dep));
+  
+  if (missingDeps.length > 0 || missingScopedDeps.length > 0) {
+    const allMissing = [...missingDeps, ...missingScopedDeps];
+    console.error(`❌ Missing key dependencies: ${allMissing.join(', ')}`);
+  } else {
+    console.log('✅ All key dependencies present');
+  }
+} else {
+  console.error('❌ Server node_modules not found after production install!');
+  process.exit(1);
+}
 
 // Build the client
 console.log('🎨 Building client...');

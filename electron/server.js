@@ -88,7 +88,8 @@ const startEmbeddedServer = () => {
         process.resourcesPath, 
         path.dirname(appPath),
         path.join(process.resourcesPath, 'app.asar.unpacked'),
-        path.join(process.resourcesPath, 'app.asar.unpacked', 'server')
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'server'),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'node_modules')
       ];
       
       for (const debugPath of debugPaths) {
@@ -147,6 +148,16 @@ const startEmbeddedServer = () => {
           
           copyRecursive(asarDistDir, tempServerDir);
           
+          // Also copy node_modules if they exist in asar
+          const asarNodeModules = path.join(appPath, 'server', 'node_modules');
+          const tempNodeModules = path.join(path.dirname(tempServerDir), 'node_modules');
+          if (require('fs').existsSync(asarNodeModules)) {
+            logDebug(`📦 Copying node_modules from asar: ${asarNodeModules} -> ${tempNodeModules}`);
+            copyRecursive(asarNodeModules, tempNodeModules);
+          } else {
+            logDebug(`❌ No node_modules found in asar at: ${asarNodeModules}`);
+          }
+          
           if (require('fs').existsSync(tempServerEntry)) {
             serverEntryPoint = tempServerEntry;
             logDebug(`✅ Successfully extracted server to: ${tempServerEntry}`);
@@ -190,11 +201,42 @@ const startEmbeddedServer = () => {
       }
     }
     
-    console.log('Starting embedded server...');
-    console.log('App path:', appPath);
-    console.log('Resources path:', process.resourcesPath);
-    console.log('Server entry:', serverEntryPoint);
-    console.log('User data path:', userDataPath);
+    logDebug('Starting embedded server...');
+    logDebug(`App path: ${appPath}`);
+    logDebug(`Resources path: ${process.resourcesPath}`);
+    logDebug(`Server entry: ${serverEntryPoint}`);
+    logDebug(`User data path: ${userDataPath}`);
+
+    // Debug: Check node_modules availability near the server entry point
+    const serverDir = path.dirname(serverEntryPoint);
+    const serverParentDir = path.dirname(serverDir);
+    const possibleNodeModules = [
+      path.join(serverParentDir, 'node_modules'),
+      path.join(serverDir, 'node_modules'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'node_modules')
+    ];
+    
+    logDebug('🔍 Checking for node_modules near server entry:');
+    for (const nmPath of possibleNodeModules) {
+      if (require('fs').existsSync(nmPath)) {
+        try {
+          const nmContents = require('fs').readdirSync(nmPath);
+          logDebug(`  ✅ Found node_modules at: ${nmPath} [${nmContents.slice(0, 5).join(', ')}${nmContents.length > 5 ? '...' : ''}]`);
+          
+          // Check specifically for express
+          const expressPath = path.join(nmPath, 'express');
+          if (require('fs').existsSync(expressPath)) {
+            logDebug(`  ✅ Express module found at: ${expressPath}`);
+          } else {
+            logDebug(`  ❌ Express module not found in: ${nmPath}`);
+          }
+        } catch (e) {
+          logDebug(`  ❌ Error reading node_modules at ${nmPath}: ${e.message}`);
+        }
+      } else {
+        logDebug(`  ❌ No node_modules at: ${nmPath}`);
+      }
+    }
 
     // Set environment variables for the server
     const env = {
@@ -206,8 +248,55 @@ const startEmbeddedServer = () => {
       ELECTRON_RUN_AS_NODE: '1'
     };
 
+    // Set NODE_PATH to help Node.js find modules in the unpacked location
+    const unpackedServerPath = path.dirname(serverEntryPoint);
+    const unpackedNodeModules = path.join(path.dirname(unpackedServerPath), 'node_modules');
+    
+    // Collect all possible NODE_PATH locations
+    const nodePaths = [];
+    
+    if (require('fs').existsSync(unpackedNodeModules)) {
+      logDebug(`📦 Found unpacked node_modules at: ${unpackedNodeModules}`);
+      nodePaths.push(unpackedNodeModules);
+    } else {
+      logDebug(`❌ Unpacked node_modules not found at: ${unpackedNodeModules}`);
+    }
+    
+    // Try alternative locations
+    const altNodeModules = [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'node_modules'),
+      path.join(process.resourcesPath, 'node_modules'),
+      path.join(path.dirname(process.execPath), 'node_modules'),
+      path.join(appPath, 'server', 'node_modules'), // In case they're in asar
+      path.join(appPath, 'node_modules')
+    ];
+    
+    for (const altPath of altNodeModules) {
+      if (require('fs').existsSync(altPath)) {
+        logDebug(`✅ Found alternative node_modules at: ${altPath}`);
+        if (!nodePaths.includes(altPath)) {
+          nodePaths.push(altPath);
+        }
+      } else {
+        logDebug(`❌ Alternative node_modules not found at: ${altPath}`);
+      }
+    }
+    
+    // Set NODE_PATH to include all found node_modules directories
+    if (nodePaths.length > 0) {
+      env.NODE_PATH = nodePaths.join(process.platform === 'win32' ? ';' : ':');
+      logDebug(`🔧 Setting NODE_PATH to: ${env.NODE_PATH}`);
+    } else {
+      logDebug(`❌ No node_modules directories found anywhere!`);
+    }
+
+    // Set working directory to the server directory for proper module resolution
+    const serverWorkingDir = path.dirname(serverEntryPoint);
+    logDebug(`🔧 Setting working directory to: ${serverWorkingDir}`);
+
     serverProcess = spawn(process.execPath, [serverEntryPoint], {
       env,
+      cwd: serverWorkingDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
     });
