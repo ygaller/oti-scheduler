@@ -249,11 +249,12 @@ function AppContent() {
                     style={{ 
                       height: '60px', 
                       width: 'auto',
-                      filter: 'drop-shadow(0 2px 4px rgba(155, 30, 101, 0.1))'
+                      filter: 'drop-shadow(0 2px 4px rgba(155, 30, 101, 0.1))',
+                      borderRadius: '16px'
                     }} 
                   />
                   <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
-                    ניהול לוח זמנים
+                    ניהול לוח זמנים לגני תקשורת
                   </Typography>
                 </Box>
                 

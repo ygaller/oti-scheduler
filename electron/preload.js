@@ -32,7 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 // Optional: Add some app-specific context
 contextBridge.exposeInMainWorld('appContext', {
   isElectron: true,
-  appName: 'ניהול לוח זמנים',
+  appName: 'ניהול לוח זמנים לגני תקשורת',
   version: '1.0.0'
 });
 
