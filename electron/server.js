@@ -262,8 +262,9 @@ const startEmbeddedServer = () => {
       logDebug(`❌ Unpacked node_modules not found at: ${unpackedNodeModules}`);
     }
     
-    // Try alternative locations
+    // Try alternative locations including extraResources
     const altNodeModules = [
+      path.join(process.resourcesPath, 'server', 'node_modules'), // extraResources location (highest priority)
       path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'node_modules'),
       path.join(process.resourcesPath, 'node_modules'),
       path.join(path.dirname(process.execPath), 'node_modules'),
@@ -274,8 +275,21 @@ const startEmbeddedServer = () => {
     for (const altPath of altNodeModules) {
       if (require('fs').existsSync(altPath)) {
         logDebug(`✅ Found alternative node_modules at: ${altPath}`);
+        
+        // Check if this path contains express (server dependencies)
+        const expressPath = path.join(altPath, 'express');
+        const hasServerDeps = require('fs').existsSync(expressPath);
+        logDebug(`🔍 Path ${altPath} has server deps: ${hasServerDeps}`);
+        
         if (!nodePaths.includes(altPath)) {
-          nodePaths.push(altPath);
+          if (hasServerDeps) {
+            // If this contains server dependencies, prioritize it by adding to front
+            nodePaths.unshift(altPath);
+            logDebug(`⭐ Prioritized server deps path: ${altPath}`);
+          } else {
+            // Add non-server paths to end
+            nodePaths.push(altPath);
+          }
         }
       } else {
         logDebug(`❌ Alternative node_modules not found at: ${altPath}`);
@@ -288,17 +302,6 @@ const startEmbeddedServer = () => {
       logDebug(`🔧 Setting NODE_PATH to: ${env.NODE_PATH}`);
     } else {
       logDebug(`❌ No node_modules directories found anywhere!`);
-      
-      // Try to find node_modules in extraResources
-      const extraResourcesNodeModules = path.join(process.resourcesPath, 'server', 'node_modules');
-      if (require('fs').existsSync(extraResourcesNodeModules)) {
-        logDebug(`✅ Found extraResources node_modules at: ${extraResourcesNodeModules}`);
-        nodePaths.push(extraResourcesNodeModules);
-        env.NODE_PATH = nodePaths.join(process.platform === 'win32' ? ';' : ':');
-        logDebug(`🔧 Setting NODE_PATH to extraResources: ${env.NODE_PATH}`);
-      } else {
-        logDebug(`❌ extraResources node_modules not found at: ${extraResourcesNodeModules}`);
-      }
     }
 
     // Set working directory to the server directory for proper module resolution
