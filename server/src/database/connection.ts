@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import { getDatabaseConfig, getConnectionString } from '../config/database';
 import path from 'path';
 import fs from 'fs/promises';
+import { execFileSync } from 'child_process';
+import fsSync from 'fs';
 
 let prisma: PrismaClient | null = null;
 
@@ -34,11 +36,42 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
     console.log('✅ SQLite database connection established successfully');
     
     // Run migrations automatically
-    const { execSync } = require('child_process');
     console.log('Running database migrations...');
+    
+    const isWin = process.platform === 'win32';
+    const isElectron = process.env.ELECTRON === 'true';
+    let prismaBinCandidates: string[] = [];
+    let schemaCwd = path.join(__dirname, '..', '..'); // Default to server root
+
+    if (isElectron) {
+      const resourcesPath = (process as any).resourcesPath || path.join(__dirname, '..', '..', '..');
+      prismaBinCandidates = [
+        path.join(resourcesPath, 'app.asar.unpacked', 'server', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+        path.join(resourcesPath, 'app', 'server', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+        path.join(__dirname, '..', '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma')
+      ];
+      schemaCwd = path.join(resourcesPath, 'app.asar.unpacked', 'server');
+      if (!fsSync.existsSync(schemaCwd)) {
+        schemaCwd = path.join(__dirname, '..', '..');
+      }
+    } else {
+      prismaBinCandidates = [
+        path.join(__dirname, '..', '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+        path.join(__dirname, '..', '..', '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma')
+      ];
+    }
+
+    const prismaBin = prismaBinCandidates.find((p: string) => {
+      console.log('Checking Prisma binary candidate:', p);
+      try { return fsSync.existsSync(p); } catch { return false; }
+    }) || 'prisma';
+
+    console.log('Using Prisma binary:', prismaBin);
+    console.log('Schema directory:', schemaCwd);
+
     try {
-      execSync('npx prisma migrate deploy', { 
-        cwd: path.join(__dirname, '..', '..'), // Go to server root where prisma folder is
+      execFileSync(prismaBin, ['migrate', 'deploy'], {
+        cwd: schemaCwd,
         stdio: 'inherit',
         env: { 
           ...process.env, 
