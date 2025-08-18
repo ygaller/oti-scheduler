@@ -24,6 +24,7 @@
     "electron:dist": "node scripts/build-electron.js && electron-builder --publish=never",
     "dist:win": "node scripts/build-electron.js && electron-builder --win",
     "dist:win:diagnostic": "ELECTRON_ENABLE_LOGGING=1 node scripts/build-electron.js && electron-builder --win --config.asar=false",
+    "test:electron": "node scripts/build-electron.js && npm run electron",
     "dist:mac": "node scripts/build-electron.js && electron-builder --mac",
     "dist:all": "node scripts/build-electron.js && electron-builder --mac --win",
     "prepare:electron": "node scripts/build-electron.js",
@@ -88,7 +89,8 @@
     "asarUnpack": [
       "server/node_modules/@prisma/**",
       "server/node_modules/.prisma/**",
-      "server/prisma/**"
+      "server/prisma/**",
+      "server/dist/**"
     ],
     "extraResources": [
       {

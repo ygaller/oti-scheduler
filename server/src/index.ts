@@ -129,21 +129,52 @@ async function startServer() {
     // Run migrations
     console.log('Running database migrations...');
     const { execFileSync } = require('child_process');
+    const fs = require('fs');
     const isWin = process.platform === 'win32';
-    const appPath = path.join(__dirname, '..', '..');
-    // Prefer local prisma binary, avoid npx in packaged app
-    const prismaBinCandidates = [
-      path.join(appPath, 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
-      path.join(appPath, '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
-      path.join(__dirname, '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma')
-    ];
+    
+    // In Electron, try to find Prisma binary in unpacked locations
+    const isElectron = process.env.ELECTRON === 'true';
+    let prismaBinCandidates: string[] = [];
+    let schemaCwd = path.join(__dirname, '..');
+    
+    if (isElectron) {
+      // In packaged Electron app, look in unpacked locations
+      const resourcesPath = (process as any).resourcesPath || path.join(__dirname, '..', '..');
+      prismaBinCandidates = [
+        path.join(resourcesPath, 'app.asar.unpacked', 'server', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+        path.join(resourcesPath, 'app', 'server', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+        path.join(__dirname, '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma')
+      ];
+      // Use unpacked schema location
+      schemaCwd = path.join(resourcesPath, 'app.asar.unpacked', 'server');
+      if (!fs.existsSync(schemaCwd)) {
+        schemaCwd = path.join(__dirname, '..');
+      }
+    } else {
+      // Development or non-Electron
+      prismaBinCandidates = [
+        path.join(__dirname, '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma'),
+        path.join(__dirname, '..', '..', 'node_modules', '.bin', isWin ? 'prisma.cmd' : 'prisma')
+      ];
+    }
+    
     const prismaBin = prismaBinCandidates.find((p: string) => {
-      try { return require('fs').existsSync(p); } catch { return false; }
+      console.log('Checking Prisma binary candidate:', p);
+      try { return fs.existsSync(p); } catch { return false; }
     }) || 'prisma';
-    execFileSync(prismaBin, ['migrate', 'deploy'], {
-      cwd: path.join(__dirname, '..'),
-      stdio: 'inherit'
-    });
+    
+    console.log('Using Prisma binary:', prismaBin);
+    console.log('Schema directory:', schemaCwd);
+    
+    try {
+      execFileSync(prismaBin, ['migrate', 'deploy'], {
+        cwd: schemaCwd,
+        stdio: 'inherit'
+      });
+    } catch (error) {
+      console.warn('Migration failed, continuing without migrations:', error);
+      // Don't fail server startup if migrations fail
+    }
     
     // Initialize repositories
     const employeeRepo = new PrismaEmployeeRepository(prisma);

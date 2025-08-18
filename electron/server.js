@@ -19,10 +19,36 @@ const startEmbeddedServer = () => {
 
     // In production, start the bundled server
     const appPath = app.getAppPath();
-    const serverEntryPoint = path.join(appPath, 'server', 'dist', 'index.js');
     const userDataPath = app.getPath('userData');
     
+    // Try different possible locations for the server entry point
+    const serverEntryPointCandidates = [
+      path.join(appPath, 'server', 'dist', 'index.js'),
+      path.join(path.dirname(appPath), 'app.asar.unpacked', 'server', 'dist', 'index.js'),
+      path.join(process.resourcesPath, 'app', 'server', 'dist', 'index.js'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'dist', 'index.js')
+    ];
+    
+    let serverEntryPoint = null;
+    for (const candidate of serverEntryPointCandidates) {
+      console.log('Checking server entry candidate:', candidate);
+      if (require('fs').existsSync(candidate)) {
+        serverEntryPoint = candidate;
+        console.log('✅ Found server entry point:', candidate);
+        break;
+      }
+    }
+    
+    if (!serverEntryPoint) {
+      const error = new Error(`Could not find server entry point. Tried: ${serverEntryPointCandidates.join(', ')}`);
+      console.error('❌ Server entry point not found');
+      reject(error);
+      return;
+    }
+    
     console.log('Starting embedded server...');
+    console.log('App path:', appPath);
+    console.log('Resources path:', process.resourcesPath);
     console.log('Server entry:', serverEntryPoint);
     console.log('User data path:', userDataPath);
 
