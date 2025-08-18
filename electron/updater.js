@@ -9,7 +9,7 @@ class AppUpdater {
     this.downloadInProgress = false;
     
     if (!isDev) {
-      this.init();
+      // this.init(); // The auto-updater will only work with a public repo
     }
   }
 
