@@ -68,7 +68,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, activeTab }) => 
     <div className="help-modal-overlay" onClick={onClose}>
       <div className="help-modal" onClick={e => e.stopPropagation()}>
         <div className="help-modal-header">
-          <h2>עזרה ותיעוד</h2>
+          <h2>עזרה</h2>
           <button className="help-modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="help-modal-content">
