@@ -288,6 +288,17 @@ const startEmbeddedServer = () => {
       logDebug(`🔧 Setting NODE_PATH to: ${env.NODE_PATH}`);
     } else {
       logDebug(`❌ No node_modules directories found anywhere!`);
+      
+      // Try to find node_modules in extraResources
+      const extraResourcesNodeModules = path.join(process.resourcesPath, 'server', 'node_modules');
+      if (require('fs').existsSync(extraResourcesNodeModules)) {
+        logDebug(`✅ Found extraResources node_modules at: ${extraResourcesNodeModules}`);
+        nodePaths.push(extraResourcesNodeModules);
+        env.NODE_PATH = nodePaths.join(process.platform === 'win32' ? ';' : ':');
+        logDebug(`🔧 Setting NODE_PATH to extraResources: ${env.NODE_PATH}`);
+      } else {
+        logDebug(`❌ extraResources node_modules not found at: ${extraResourcesNodeModules}`);
+      }
     }
 
     // Set working directory to the server directory for proper module resolution

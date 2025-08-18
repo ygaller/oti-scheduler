@@ -38,7 +38,13 @@ try {
 
 // Install server production dependencies in the correct location
 console.log('📦 Installing server production dependencies...');
-execSync('cd server && npm ci --only=production', { stdio: 'inherit' });
+// First clean any existing node_modules to ensure fresh install
+const serverNodeModulesPath = path.join(__dirname, '..', 'server', 'node_modules');
+if (fs.existsSync(serverNodeModulesPath)) {
+  console.log('🧹 Cleaning existing server node_modules...');
+  execSync('cd server && rm -rf node_modules', { stdio: 'inherit' });
+}
+execSync('cd server && npm ci --omit=dev', { stdio: 'inherit' });
 
 // Generate Prisma client for production
 console.log('🔧 Generating Prisma client...');
@@ -46,13 +52,12 @@ execSync('cd server && npx prisma generate', { stdio: 'inherit' });
 
 // Verify production dependencies are installed
 console.log('🔍 Verifying server production dependencies...');
-const serverNodeModulesPath = path.join(__dirname, '..', 'server', 'node_modules');
 if (fs.existsSync(serverNodeModulesPath)) {
   const nodeModulesContents = fs.readdirSync(serverNodeModulesPath);
   console.log(`✅ Server node_modules found with ${nodeModulesContents.length} packages`);
   
   // Check for key dependencies
-  const keyDeps = ['express', 'cors', 'dotenv'];
+  const keyDeps = ['express', 'cors', 'dotenv', 'pg', 'portfinder'];
   const scopedDeps = ['@prisma']; // Check for scoped packages
   
   const missingDeps = keyDeps.filter(dep => !nodeModulesContents.includes(dep));
@@ -61,8 +66,22 @@ if (fs.existsSync(serverNodeModulesPath)) {
   if (missingDeps.length > 0 || missingScopedDeps.length > 0) {
     const allMissing = [...missingDeps, ...missingScopedDeps];
     console.error(`❌ Missing key dependencies: ${allMissing.join(', ')}`);
+    console.error('This will likely cause the Windows build to fail!');
+    
+    // List what we actually have for debugging
+    console.log('📋 Available dependencies:', nodeModulesContents.slice(0, 20).join(', ') + (nodeModulesContents.length > 20 ? '...' : ''));
+    process.exit(1);
   } else {
     console.log('✅ All key dependencies present');
+    
+    // Also verify express can be required
+    try {
+      require(`${serverNodeModulesPath}/express/package.json`);
+      console.log('✅ Express module is properly accessible');
+    } catch (e) {
+      console.error('❌ Express module exists but cannot be required:', e.message);
+      process.exit(1);
+    }
   }
 } else {
   console.error('❌ Server node_modules not found after production install!');
