@@ -70,15 +70,15 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
     console.log('Schema directory:', schemaCwd);
 
     try {
-      const command = isWin ? prismaBin : prismaBin;
-      const args = ['migrate', 'deploy'];
+      const command = isWin ? 'cmd.exe' : prismaBin;
+      const args = isWin ? ['/c', prismaBin, 'migrate', 'deploy'] : ['migrate', 'deploy'];
 
       execFileSync(command, args, {
         cwd: schemaCwd,
         stdio: 'inherit',
-        env: {
-          ...process.env,
-          DATABASE_URL: databaseUrl
+        env: { 
+          ...process.env, 
+          DATABASE_URL: databaseUrl 
         }
       });
       console.log('✅ Database migrations completed');
