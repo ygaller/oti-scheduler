@@ -14,7 +14,13 @@ async function attemptProgrammaticMigration(): Promise<void> {
     
     // For SQLite, we can run the migration SQL directly if needed
     // Check if the database is already migrated by looking for a known table
-    const result = prisma ? await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' AND name='roles'` : [];
+    let result: any[] = [];
+    try {
+      result = prisma ? await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' AND name='roles'` : [];
+    } catch (queryError) {
+      console.log('⚠️  Error checking database state, assuming empty database:', queryError instanceof Error ? queryError.message : String(queryError));
+      result = []; // Assume empty database if we can't query
+    }
     
     if (Array.isArray(result) && result.length === 0) {
       console.log('📦 Database appears to be empty, running initial migration...');
@@ -48,6 +54,11 @@ async function attemptProgrammaticMigration(): Promise<void> {
         }
         
         console.log('✅ Programmatic migration completed successfully');
+        
+        // Reconnect the Prisma client to ensure it recognizes the new schema
+        await prisma.$disconnect();
+        await prisma.$connect();
+        console.log('🔄 Prisma client reconnected after programmatic migration');
       } catch (migrationError) {
         console.log('⚠️  Programmatic migration failed:', migrationError instanceof Error ? migrationError.message : String(migrationError));
       }
