@@ -110,11 +110,13 @@ jobs:
         run: |
           if (Test-Path "certificate.p12") {
             Write-Host "Building with code signing..."
-            node scripts/build-electron.js && npx electron-builder --win --publish=never
+            node scripts/build-electron.js
+            npx electron-builder --win --publish=never
             Remove-Item "certificate.p12" -ErrorAction SilentlyContinue
           } else {
             Write-Host "Building without code signing..."
-            node scripts/build-electron.js && npx electron-builder --win --publish=never
+            node scripts/build-electron.js
+            npx electron-builder --win --publish=never
           }
         shell: powershell
 
