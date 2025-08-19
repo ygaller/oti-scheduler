@@ -52,7 +52,7 @@ export class PrismaActivityRepository implements ActivityRepository {
         color: dto.color,
         defaultStartTime: dto.defaultStartTime || null,
         defaultEndTime: dto.defaultEndTime || null,
-        dayOverrides: (dto.dayOverrides || {}) as any,
+        dayOverrides: JSON.stringify(dto.dayOverrides || {}),
         isBlocking: dto.isBlocking !== undefined ? dto.isBlocking : false,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
       }
@@ -78,7 +78,7 @@ export class PrismaActivityRepository implements ActivityRepository {
     if (dto.color !== undefined) updateData.color = dto.color;
     if (dto.defaultStartTime !== undefined) updateData.defaultStartTime = dto.defaultStartTime;
     if (dto.defaultEndTime !== undefined) updateData.defaultEndTime = dto.defaultEndTime;
-    if (dto.dayOverrides !== undefined) updateData.dayOverrides = dto.dayOverrides as any;
+    if (dto.dayOverrides !== undefined) updateData.dayOverrides = JSON.stringify(dto.dayOverrides);
     if (dto.isBlocking !== undefined) updateData.isBlocking = dto.isBlocking;
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
 
