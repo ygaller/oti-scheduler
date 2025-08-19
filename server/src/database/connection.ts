@@ -7,6 +7,58 @@ import fsSync from 'fs';
 
 let prisma: PrismaClient | null = null;
 
+// Programmatic migration fallback for when Prisma CLI is not available
+async function attemptProgrammaticMigration(): Promise<void> {
+  try {
+    console.log('🔧 Attempting programmatic migration...');
+    
+    // For SQLite, we can run the migration SQL directly if needed
+    // Check if the database is already migrated by looking for a known table
+    const result = prisma ? await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' AND name='roles'` : [];
+    
+    if (Array.isArray(result) && result.length === 0) {
+      console.log('📦 Database appears to be empty, running initial migration...');
+      
+      // Read and execute the migration SQL
+      // Find the migration file, considering Electron packaging
+      let migrationPath = path.join(__dirname, '..', '..', 'prisma', 'migrations', '20250818184428_init', 'migration.sql');
+      
+      if (process.env.ELECTRON === 'true') {
+        const resourcesPath = (process as any).resourcesPath || path.join(__dirname, '..', '..', '..');
+        const electronMigrationPath = path.join(resourcesPath, 'app.asar.unpacked', 'server', 'prisma', 'migrations', '20250818184428_init', 'migration.sql');
+        
+        if (fsSync.existsSync(electronMigrationPath)) {
+          migrationPath = electronMigrationPath;
+        }
+      }
+      
+      try {
+        const migrationSql = await fs.readFile(migrationPath, 'utf-8');
+        
+        // Split the SQL into individual statements and execute them
+        const statements = migrationSql
+          .split(';')
+          .map(stmt => stmt.trim())
+          .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+        
+        for (const statement of statements) {
+          if (statement.trim() && prisma) {
+            await prisma.$executeRawUnsafe(statement);
+          }
+        }
+        
+        console.log('✅ Programmatic migration completed successfully');
+      } catch (migrationError) {
+        console.log('⚠️  Programmatic migration failed:', migrationError instanceof Error ? migrationError.message : String(migrationError));
+      }
+    } else {
+      console.log('✅ Database already appears to be migrated');
+    }
+  } catch (error) {
+    console.log('⚠️  Programmatic migration check failed:', error instanceof Error ? error.message : String(error));
+  }
+}
+
 export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port: number }> => {
   const config = getDatabaseConfig();
   
@@ -70,18 +122,78 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
     console.log('Schema directory:', schemaCwd);
 
     try {
-      const command = isWin ? 'cmd.exe' : prismaBin;
-      const args = isWin ? ['/c', prismaBin, 'migrate', 'deploy'] : ['migrate', 'deploy'];
-
-      execFileSync(command, args, {
-        cwd: schemaCwd,
-        stdio: 'inherit',
-        env: { 
-          ...process.env, 
-          DATABASE_URL: databaseUrl 
+      // Try different approaches for running Prisma migrations
+      let migrationSuccess = false;
+      
+      // Approach 1: Try using the found Prisma binary directly
+      if (prismaBin !== 'prisma' && fsSync.existsSync(prismaBin)) {
+        try {
+          console.log('Attempting migration with full Prisma binary path...');
+          execFileSync(prismaBin, ['migrate', 'deploy'], {
+            cwd: schemaCwd,
+            stdio: 'inherit',
+            env: { 
+              ...process.env, 
+              DATABASE_URL: databaseUrl 
+            }
+          });
+          console.log('✅ Database migrations completed');
+          migrationSuccess = true;
+        } catch (binaryError) {
+          console.log('⚠️  Direct binary execution failed:', binaryError instanceof Error ? binaryError.message : String(binaryError));
         }
-      });
-      console.log('✅ Database migrations completed');
+      }
+      
+      // Approach 2: Try using cmd.exe with the binary path (Windows)
+      if (!migrationSuccess && isWin) {
+        try {
+          console.log('Attempting migration with cmd.exe wrapper...');
+          const command = 'cmd.exe';
+          const args = ['/c', `"${prismaBin}"`, 'migrate', 'deploy'];
+          
+          execFileSync(command, args, {
+            cwd: schemaCwd,
+            stdio: 'inherit',
+            env: { 
+              ...process.env, 
+              DATABASE_URL: databaseUrl 
+            }
+          });
+          console.log('✅ Database migrations completed');
+          migrationSuccess = true;
+        } catch (cmdError) {
+          console.log('⚠️  cmd.exe execution failed:', cmdError instanceof Error ? cmdError.message : String(cmdError));
+        }
+      }
+      
+      // Approach 3: Try using npx (fallback)
+      if (!migrationSuccess) {
+        try {
+          console.log('Attempting migration with npx fallback...');
+          const command = isWin ? 'cmd.exe' : 'npx';
+          const args = isWin ? ['/c', 'npx', 'prisma', 'migrate', 'deploy'] : ['prisma', 'migrate', 'deploy'];
+          
+          execFileSync(command, args, {
+            cwd: schemaCwd,
+            stdio: 'inherit',
+            env: { 
+              ...process.env, 
+              DATABASE_URL: databaseUrl 
+            }
+          });
+          console.log('✅ Database migrations completed');
+          migrationSuccess = true;
+        } catch (npxError) {
+          console.log('⚠️  npx execution failed:', npxError instanceof Error ? npxError.message : String(npxError));
+        }
+      }
+      
+      // If all migration attempts failed, try programmatic approach
+      if (!migrationSuccess) {
+        console.log('⚠️  All external migration attempts failed, trying programmatic approach...');
+        await attemptProgrammaticMigration();
+      }
+      
     } catch (error) {
       console.log('⚠️  Migration failed, will try to continue:', error instanceof Error ? error.message : String(error));
     }
