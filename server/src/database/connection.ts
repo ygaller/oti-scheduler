@@ -6,104 +6,211 @@ import { execFileSync } from 'child_process';
 import fsSync from 'fs';
 
 let prisma: PrismaClient | null = null;
+let migrationCompleted = false;
+
+// Migration tracking system compatible with Prisma migrations
+async function ensureMigrationTable(): Promise<void> {
+  if (!prisma) return;
+  
+  try {
+    // Create _prisma_migrations table if it doesn't exist (matches Prisma's structure)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+        "id" TEXT PRIMARY KEY NOT NULL,
+        "checksum" TEXT NOT NULL,
+        "finished_at" DATETIME,
+        "migration_name" TEXT NOT NULL,
+        "logs" TEXT,
+        "rolled_back_at" DATETIME,
+        "started_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "applied_steps_count" INTEGER UNSIGNED NOT NULL DEFAULT 0
+      )
+    `);
+  } catch (error) {
+    console.log('⚠️  Could not ensure migration table:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function getAppliedMigrations(): Promise<string[]> {
+  if (!prisma) return [];
+  
+  try {
+    const migrations = await prisma.$queryRaw<Array<{migration_name: string}>>`
+      SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL ORDER BY started_at
+    `;
+    return migrations.map(m => m.migration_name);
+  } catch (error) {
+    // Table doesn't exist yet, return empty array
+    return [];
+  }
+}
+
+async function markMigrationAsApplied(migrationName: string, checksum: string): Promise<void> {
+  if (!prisma) return;
+  
+  try {
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, applied_steps_count)
+      VALUES (?, ?, CURRENT_TIMESTAMP, ?, 1)
+    `, `${migrationName}-${Date.now()}`, checksum, migrationName);
+  } catch (error) {
+    console.log('⚠️  Could not mark migration as applied:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function findMigrationFiles(): Promise<Array<{name: string, path: string}>> {
+  const migrations: Array<{name: string, path: string}> = [];
+  
+  // Base migration directory
+  let migrationsDir = path.join(__dirname, '..', '..', 'prisma', 'migrations');
+  
+  // Handle Electron packaging
+  if (process.env.ELECTRON === 'true') {
+    const resourcesPath = (process as any).resourcesPath || path.join(__dirname, '..', '..', '..');
+    const electronMigrationsDir = path.join(resourcesPath, 'app.asar.unpacked', 'server', 'prisma', 'migrations');
+    
+    if (fsSync.existsSync(electronMigrationsDir)) {
+      migrationsDir = electronMigrationsDir;
+    }
+  }
+  
+  try {
+    if (fsSync.existsSync(migrationsDir)) {
+      const migrationFolders = fsSync.readdirSync(migrationsDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name)
+        .sort(); // Sort chronologically by migration name
+      
+      for (const folderName of migrationFolders) {
+        const migrationFile = path.join(migrationsDir, folderName, 'migration.sql');
+        if (fsSync.existsSync(migrationFile)) {
+          migrations.push({
+            name: folderName,
+            path: migrationFile
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.log('⚠️  Error reading migration directory:', error instanceof Error ? error.message : String(error));
+  }
+  
+  return migrations;
+}
+
+async function executeMigrationFile(migrationPath: string): Promise<void> {
+  if (!prisma) throw new Error('Prisma client not available');
+  
+  const migrationSql = await fs.readFile(migrationPath, 'utf-8');
+  
+  // Split the SQL into individual statements and execute them
+  // First, remove all comments and normalize whitespace
+  const cleanSql = migrationSql
+    .replace(/--[^\r\n]*/g, '') // Remove comments
+    .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+  
+  const statements = cleanSql
+    .split(';')
+    .map(stmt => stmt.trim())
+    .filter(stmt => stmt.length > 0);
+  
+  console.log(`📄 Executing ${statements.length} migration statements...`);
+  
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i];
+    if (statement.trim()) {
+      try {
+        await prisma.$executeRawUnsafe(statement);
+      } catch (stmtError) {
+        console.error(`❌ Migration statement ${i + 1} failed:`, stmtError instanceof Error ? stmtError.message : String(stmtError));
+        console.error(`💥 Failed statement: ${statement}`);
+        throw stmtError; // Re-throw to stop migration
+      }
+    }
+  }
+}
 
 // Programmatic migration fallback for when Prisma CLI is not available
 async function attemptProgrammaticMigration(): Promise<void> {
+  if (migrationCompleted) {
+    console.log('✅ Migration already completed, skipping...');
+    return;
+  }
+
   try {
     console.log('🔧 Attempting programmatic migration...');
     
-    // For SQLite, we can run the migration SQL directly if needed
-    // Check if the database is already migrated by looking for a known table
-    let result: any[] = [];
-    try {
-      result = prisma ? await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' AND name='roles'` : [];
-    } catch (queryError) {
-      console.log('⚠️  Error checking database state, assuming empty database:', queryError instanceof Error ? queryError.message : String(queryError));
-      result = []; // Assume empty database if we can't query
+    // Ensure migration tracking table exists
+    await ensureMigrationTable();
+    
+    // Get all available migration files
+    const allMigrations = await findMigrationFiles();
+    
+    if (allMigrations.length === 0) {
+      console.log('⚠️  No migration files found');
+      migrationCompleted = true;
+      return;
     }
     
-    if (Array.isArray(result) && result.length === 0) {
-      console.log('📦 Database appears to be empty, running initial migration...');
-      
-      // Read and execute the migration SQL
-      // Find the migration file, considering Electron packaging
-      let migrationPath = path.join(__dirname, '..', '..', 'prisma', 'migrations', '20250818184428_init', 'migration.sql');
-      
-      if (process.env.ELECTRON === 'true') {
-        const resourcesPath = (process as any).resourcesPath || path.join(__dirname, '..', '..', '..');
-        const electronMigrationPath = path.join(resourcesPath, 'app.asar.unpacked', 'server', 'prisma', 'migrations', '20250818184428_init', 'migration.sql');
-        
-        if (fsSync.existsSync(electronMigrationPath)) {
-          migrationPath = electronMigrationPath;
-        }
-      }
+    // Get already applied migrations
+    const appliedMigrations = await getAppliedMigrations();
+    
+    // Find migrations that need to be applied
+    const pendingMigrations = allMigrations.filter(
+      migration => !appliedMigrations.includes(migration.name)
+    );
+    
+    if (pendingMigrations.length === 0) {
+      console.log('✅ All migrations already applied');
+      migrationCompleted = true;
+      return;
+    }
+    
+    console.log(`📦 Found ${pendingMigrations.length} pending migrations to apply`);
+    
+    // Apply each pending migration
+    for (const migration of pendingMigrations) {
+      console.log(`🔄 Applying migration: ${migration.name}`);
       
       try {
-        console.log(`📂 Reading migration file from: ${migrationPath}`);
+        await executeMigrationFile(migration.path);
         
-        // Check if file exists before reading
-        if (!fsSync.existsSync(migrationPath)) {
-          throw new Error(`Migration file not found at ${migrationPath}`);
-        }
+        // Calculate checksum for tracking (simple hash of file content)
+        const content = await fs.readFile(migration.path, 'utf-8');
+        const checksum = Buffer.from(content).toString('base64').substring(0, 64);
         
-        const migrationSql = await fs.readFile(migrationPath, 'utf-8');
-        console.log(`📄 Migration file size: ${migrationSql.length} characters`);
+        // Mark as applied
+        await markMigrationAsApplied(migration.name, checksum);
         
-        // Split the SQL into individual statements and execute them
-        // First, remove all comments and normalize whitespace
-        const cleanSql = migrationSql
-          .replace(/--[^\r\n]*/g, '') // Remove comments
-          .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
-          .replace(/\s+/g, ' ') // Normalize whitespace
-          .trim();
-        
-        const statements = cleanSql
-          .split(';')
-          .map(stmt => stmt.trim())
-          .filter(stmt => stmt.length > 0);
-        
-        console.log(`📄 Found ${statements.length} SQL statements to execute`);
-        
-        for (let i = 0; i < statements.length; i++) {
-          const statement = statements[i];
-          if (statement.trim() && prisma) {
-            try {
-              console.log(`🔧 Executing statement ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`);
-              await prisma.$executeRawUnsafe(statement);
-              console.log(`✅ Statement ${i + 1} completed successfully`);
-            } catch (stmtError) {
-              console.error(`❌ Statement ${i + 1} failed:`, stmtError instanceof Error ? stmtError.message : String(stmtError));
-              console.error(`💥 Failed statement: ${statement}`);
-              throw stmtError; // Re-throw to stop migration
-            }
-          }
-        }
-        
-        console.log('✅ Programmatic migration completed successfully');
-        
-        // Reconnect the Prisma client to ensure it recognizes the new schema
-        await prisma.$disconnect();
-        await prisma.$connect();
-        console.log('🔄 Prisma client reconnected after programmatic migration');
-        
-        // Verify that tables were actually created
-        const tables = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
-        console.log('📋 Tables in database after migration:', tables);
-        
-        if (Array.isArray(tables) && tables.length > 0) {
-          console.log('✅ Migration verification: Tables were created successfully');
-        } else {
-          console.error('❌ Migration verification: No tables found after migration!');
-          throw new Error('Migration failed - no tables created');
-        }
-      } catch (migrationError) {
-        console.log('⚠️  Programmatic migration failed:', migrationError instanceof Error ? migrationError.message : String(migrationError));
+        console.log(`✅ Migration ${migration.name} applied successfully`);
+      } catch (error) {
+        console.error(`❌ Migration ${migration.name} failed:`, error instanceof Error ? error.message : String(error));
+        throw error; // Stop on first failure
       }
+    }
+    
+    console.log('✅ All programmatic migrations completed successfully');
+    
+    // Reconnect the Prisma client to ensure it recognizes the new schema
+    await prisma.$disconnect();
+    await prisma.$connect();
+    console.log('🔄 Prisma client reconnected after programmatic migration');
+    
+    // Verify that tables were actually created
+    const tables = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
+    
+    if (Array.isArray(tables) && tables.length > 0) {
+      console.log(`✅ Migration verified: ${tables.length} tables created successfully`);
+      migrationCompleted = true;
     } else {
-      console.log('✅ Database already appears to be migrated');
+      console.error('❌ Migration verification failed: No tables found!');
+      throw new Error('Migration failed - no tables created');
     }
   } catch (error) {
-    console.log('⚠️  Programmatic migration check failed:', error instanceof Error ? error.message : String(error));
+    console.log('⚠️  Programmatic migration failed:', error instanceof Error ? error.message : String(error));
+    throw error;
   }
 }
 
@@ -162,21 +269,20 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
     }
 
     const prismaBin = prismaBinCandidates.find((p: string) => {
-      console.log('Checking Prisma binary candidate:', p);
       try { return fsSync.existsSync(p); } catch { return false; }
     }) || 'prisma';
 
-    console.log('Using Prisma binary:', prismaBin);
-    console.log('Schema directory:', schemaCwd);
-
     try {
-      // Try different approaches for running Prisma migrations
-      let migrationSuccess = false;
-      
-      // Approach 1: Try using the found Prisma binary directly
-      if (prismaBin !== 'prisma' && fsSync.existsSync(prismaBin)) {
+      // For Electron environments, use programmatic migration directly
+      // This is more reliable than trying to execute external Prisma CLI
+      if (isElectron) {
+        console.log('🔧 Running programmatic migration for Electron environment...');
+        await attemptProgrammaticMigration();
+      } else {
+        // For development, try Prisma CLI first, then fall back to programmatic
+        let migrationSuccess = false;
+        
         try {
-          console.log('Attempting migration with full Prisma binary path...');
           execFileSync(prismaBin, ['migrate', 'deploy'], {
             cwd: schemaCwd,
             stdio: 'inherit',
@@ -187,60 +293,11 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
           });
           console.log('✅ Database migrations completed');
           migrationSuccess = true;
-        } catch (binaryError) {
-          console.log('⚠️  Direct binary execution failed:', binaryError instanceof Error ? binaryError.message : String(binaryError));
-        }
-      }
-      
-      // Approach 2: Try using cmd.exe with the binary path (Windows)
-      if (!migrationSuccess && isWin) {
-        try {
-          console.log('Attempting migration with cmd.exe wrapper...');
-          const command = 'cmd.exe';
-          const args = ['/c', `"${prismaBin}"`, 'migrate', 'deploy'];
-          
-          execFileSync(command, args, {
-            cwd: schemaCwd,
-            stdio: 'inherit',
-            env: { 
-              ...process.env, 
-              DATABASE_URL: databaseUrl 
-            }
-          });
-          console.log('✅ Database migrations completed');
+        } catch (cliError) {
+          console.log('⚠️  Prisma CLI migration failed, using programmatic approach...');
+          await attemptProgrammaticMigration();
           migrationSuccess = true;
-        } catch (cmdError) {
-          console.log('⚠️  cmd.exe execution failed:', cmdError instanceof Error ? cmdError.message : String(cmdError));
         }
-      }
-      
-      // Approach 3: Try using npx (fallback)
-      if (!migrationSuccess) {
-        try {
-          console.log('Attempting migration with npx fallback...');
-          const command = isWin ? 'cmd.exe' : 'npx';
-          const args = isWin ? ['/c', 'npx', 'prisma', 'migrate', 'deploy'] : ['prisma', 'migrate', 'deploy'];
-          
-          execFileSync(command, args, {
-            cwd: schemaCwd,
-            stdio: 'inherit',
-            env: { 
-              ...process.env, 
-              DATABASE_URL: databaseUrl 
-            }
-          });
-          console.log('✅ Database migrations completed');
-          migrationSuccess = true;
-        } catch (npxError) {
-          console.log('⚠️  npx execution failed:', npxError instanceof Error ? npxError.message : String(npxError));
-        }
-      }
-      
-      // If all migration attempts failed, try programmatic approach
-      if (!migrationSuccess) {
-        console.log('⚠️  All external migration attempts failed, trying programmatic approach...');
-        await attemptProgrammaticMigration();
-        migrationSuccess = true; // Mark as successful if programmatic migration didn't throw
       }
       
     } catch (error) {

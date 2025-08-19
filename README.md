@@ -1,15 +1,15 @@
-# מערכת התיזמון - Scheduling Application
+# ניהול לוח זמנים לגני תקשורת - Special needs preschool scheduling app
 
 [![Test API](https://github.com/ygaller/oti-scheduler/actions/workflows/test.yml/badge.svg)](https://github.com/ygaller/oti-scheduler/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Electron](https://img.shields.io/badge/Electron-2B2E3A?logo=electron&logoColor=9FEAF9)](https://www.electronjs.org/)
 [![Cross-Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-blue)](https://github.com/ygaller/oti-scheduler)
 
-מערכת מתקדמת לתיזמון עובדי גן ילדים עם מסד נתונים PostgreSQL משובץ. זמינה כיישום ווב וכיישום שולחן עבודה (Electron).
+מערכת מתקדמת לתיזמון עובדי גן ילדים עם מסד נתונים SQLite משובץ. זמינה כיישום ווב וכיישום שולחן עבודה (Electron).
 
 ## ✨ תכונות
 
@@ -21,7 +21,7 @@
 - **יצירת לוח זמנים אוטומטי**: אלגוריתם חכם ליצירת לוח זמנים תוך התחשבות באילוצים ופעילויות
 - **הגדרות מערכת**: קביעת זמני ארוחות ומפגשים וניהול תפקידים
 - **איפוס נתונים**: אפשרות לאיפוס מלא של המערכת
-- **מסד נתונים משובץ**: PostgreSQL משובץ עם אפשרות חיבור למסד נתונים חיצוני
+- **מסד נתונים משובץ**: SQLite משובץ - קל, מהיר ואמין ללא צורך בהתקנת מסד נתונים נוסף
 - **יישום שולחן עבודה**: אפליקציה עצמאית ב-Electron עבור Windows ו-macOS
 - **הפצה צולבת פלטפורמה**: חבילות התקנה מוכנות עבור פלטפורמות שונות
 
@@ -32,7 +32,7 @@ Client (React + TypeScript)
         ↕ HTTP API
 Server (Express.js + Prisma)
         ↕
-Database (Embedded PostgreSQL)
+Database (SQLite)
 ```
 
 ### מבנה הפרויקט
@@ -93,41 +93,29 @@ cd ../client && npm install
 
 ### הפעלת המערכת
 
-#### במצב PostgreSQL משובץ (מומלץ)
+#### התקנה והפעלה (מומלץ)
 
-המערכת מגיעה עם PostgreSQL משובץ כברירת מחדל - אין צורך בהתקנה נוספת של מסד נתונים:
+המערכת מגיעה עם SQLite משובץ כברירת מחדל - אין צורך בהתקנה נוספת של מסד נתונים:
 
 ```bash
-# הפעלת השרת והלקוח במקביל עם PostgreSQL משובץ
+# הפעלת השרת והלקוח במקביל עם SQLite משובץ
 npm run dev
 ```
 
 או באופן נפרד:
 
 ```bash
-# הפעלת השרת עם PostgreSQL משובץ
+# הפעלת השרת עם SQLite משובץ
 npm run server:dev
 
 # הפעלת הלקוח בלבד (בטרמינל נפרד)
 npm run client:dev
 ```
 
-**דרישות למצב משובץ:**
-- PostgreSQL מותקן במערכת (בדרך כלל באמצעות brew ב-macOS או apt/yum ב-Linux)
-- הפורט נקבע דינמית על ידי המערכת
-- נתונים נשמרים בתיקייה מקומית
-
-**התקנת PostgreSQL:**
-```bash
-# macOS
-brew install postgresql
-
-# Ubuntu/Debian
-sudo apt install postgresql
-
-# CentOS/RHEL
-sudo yum install postgresql
-```
+**דרישות למערכת:**
+- Node.js גרסה 18 ומעלה
+- npm או yarn
+- **אין צורך בהתקנת מסד נתונים נוסף!**
 
 ### גישה ליישום
 
@@ -190,48 +178,33 @@ npm run dist:all
 
 ## 🗄 מסד הנתונים
 
-### PostgreSQL משובץ (ברירת מחדל)
+### SQLite (ברירת מחדל)
 
-המערכת משתמשת ב-PostgreSQL משובץ כברירת מחדל. מסד הנתונים:
-- מתחיל אוטומטית עם השרת על פורט זמין
-- נשמר בתיקייה מקומית (למשל: `~/.oti-scheduler/data`)
-- כולל ניהול אוטומטי של migrations
-- מספק יציבות וביצועים טובים
-- **אין צורך בהגדרת קבצי .env למצב זה**
+המערכת משתמשת ב-SQLite כברירת מחדל. מסד הנתונים:
+- מתחיל אוטומטית עם השרת ללא צורך בהתקנה נוספת
+- נשמר בקובץ מקומי (למשל: `~/.oti-scheduler/database/scheduling.db`)
+- כולל ניהול אוטומטי של migrations עם fallback programmatic migration
+- מספק פשטות, מהירות ואמינות
+- **אין צורך בהגדרת קבצי .env**
+- **תמיכה מלאה ב-Electron למערכות Windows ו-macOS**
 
-#### הפעלה במצב משובץ
+#### תכונות מיוחדות של מערכת ה-Migration
+
+המערכת כוללת מנגנון migration מתקדם שמטפל באתגרים של Electron:
+
+1. **Programmatic Migration**: אם Prisma CLI לא זמין (כמו ב-Electron), המערכת מריצה את ה-migrations באופן programmatic
+2. **Fallback Strategy**: ניסיון ראשון עם Prisma CLI, נפילה למערכת הפנימית במידת הצורך  
+3. **Cross-Platform Support**: עובד בצורה מושלמת על Windows, macOS ו-Linux
+4. **Electron Optimization**: התאמה מיוחדת לסביבת Electron עם זיהוי אוטומטי של נתיבי קבצים
+
+#### הפעלה
 
 ```bash
-# פשוט הפעל את המערכת - PostgreSQL יתחיל אוטומטית
+# פשוט הפעל את המערכת - SQLite יתחיל אוטומטית
 npm run dev
 ```
 
-או:
 
-```bash
-# יצירת קובץ .env בתיקיית server/ (אופציונלי)
-cd server
-cp env.example .env
-```
-
-הקובץ `server/env.example` כבר מוגדר למצב משובץ:
-```env
-DB_TYPE=embedded  # זה המצב כברירת מחדל
-```
-
-### מסד נתונים חיצוני
-
-במידה ואתה רוצה להשתמש במסד נתונים PostgreSQL חיצוני, צור קובץ `.env` בתיקיית `server/`:
-
-```env
-DB_TYPE=remote
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=scheduling
-DB_USER=postgres
-DB_PASSWORD=postgres
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/scheduling"
-```
 
 **הערה**: במצב משובץ, הפורט נקבע דינמית ולא ניתן להגדירו מראש.
 
