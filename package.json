@@ -80,6 +80,7 @@
       "server/dist/",
       "server/package.json",
       "server/node_modules/",
+      "server/node_modules/.bin/",
       "server/prisma/",
       "!server/node_modules/.cache",
       "!server/node_modules/**/*.md",
@@ -88,16 +89,13 @@
       "!server/node_modules/**/tests"
     ],
     "asarUnpack": [
-      "server/**/*"
+      "server/**/*",
+      "server/node_modules/.bin/*"
     ],
     "extraResources": [
       {
         "from": "server/prisma",
         "to": "prisma"
-      },
-      {
-        "from": "server/node_modules",
-        "to": "server/node_modules"
       }
     ],
 
