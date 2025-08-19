@@ -1,6 +1,6 @@
 {
   "name": "oti-scheduler",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "main": "electron/main.js",
   "homepage": "https://github.com/ygaller/oti-scheduler#readme",
@@ -101,7 +101,6 @@
         "to": "server/node_modules"
       }
     ],
-
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "electron/icons/oti-icon.icns",
