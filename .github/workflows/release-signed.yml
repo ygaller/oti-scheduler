@@ -96,10 +96,10 @@ jobs:
         run: |
           if [ -n "${{ env.APPLE_ID }}" ]; then
             echo "Building with notarization..."
-            node scripts/build-electron.js && electron-builder --mac --publish=never
+            node scripts/build-electron.js && npx electron-builder --mac --publish=never
           else
             echo "Building without notarization..."
-            CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/build-electron.js && electron-builder --mac --publish=never
+            CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/build-electron.js && npx electron-builder --mac --publish=never
           fi
 
       - name: Build and sign Electron app (Windows)
@@ -110,11 +110,11 @@ jobs:
         run: |
           if (Test-Path "certificate.p12") {
             Write-Host "Building with code signing..."
-            node scripts/build-electron.js && electron-builder --win --publish=never
+            node scripts/build-electron.js && npx electron-builder --win --publish=never
             Remove-Item "certificate.p12" -ErrorAction SilentlyContinue
           } else {
             Write-Host "Building without code signing..."
-            node scripts/build-electron.js && electron-builder --win --publish=never
+            node scripts/build-electron.js && npx electron-builder --win --publish=never
           }
         shell: powershell
 
