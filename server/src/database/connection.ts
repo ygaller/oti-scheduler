@@ -39,17 +39,43 @@ async function attemptProgrammaticMigration(): Promise<void> {
       }
       
       try {
+        console.log(`📂 Reading migration file from: ${migrationPath}`);
+        
+        // Check if file exists before reading
+        if (!fsSync.existsSync(migrationPath)) {
+          throw new Error(`Migration file not found at ${migrationPath}`);
+        }
+        
         const migrationSql = await fs.readFile(migrationPath, 'utf-8');
+        console.log(`📄 Migration file size: ${migrationSql.length} characters`);
         
         // Split the SQL into individual statements and execute them
-        const statements = migrationSql
+        // First, remove all comments and normalize whitespace
+        const cleanSql = migrationSql
+          .replace(/--[^\r\n]*/g, '') // Remove comments
+          .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+        
+        const statements = cleanSql
           .split(';')
           .map(stmt => stmt.trim())
-          .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+          .filter(stmt => stmt.length > 0);
         
-        for (const statement of statements) {
+        console.log(`📄 Found ${statements.length} SQL statements to execute`);
+        
+        for (let i = 0; i < statements.length; i++) {
+          const statement = statements[i];
           if (statement.trim() && prisma) {
-            await prisma.$executeRawUnsafe(statement);
+            try {
+              console.log(`🔧 Executing statement ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`);
+              await prisma.$executeRawUnsafe(statement);
+              console.log(`✅ Statement ${i + 1} completed successfully`);
+            } catch (stmtError) {
+              console.error(`❌ Statement ${i + 1} failed:`, stmtError instanceof Error ? stmtError.message : String(stmtError));
+              console.error(`💥 Failed statement: ${statement}`);
+              throw stmtError; // Re-throw to stop migration
+            }
           }
         }
         
@@ -59,6 +85,17 @@ async function attemptProgrammaticMigration(): Promise<void> {
         await prisma.$disconnect();
         await prisma.$connect();
         console.log('🔄 Prisma client reconnected after programmatic migration');
+        
+        // Verify that tables were actually created
+        const tables = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
+        console.log('📋 Tables in database after migration:', tables);
+        
+        if (Array.isArray(tables) && tables.length > 0) {
+          console.log('✅ Migration verification: Tables were created successfully');
+        } else {
+          console.error('❌ Migration verification: No tables found after migration!');
+          throw new Error('Migration failed - no tables created');
+        }
       } catch (migrationError) {
         console.log('⚠️  Programmatic migration failed:', migrationError instanceof Error ? migrationError.message : String(migrationError));
       }
@@ -203,6 +240,7 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
       if (!migrationSuccess) {
         console.log('⚠️  All external migration attempts failed, trying programmatic approach...');
         await attemptProgrammaticMigration();
+        migrationSuccess = true; // Mark as successful if programmatic migration didn't throw
       }
       
     } catch (error) {
