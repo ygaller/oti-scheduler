@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*.*.*-release'  # Only for official releases with -release suffix
+  release:
+    types: [created, published]  # Trigger when release is created (drafted) or published
   workflow_dispatch:
     inputs:
       version:
@@ -13,6 +15,11 @@ on:
 
 jobs:
   build-signed:
+    # Only run for -release tags or manual workflow dispatch
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.ref, '-release')) ||
+      (github.event_name == 'release' && contains(github.event.release.tag_name, '-release'))
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
@@ -89,10 +96,10 @@ jobs:
         run: |
           if [ -n "${{ env.APPLE_ID }}" ]; then
             echo "Building with notarization..."
-            npm run dist:mac
+            node scripts/build-electron.js && electron-builder --mac --publish=never
           else
             echo "Building without notarization..."
-            CSC_IDENTITY_AUTO_DISCOVERY=false npm run dist:mac
+            CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/build-electron.js && electron-builder --mac --publish=never
           fi
 
       - name: Build and sign Electron app (Windows)
@@ -103,11 +110,11 @@ jobs:
         run: |
           if (Test-Path "certificate.p12") {
             Write-Host "Building with code signing..."
-            npm run dist:win
+            node scripts/build-electron.js && electron-builder --win --publish=never
             Remove-Item "certificate.p12" -ErrorAction SilentlyContinue
           } else {
             Write-Host "Building without code signing..."
-            npm run dist:win
+            node scripts/build-electron.js && electron-builder --win --publish=never
           }
         shell: powershell
 
@@ -157,11 +164,13 @@ jobs:
           name: windows-signed-installers
           path: dist-electron/
 
-      - name: Extract version from tag or input
+      - name: Extract version from tag, release, or input
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -170,33 +179,56 @@ jobs:
         shell: bash
         run: ls -la dist-electron/
 
-      - name: Upload macOS signed artifacts to Release
-        uses: actions/upload-release-asset@v1
-        if: success()
+      - name: Update Release with Signed Assets
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: dist-electron/oti-scheduler-${{ steps.version.outputs.version }}.dmg
-          asset_name: oti-scheduler-${{ steps.version.outputs.version }}.dmg
-          asset_content_type: application/octet-stream
-      - name: Upload macOS ARM64 signed artifacts to Release
-        uses: actions/upload-release-asset@v1
-        if: success()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: dist-electron/oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
-          asset_name: oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg
-          asset_content_type: application/octet-stream
-      - name: Upload Windows signed artifacts to Release
-        uses: actions/upload-release-asset@v1
-        if: success()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: dist-electron/oti-scheduler Setup ${{ steps.version.outputs.version }}.exe
-          asset_name: oti-scheduler Setup ${{ steps.version.outputs.version }}.exe
-          asset_content_type: application/octet-stream
+          tag_name: ${{ steps.version.outputs.version }}
+          name: OTI Scheduler ${{ steps.version.outputs.version }} (Signed)
+          body: |
+            ## OTI Scheduler ${{ steps.version.outputs.version }} - Signed Release
+            
+            ### Desktop Application Downloads (Code Signed)
+            
+            **macOS:**
+            - Universal build (Intel + Apple Silicon): `oti-scheduler-${{ steps.version.outputs.version }}.dmg`
+            - Apple Silicon only: `oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg`
+            
+            **Windows:**
+            - 64-bit installer: `oti-scheduler Setup ${{ steps.version.outputs.version }}.exe`
+            
+            ### Installation Instructions
+            
+            **macOS:**
+            1. Download the appropriate DMG file
+            2. Open the DMG and drag "oti-scheduler" to Applications
+            3. Launch from Applications folder (code signed and notarized)
+            
+            **Windows:**
+            1. Download the EXE installer
+            2. Run the installer and follow the setup wizard (code signed)
+            3. Launch from Desktop shortcut or Start Menu
+            
+            ### Features
+            - **Code Signed**: All binaries are digitally signed for security
+            - **macOS Notarized**: Approved by Apple for Gatekeeper
+            - **Windows Signed**: EV Certificate for Windows SmartScreen
+            - Self-contained application with embedded database
+            - No external dependencies required
+            - Automatic scheduling algorithm
+            - Employee and room management
+            - Hebrew interface optimized for Israeli kindergartens
+            
+            ### System Requirements
+            - **macOS**: 10.12+ (Sierra or later)
+            - **Windows**: Windows 10/11 (64-bit)
+            
+            For technical documentation, see [ELECTRON.md](https://github.com/ygaller/oti-scheduler/blob/master/ELECTRON.md)
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+          make_latest: true
+          files: |
+            dist-electron/*.dmg
+            dist-electron/*.exe

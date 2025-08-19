@@ -33,7 +33,11 @@ Developer → Git Push → GitHub Actions → Automated Build → Release → Au
 - `oti-scheduler Setup 1.0.0.exe` (Windows x64)
 
 ### 3. Signed Release Pipeline (`.github/workflows/release-signed.yml`)
-**Triggers:** Tags with `-release` suffix (`v*.*.*-release`)  
+**Triggers:** 
+- Tags with `-release` suffix (`v*.*.*-release`)
+- Manually created GitHub releases (with `-release` in tag name)
+- Manual workflow dispatch
+
 **Purpose:** Production-ready signed builds
 
 **Features:**
@@ -41,6 +45,7 @@ Developer → Git Push → GitHub Actions → Automated Build → Release → Au
 - 🍎 macOS notarization
 - 🔐 Windows Extended Validation signing
 - 📦 Production-ready installers
+- 🔄 Automatically updates existing releases with signed assets
 
 ## 🚀 Release Process
 
@@ -73,6 +78,25 @@ git push origin v1.0.1
 
 # 4. GitHub Actions will handle the rest
 ```
+
+### Manual Release via GitHub UI (Signed)
+For signed releases with manual control:
+
+1. **Draft a Release**:
+   - Go to GitHub → Releases → "Create a new release"
+   - Use tag: `v1.0.0-release` (must include `-release` suffix)
+   - Add release notes and save as draft
+
+2. **Automatic Build**:
+   - The signed release workflow will automatically trigger
+   - Builds and signs the applications
+   - Updates the draft with signed binaries
+
+3. **Publish**:
+   - Review the completed release with signed assets
+   - Publish when ready
+
+This approach gives you full control over release timing while ensuring all assets are code-signed.
 
 ## 🔧 Environment Setup
 
