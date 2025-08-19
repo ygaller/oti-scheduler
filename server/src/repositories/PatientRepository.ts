@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PatientRepository } from './interfaces';
 import { Patient, CreatePatientDto, UpdatePatientDto } from '../types';
+import { mapPrismaPatientToAPI } from '../mappers';
 
 export class PrismaPatientRepository implements PatientRepository {
   constructor(private prisma: PrismaClient) {}
@@ -10,14 +11,14 @@ export class PrismaPatientRepository implements PatientRepository {
       where: includeInactive ? {} : { isActive: true },
       orderBy: { createdAt: 'asc' }
     });
-    return patients.map(this.mapPrismaPatientToAPI);
+    return patients.map(mapPrismaPatientToAPI);
   }
 
   async findById(id: string): Promise<Patient | null> {
     const patient = await this.prisma.patient.findUnique({
       where: { id }
     });
-    return patient ? this.mapPrismaPatientToAPI(patient) : null;
+    return patient ? mapPrismaPatientToAPI(patient) : null;
   }
 
   async create(patientData: CreatePatientDto): Promise<Patient> {
@@ -30,7 +31,7 @@ export class PrismaPatientRepository implements PatientRepository {
         isActive: patientData.isActive ?? true,
       }
     });
-    return this.mapPrismaPatientToAPI(patient);
+    return mapPrismaPatientToAPI(patient);
   }
 
   async update(id: string, patientData: UpdatePatientDto): Promise<Patient> {
@@ -46,7 +47,7 @@ export class PrismaPatientRepository implements PatientRepository {
       where: { id },
       data: updateData
     });
-    return this.mapPrismaPatientToAPI(patient);
+    return mapPrismaPatientToAPI(patient);
   }
 
   async setActive(id: string, isActive: boolean): Promise<Patient> {
@@ -54,7 +55,7 @@ export class PrismaPatientRepository implements PatientRepository {
       where: { id },
       data: { isActive }
     });
-    return this.mapPrismaPatientToAPI(patient);
+    return mapPrismaPatientToAPI(patient);
   }
 
   async delete(id: string): Promise<void> {
@@ -65,16 +66,5 @@ export class PrismaPatientRepository implements PatientRepository {
 
   async deleteAll(): Promise<void> {
     await this.prisma.patient.deleteMany();
-  }
-
-  private mapPrismaPatientToAPI(patient: any): Patient {
-    return {
-      id: patient.id,
-      firstName: patient.firstName,
-      lastName: patient.lastName,
-      color: patient.color,
-      therapyRequirements: patient.therapyRequirements || {},
-      isActive: patient.isActive,
-    };
   }
 }

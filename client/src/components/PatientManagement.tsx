@@ -46,8 +46,8 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
     therapyRequirements: {}
   });
 
-  // Get roles for therapy requirements
-  const { getActiveRoles, getRoleByStringKey } = useRoles();
+  // Get roles for therapy requirements - include inactive roles to properly display legacy therapy requirements
+  const { getActiveRoles, getRoleByStringKey } = useRoles(true); // Include inactive roles
   const activeRoles = getActiveRoles();
 
   const handleOpenDialog = (patient?: Patient) => {

@@ -120,7 +120,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   // Get blocked periods for display
   const { activities } = useActivities(true); // Only active ones
-  const { getRoleByStringKey } = useRoles();
+  const { getRoleByStringKey } = useRoles(true); // Include inactive roles to properly display therapy requirements
 
   // Set default selected patient to first active patient
   React.useEffect(() => {
