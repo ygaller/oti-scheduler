@@ -194,16 +194,15 @@ jobs:
             ### Desktop Application Downloads (Code Signed)
             
             **macOS:**
-            - Universal build (Intel + Apple Silicon): `oti-scheduler-${{ steps.version.outputs.version }}.dmg`
-            - Apple Silicon only: `oti-scheduler-${{ steps.version.outputs.version }}-arm64.dmg`
+            - Universal build (Intel + Apple Silicon): Look for `.dmg` file
             
             **Windows:**
-            - 64-bit installer: `oti-scheduler Setup ${{ steps.version.outputs.version }}.exe`
+            - 64-bit installer: Look for `.exe` file
             
             ### Installation Instructions
             
             **macOS:**
-            1. Download the appropriate DMG file
+            1. Download the DMG file
             2. Open the DMG and drag "oti-scheduler" to Applications
             3. Launch from Applications folder (code signed and notarized)
             
@@ -231,6 +230,10 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: false
           make_latest: true
+          append_body: false
           files: |
             dist-electron/*.dmg
+            dist-electron/*.dmg.blockmap
             dist-electron/*.exe
+            dist-electron/*.exe.blockmap
+            dist-electron/latest*.yml
