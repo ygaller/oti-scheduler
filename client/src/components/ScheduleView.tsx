@@ -102,6 +102,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [editingSessionForAssignment, setEditingSessionForAssignment] = useState<Session | null>(null);
   const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('');
 
   // Consecutive sessions warning states
   const [consecutiveWarningOpen, setConsecutiveWarningOpen] = useState(false);
@@ -460,6 +461,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setSelectedPatients(currentPatients.length > 0 ? currentPatients : ['']);
     // Ensure at least one employee is selected (required)
     setSelectedEmployees(currentEmployees.length > 0 ? currentEmployees : []);
+    // Set the current room
+    setSelectedRoomId(session.roomId || '');
     setSessionEditDialogOpen(true);
   };
 
@@ -478,19 +481,33 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         return;
       }
 
+      // Validate that a room is selected
+      if (!selectedRoomId) {
+        setErrorInfo({
+          title: 'שגיאה בעדכון',
+          message: 'יש לבחור חדר לטיפול',
+          details: undefined
+        });
+        setErrorModalOpen(true);
+        return;
+      }
+
       // Filter out empty patient selections
       const filteredPatients = selectedPatients.filter(id => id !== '');
       
-      // Check if employees or notes changed
+      // Check if employees, room, or notes changed
       const originalEmployees = editingSessionForAssignment.employeeIds || [];
+      const originalRoomId = editingSessionForAssignment.roomId || '';
       const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
+      const roomChanged = originalRoomId !== selectedRoomId;
       // For notes, we assume they might have changed since we're directly modifying the editingSessionForAssignment object
       const notesChanged = true; // Always save notes since we're editing them directly
       
-      if (employeesChanged || notesChanged) {
-        // Employees or notes changed - need to update session properties (may trigger blocking validation for employee changes)
+      if (employeesChanged || roomChanged || notesChanged) {
+        // Employees, room, or notes changed - need to update session properties (may trigger blocking validation for employee/room changes)
         await scheduleService.updateSession(editingSessionForAssignment.id, {
           employeeIds: selectedEmployees,
+          roomId: selectedRoomId,
           scheduleId: editingSessionForAssignment.scheduleId,
           notes: editingSessionForAssignment.notes
         });
@@ -2187,10 +2204,28 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <Typography variant="body2" gutterBottom>
                   <strong>שעות:</strong> {editingSessionForAssignment.startTime} - {editingSessionForAssignment.endTime}
                 </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>חדר:</strong> {getRoomName(editingSessionForAssignment.roomId)}
-                </Typography>
               </Box>
+
+              <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
+                חדר:
+              </Typography>
+
+              <FormControl fullWidth>
+                <InputLabel id="room-select-label">חדר</InputLabel>
+                <Select
+                  labelId="room-select-label"
+                  id="room-select"
+                  value={selectedRoomId}
+                  label="חדר"
+                  onChange={(e) => setSelectedRoomId(e.target.value)}
+                >
+                  {rooms.filter(room => room.isActive).map((room) => (
+                    <MenuItem key={room.id} value={room.id}>
+                      {room.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
                 עובדים:
