@@ -353,6 +353,144 @@ cd server && npm run db:studio
 cd server && npm run db:seed
 ```
 
+## 📦 תהליך שחרור (Release Process)
+
+### 🚀 יצירת גרסה חדשה
+
+המערכת כוללת סקריפט אוטומטי לניהול שחרורים שמבצע את כל השלבים הנדרשים:
+
+```bash
+# שחרור גרסה חדשה עם בניה מוכנת לייצור
+node scripts/release.js --version 1.2.3 --prerelease
+
+# שחרור גרסה ללא הפעלת תהליך בניה אוטומטי
+node scripts/release.js --version 1.2.3
+
+# שימוש בסוגי שחרור שונים
+node scripts/release.js --version 1.2.3 --type patch --prerelease
+node scripts/release.js --version 1.3.0 --type minor --prerelease  
+node scripts/release.js --version 2.0.0 --type major --prerelease
+```
+
+### 🎯 אפשרויות סקריפט השחרור
+
+#### פרמטרים נדרשים:
+- `--version <version>`: גרסת השחרור (למשל: 1.2.3)
+
+#### פרמטרים אופציונליים:
+- `--type <type>`: סוג השחרור (`patch`, `minor`, `major`) - ברירת מחדל: `patch`
+- `--prerelease`: יוצר גרסת prerelease עם חתימה דיגיטלית מלאה
+- `--dry-run`: מציג מה יבוצע מבלי לבצע בפועל
+- `--help`, `-h`: מציג הוראות שימוש
+
+#### דוגמאות שימוש:
+
+```bash
+# שחרור רגיל עם בניה וחתימה דיגיטלית (מומלץ לייצור)
+node scripts/release.js --version 1.2.3 --prerelease
+
+# בדיקה מה יבוצע לפני השחרור
+node scripts/release.js --version 1.2.3 --prerelease --dry-run
+
+# שחרור מהיר בלי הפעלת GitHub Actions
+node scripts/release.js --version 1.2.3
+
+# שחרור גרסה ראשית חדשה
+node scripts/release.js --version 2.0.0 --type major --prerelease
+```
+
+### 🔄 מה קורה בתהליך השחרור?
+
+הסקריפט מבצע באופן אוטומטי:
+
+1. **בדיקת סביבת העבודה** - וידוא שהקוד נקי וללא שינויים לא שמורים
+2. **הרצת בדיקות** - הרצת כל הבדיקות האוטומטיות (`npm test`)
+3. **עדכון קבצי package.json** - עדכון הגרסה בכל הקבצים:
+   - `package.json` (שורש)
+   - `client/package.json`
+   - `server/package.json`
+   - `package-lock.json` (כל הקבצים)
+4. **בניית האפליקציה** - הכנת קבצים לייצור (`npm run prepare:electron`)
+5. **שמירת שינויים** - commit אוטומטי של עדכוני הגרסה
+6. **יצירת tag** - יצירת git tag לגרסה החדשה
+7. **דחיפה לשרת** - העלאת השינויים וה-tag ל-GitHub
+
+### 🏷️ סוגי Tags ושמות גרסאות
+
+#### Tags רגילים:
+```bash
+v1.2.3        # גרסה רגילה - לא מפעילה בניה אוטומטית
+```
+
+#### Tags עם prerelease (מומלץ):
+```bash
+v1.2.3-release    # מפעיל בניה עם חתימה דיגיטלית
+```
+
+### ⚙️ GitHub Actions - בניה אוטומטית
+
+כאשר משתמשים ב-flag `--prerelease`, נוצר tag עם סיומת `-release` שמפעיל:
+
+#### 🔧 תהליך בניה מלא:
+- **בניה עבור Windows** (64-bit) עם חתימה דיגיטלית
+- **בניה עבור macOS** (Intel + Apple Silicon) עם notarization
+- **יצירת קבצי התקנה** (.exe עבור Windows, .dmg עבור macOS)
+- **העלאה אוטומטית ל-GitHub Releases** עם תיאור מפורט
+
+#### 📁 תוצרי הבניה:
+- `oti-scheduler-v1.2.3.dmg` (macOS Universal)
+- `oti-scheduler-v1.2.3-arm64.dmg` (macOS Apple Silicon)
+- `oti-scheduler Setup v1.2.3.exe` (Windows 64-bit)
+
+### 🔐 חתימה דיגיטלית ואבטחה
+
+#### Windows:
+- חתימה עם EV Certificate
+- תמיכה ב-Windows SmartScreen
+- הגנה מפני זיוף ותוכנות זדוניות
+
+#### macOS:
+- חתימה עם Developer Certificate
+- Notarization על ידי Apple
+- תמיכה ב-Gatekeeper
+- הורדת אזהרות אבטחה
+
+### 📋 רשימת בדיקות לפני שחרור
+
+לפני הרצת סקריפט השחרור, וודאו:
+
+- [ ] כל הקוד נבדק ועובד כראוי
+- [ ] הבדיקות האוטומטיות עוברות בהצלחה
+- [ ] התיעוד עודכן בהתאם לשינויים
+- [ ] אין קבצים שונו ולא נשמרו
+- [ ] הגרסה החדשה עוקבת אחר Semantic Versioning
+
+### 🚨 פתרון בעיות שחרור
+
+#### בעיות נפוצות:
+
+```bash
+# שגיאה: Working directory is not clean
+git status                    # בדוק מה השתנה
+git add . && git commit -m "fix: prepare for release"
+
+# שגיאה: Tests failed  
+npm test                     # הרץ בדיקות וראה מה נכשל
+npm run test:fix             # תקן בעיות אם יש
+
+# שגיאה: Network issues
+git push origin main         # נסה לדחוף ידנית
+git push origin v1.2.3-release  # דחוף את ה-tag
+```
+
+### 📈 מעקב אחר בניות
+
+לאחר השחרור עם `--prerelease`, ניתן לעקוב אחר התהליך:
+
+1. **GitHub Actions**: https://github.com/ygaller/oti-scheduler/actions
+2. **Releases**: https://github.com/ygaller/oti-scheduler/releases
+3. **Tags**: https://github.com/ygaller/oti-scheduler/tags
+
 ## 🏥 ניהול תפקידים
 
 ### תכונות ניהול תפקידים
