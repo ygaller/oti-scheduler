@@ -83,6 +83,7 @@ export interface Session {
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
+  notes?: string; // Optional notes field
   employees?: Employee[]; // Optional array of employees assigned to this session
   patients?: Patient[]; // Optional array of patients assigned to this session
 }
@@ -134,6 +135,7 @@ export interface CreateSessionDto {
   day: WeekDay;
   startTime: string;
   endTime: string;
+  notes?: string; // Optional notes field
   forceCreate?: boolean; // Added to allow bypassing certain validations with confirmation
 }
 

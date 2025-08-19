@@ -28,6 +28,7 @@ node_modules/
 /server/data/
 *.db
 *.sqlite
+server/prisma/dev.db-journal
 
 # logs
 npm-debug.log*

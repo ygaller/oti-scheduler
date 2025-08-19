@@ -481,21 +481,27 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       // Filter out empty patient selections
       const filteredPatients = selectedPatients.filter(id => id !== '');
       
-      // Check if employees changed
+      // Check if employees or notes changed
       const originalEmployees = editingSessionForAssignment.employeeIds || [];
       const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
+      // For notes, we assume they might have changed since we're directly modifying the editingSessionForAssignment object
+      const notesChanged = true; // Always save notes since we're editing them directly
       
-      if (employeesChanged) {
-        // Employees changed - need to update session properties (may trigger blocking validation)
+      if (employeesChanged || notesChanged) {
+        // Employees or notes changed - need to update session properties (may trigger blocking validation for employee changes)
         await scheduleService.updateSession(editingSessionForAssignment.id, {
           employeeIds: selectedEmployees,
-          scheduleId: editingSessionForAssignment.scheduleId
+          scheduleId: editingSessionForAssignment.scheduleId,
+          notes: editingSessionForAssignment.notes
         });
         
         // Then update patients separately
         await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, forceAssign);
       } else {
-        // Only patients changed - just update patient assignments (no blocking validation)
+        // Only patients changed (and possibly notes) - update both patient assignments and notes
+        await scheduleService.updateSession(editingSessionForAssignment.id, {
+          notes: editingSessionForAssignment.notes
+        });
         await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, forceAssign);
       }
       
@@ -519,7 +525,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             data: {
               employeeIds: selectedEmployees,
               patientIds: selectedPatients.filter(id => id !== ''),
-              scheduleId: editingSessionForAssignment.scheduleId
+              scheduleId: editingSessionForAssignment.scheduleId,
+              notes: editingSessionForAssignment.notes
             }
           });
           setConfirmCreateSessionOpen(true); // Reuse the same dialog
@@ -1383,6 +1390,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   <Typography variant="body2" sx={{ color: textColor }}>
                     חדר: {room ? room.name : 'לא ידוע'}
                   </Typography>
+                  {session.notes && (
+                    <Typography variant="body2" sx={{ color: textColor, fontStyle: 'italic' }}>
+                      הערות: {session.notes}
+                    </Typography>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -1518,6 +1530,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             {session.employeeIds && session.employeeIds.length > 1 && (
                               <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
                                 + {session.employeeIds.length - 1} מטפלים נוספים
+                              </Typography>
+                            )}
+                            {session.notes && (
+                              <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', fontStyle: 'italic', mt: 0.5 }}>
+                                הערות: {session.notes}
                               </Typography>
                             )}
                           </Box>
@@ -1758,7 +1775,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             <Card sx={{ flex: 1, minWidth: '300px' }}>
               <CardContent>
                 <Typography variant="h6" component="h2" mb={2}>
-                  טיפולים נדרשים ללא השמה
+                  טיפולים נדרשים שלא שובצו
                 </Typography>
                 <Box display="flex" flexWrap="wrap" gap={1}>
                   {generateUnassignedTherapyChips().length > 0 ? (
@@ -2024,6 +2041,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     <strong>מטופלים:</strong> {editingSession.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
                   </Typography>
                 )}
+                {editingSession.notes && (
+                  <Typography variant="body2" gutterBottom>
+                    <strong>הערות:</strong> {editingSession.notes}
+                  </Typography>
+                )}
               </Box>
               
               <Typography variant="body2" color="error" sx={{ mt: 2 }}>
@@ -2113,6 +2135,16 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 renderInput={(params) => (
                   <TextField {...params} variant="outlined" label="מטופלים" placeholder="בחר מטופלים" />
                 )}
+              />
+
+              <TextField
+                fullWidth
+                label="הערות"
+                multiline
+                rows={3}
+                value={sessionForm.notes || ''}
+                onChange={(e) => setSessionForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="הערות נוספות לטיפול (אופציונלי)"
               />
             </Box>
           )}
@@ -2214,6 +2246,24 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     />
                   ))
                 }
+              />
+
+              <TextField
+                fullWidth
+                label="הערות"
+                multiline
+                rows={3}
+                value={editingSessionForAssignment.notes || ''}
+                onChange={(e) => {
+                  if (editingSessionForAssignment) {
+                    setEditingSessionForAssignment({
+                      ...editingSessionForAssignment,
+                      notes: e.target.value
+                    });
+                  }
+                }}
+                placeholder="הערות נוספות לטיפול (אופציונלי)"
+                sx={{ mt: 2 }}
               />
               
               <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>

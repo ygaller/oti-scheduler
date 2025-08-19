@@ -87,6 +87,7 @@ export interface Session {
   day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
+  notes?: string; // Optional notes field
   employees: Employee[]; // Array of employees assigned to this session
   patients: Patient[];
   patientIds: string[];

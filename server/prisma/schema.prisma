@@ -115,6 +115,7 @@ model Session {
   day        String   // Values: "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY"
   startTime  String   @map("start_time") // Store as "HH:mm" format
   endTime    String   @map("end_time")   // Store as "HH:mm" format
+  notes      String?  @map("notes") // Optional notes field
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   

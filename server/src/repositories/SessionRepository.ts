@@ -95,6 +95,7 @@ export class PrismaSessionRepository implements SessionRepository {
         day: mapAPIWeekDayToPrisma(sessionData.day),
         startTime: sessionData.startTime,
         endTime: sessionData.endTime,
+        notes: sessionData.notes,
         sessionEmployees: {
           create: sessionData.employeeIds.map(employeeId => ({
             employeeId
@@ -128,6 +129,7 @@ export class PrismaSessionRepository implements SessionRepository {
     if (sessionData.day !== undefined) updateData.day = mapAPIWeekDayToPrisma(sessionData.day);
     if (sessionData.startTime !== undefined) updateData.startTime = sessionData.startTime;
     if (sessionData.endTime !== undefined) updateData.endTime = sessionData.endTime;
+    if (sessionData.notes !== undefined) updateData.notes = sessionData.notes;
 
     // Handle employee assignments
     if (sessionData.employeeIds !== undefined) {
