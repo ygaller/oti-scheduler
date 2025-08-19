@@ -92,7 +92,8 @@ const main = async () => {
     console.log('✅ Working directory is clean');
     console.log('');
 
-    // 2. Run tests
+    // 2. Ensure dependencies and run tests
+    run('npm run setup', 'Ensuring all dependencies are installed');
     run('npm test', 'Running tests');
 
     // 3. Update package.json files
