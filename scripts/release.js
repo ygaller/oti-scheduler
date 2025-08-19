@@ -104,7 +104,7 @@ const main = async () => {
     run('npm run prepare:electron', 'Building application for release');
 
     // 5. Commit version changes
-    run(`git add package.json client/package.json server/package.json`, 'Staging version changes');
+    run(`git add package.json client/package.json server/package.json package-lock.json client/package-lock.json server/package-lock.json`, 'Staging version changes');
     run(`git commit -m "chore: bump version to ${version}"`, 'Committing version changes');
 
     // 6. Create and push tag
