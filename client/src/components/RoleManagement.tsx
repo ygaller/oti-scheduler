@@ -217,7 +217,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
             <TableRow>
               <TableCell>שם התפקיד</TableCell>
               <TableCell>מספר עובדים</TableCell>
-              <TableCell>סה״כ טיפולים</TableCell>
+              <TableCell>סה״כ טיפולים (הוגדרו / שובצו)</TableCell>
               <TableCell>סטטוס</TableCell>
               <TableCell align="left">פעולות</TableCell>
             </TableRow>
