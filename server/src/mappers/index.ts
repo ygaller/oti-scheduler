@@ -131,7 +131,6 @@ export const mapPrismaScheduleToAPI = (prismaSchedule: PrismaSchedule & { sessio
       patients: []
     })),
     generatedAt: prismaSchedule.generatedAt,
-    isActive: prismaSchedule.isActive,
   };
 };
 
@@ -148,7 +147,6 @@ export const mapPrismaScheduleWithPatientsToAPI = (
     id: prismaSchedule.id,
     sessions: prismaSchedule.sessions.map(mapPrismaSessionWithPatientsToAPI),
     generatedAt: prismaSchedule.generatedAt,
-    isActive: prismaSchedule.isActive,
   };
 };
 

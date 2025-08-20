@@ -5,9 +5,7 @@ export declare class MockScheduleRepository implements ScheduleRepository {
     private idCounter;
     findAll(): Promise<Schedule[]>;
     findById(id: string): Promise<Schedule | null>;
-    findActive(): Promise<Schedule | null>;
     create(sessionsOrScheduleData: Session[] | Partial<Schedule>): Promise<Schedule>;
-    setActive(id: string): Promise<Schedule>;
     delete(id: string): Promise<void>;
     deleteAll(): Promise<void>;
     reset(): void;

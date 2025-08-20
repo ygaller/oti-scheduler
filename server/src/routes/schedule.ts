@@ -81,17 +81,12 @@ export const createScheduleRouter = (
     }
   });
 
-  // POST /api/schedule/reset - Reset current schedule (delete and create new empty one)
+  // POST /api/schedule/reset - Reset schedule (delete all and create new empty one)
   router.post('/reset', async (req, res) => {
     try {
-      // Get current active schedule
-      const activeSchedule = await scheduleRepo.findActive();
-      
-      if (activeSchedule && activeSchedule.id) {
-        // Delete the current active schedule (cascades to sessions)
-        await scheduleRepo.delete(activeSchedule.id);
-        console.log('Deleted existing schedule:', activeSchedule.id);
-      }
+      // Delete all existing schedules
+      await scheduleRepo.deleteAll();
+      console.log('Deleted all existing schedules');
       
       // Create a new empty schedule
       const newSchedule = await scheduleRepo.create([]);
@@ -104,14 +99,15 @@ export const createScheduleRouter = (
     }
   });
 
-  // GET /api/schedule/active - Get active schedule
+  // GET /api/schedule/active - Get latest schedule (most recent)
   router.get('/active', async (req, res) => {
     try {
-      const schedule = await scheduleRepo.findActive();
-      res.json(schedule);
+      const schedules = await scheduleRepo.findAll();
+      const latestSchedule = schedules.length > 0 ? schedules[0] : null; // findAll returns sorted by generatedAt desc
+      res.json(latestSchedule);
     } catch (error) {
-      console.error('Error fetching active schedule:', error);
-      res.status(500).json({ error: 'Failed to fetch active schedule' });
+      console.error('Error fetching latest schedule:', error);
+      res.status(500).json({ error: 'Failed to fetch latest schedule' });
     }
   });
 
@@ -126,23 +122,7 @@ export const createScheduleRouter = (
     }
   });
 
-  // PUT /api/schedule/:id/activate - Set schedule as active
-  router.put('/:id/activate', validateUUID(), async (req, res) => {
-    try {
-      const schedule = await scheduleRepo.setActive(req.params.id);
-      res.json(schedule);
-    } catch (error) {
-      console.error('Error activating schedule:', error);
-      if (error instanceof Error && (
-        error.message.includes('Record to update not found') || 
-        error.message.includes('Schedule not found')
-      )) {
-        res.status(404).json({ error: 'Schedule not found' });
-      } else {
-        res.status(500).json({ error: 'Failed to activate schedule' });
-      }
-    }
-  });
+
 
   // DELETE /api/schedule/:id - Delete schedule
   router.delete('/:id', validateUUID(), async (req, res) => {
@@ -178,22 +158,23 @@ export const createScheduleRouter = (
     try {
       const sessionData: CreateSessionDto = req.body;
       
-      // Validate that there is an active schedule before creating sessions
-      const activeSchedule = await scheduleRepo.findActive();
-      if (!activeSchedule) {
-        return res.status(400).json({ 
-          error: 'Cannot create session: No active schedule found. Please generate a schedule first.' 
-        });
+      // Validate that there is a schedule before creating sessions - use latest if scheduleId not provided
+      if (!sessionData.scheduleId) {
+        const schedules = await scheduleRepo.findAll();
+        const latestSchedule = schedules.length > 0 ? schedules[0] : null;
+        if (!latestSchedule) {
+          return res.status(400).json({ 
+            error: 'Cannot create session: No schedule found. Please generate a schedule first.' 
+          });
+        }
+        sessionData.scheduleId = latestSchedule.id!;
       }
-      
-      // Associate the new session with the active schedule
-      sessionData.scheduleId = activeSchedule.id!; // activeSchedule.id is guaranteed to exist here
       
       // Validate the session constraints
       const employees = await employeeRepo.findAll();
       const rooms = await roomRepo.findAll();
-      // Only validate against sessions in the active schedule
-      const allSessions = await sessionRepo.findByScheduleId(activeSchedule.id!);
+      // Only validate against sessions in the same schedule
+      const allSessions = await sessionRepo.findByScheduleId(sessionData.scheduleId!);
       const activities = await activityRepo.findAll(); // Include all activities
 
       const validation = validateScheduleConstraints(
@@ -517,13 +498,14 @@ export const createScheduleRouter = (
     }
   });
 
-  // POST /api/schedule/fix-orphaned-sessions - Fix orphaned sessions by assigning them to active schedule
+  // POST /api/schedule/fix-orphaned-sessions - Fix orphaned sessions by assigning them to latest schedule
   router.post('/fix-orphaned-sessions', async (req, res) => {
     try {
-      const activeSchedule = await scheduleRepo.findActive();
-      if (!activeSchedule) {
+      const schedules = await scheduleRepo.findAll();
+      const latestSchedule = schedules.length > 0 ? schedules[0] : null;
+      if (!latestSchedule) {
         return res.status(400).json({ 
-          error: 'No active schedule found. Please generate a schedule first.' 
+          error: 'No schedule found. Please generate a schedule first.' 
         });
       }
 
@@ -538,19 +520,19 @@ export const createScheduleRouter = (
         });
       }
 
-      // Update orphaned sessions to belong to the active schedule
+      // Update orphaned sessions to belong to the latest schedule
       // Since scheduleId is immutable via UpdateSessionDto, we need to use direct database update
       const updatePromises = orphanedSessions.map(session => 
         prisma.session.update({
           where: { id: session.id },
-          data: { scheduleId: activeSchedule.id }
+          data: { scheduleId: latestSchedule.id }
         })
       );
       
       await Promise.all(updatePromises);
 
       res.json({ 
-        message: `Successfully assigned ${orphanedSessions.length} orphaned sessions to active schedule`,
+        message: `Successfully assigned ${orphanedSessions.length} orphaned sessions to latest schedule`,
         fixedCount: orphanedSessions.length,
         fixedSessionIds: orphanedSessions.map(s => s.id)
       });

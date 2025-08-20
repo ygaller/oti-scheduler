@@ -46,9 +46,7 @@ export interface SessionRepository {
 export interface ScheduleRepository {
   findAll(): Promise<Schedule[]>;
   findById(id: string): Promise<Schedule | null>;
-  findActive(): Promise<Schedule | null>;
   create(sessions: Session[]): Promise<Schedule>;
-  setActive(id: string): Promise<Schedule>;
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
 }

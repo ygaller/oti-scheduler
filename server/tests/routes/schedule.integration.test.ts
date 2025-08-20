@@ -116,85 +116,14 @@ describe('Schedule API Integration Tests', () => {
         expect(schedule).toHaveProperty('id');
         expect(schedule).toHaveProperty('sessions');
         expect(schedule).toHaveProperty('generatedAt');
-        expect(schedule).toHaveProperty('isActive');
       });
 
-      // Only the last generated schedule should be active
-      const activeSchedules = response.body.filter((s: any) => s.isActive);
-      expect(activeSchedules).toHaveLength(1);
-      expect(activeSchedules[0].id).toBe(schedule2Response.body.id);
+      // Schedules should be ordered by generatedAt desc (most recent first)
+      expect(response.body[0].id).toBe(schedule2Response.body.id);
     });
   });
 
-  describe('PUT /api/schedule/:id/activate - API Integration', () => {
-    beforeEach(async () => {
-      // Clean up before each test - order matters due to foreign key constraints
-      await prisma.sessionPatient.deleteMany();
-      await prisma.session.deleteMany();
-      await prisma.schedule.deleteMany();
-      await prisma.employee.deleteMany();
-      await prisma.room.deleteMany();
-      await prisma.activity.deleteMany();
-      await prisma.patient.deleteMany();
-      await prisma.role.deleteMany();
-    });
 
-    it('should activate a schedule and update database (API)', async () => {
-      // Set up test data
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
-      const roleResponse1 = await request(app).post('/api/roles').send(role1);
-      
-      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
-      const room = createRoomFixture();
-
-      await request(app).post('/api/employees').send(employee);
-      await request(app).post('/api/rooms').send(room);
-
-      // Generate two empty schedules
-      const schedule1Response = await request(app).post('/api/schedule/generate-empty').expect(201);
-      const schedule2Response = await request(app).post('/api/schedule/generate-empty').expect(201);
-
-      const schedule1Id = schedule1Response.body.id;
-      const schedule2Id = schedule2Response.body.id;
-
-      // Initially, schedule2 should be active
-      expect(schedule2Response.body.isActive).toBe(true);
-
-      // Activate schedule1
-      const response = await request(app)
-        .put(`/api/schedule/${schedule1Id}/activate`)
-        .expect(200);
-
-      expect(response.body.id).toBe(schedule1Id);
-      expect(response.body.isActive).toBe(true);
-
-      // Verify database state
-      const schedulesInDb = await prisma.schedule.findMany();
-      const activeSchedule = schedulesInDb.find(s => s.isActive);
-      const inactiveSchedule = schedulesInDb.find(s => !s.isActive);
-
-      expect(activeSchedule?.id).toBe(schedule1Id);
-      expect(inactiveSchedule?.id).toBe(schedule2Id);
-    });
-
-    it('should return 404 for non-existent schedule (API)', async () => {
-      const nonExistentId = '00000000-0000-0000-0000-000000000000';
-      
-      const response = await request(app)
-        .put(`/api/schedule/${nonExistentId}/activate`)
-        .expect(404);
-
-      expect(response.body.error).toBe('Schedule not found');
-    });
-
-    it('should return 400 for invalid UUID (API)', async () => {
-      const response = await request(app)
-        .put('/api/schedule/invalid-uuid/activate')
-        .expect(400);
-
-      expect(response.body.error).toBe('Invalid id format');
-    });
-  });
 
   describe('DELETE /api/schedule/:id - API Integration', () => {
     beforeEach(async () => {

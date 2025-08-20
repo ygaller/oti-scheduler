@@ -41,14 +41,9 @@ export class MockScheduleRepository implements ScheduleRepository {
     return this.schedules.find(s => s.id === id) || null;
   }
 
-  async findActive(): Promise<Schedule | null> {
-    return this.schedules.find(s => s.isActive) || null;
-  }
+
 
   async create(sessionsOrScheduleData: Session[] | Partial<Schedule>): Promise<Schedule> {
-    // Deactivate all existing schedules
-    this.schedules.forEach(s => s.isActive = false);
-
     let schedule: Schedule;
     
     if (Array.isArray(sessionsOrScheduleData)) {
@@ -56,8 +51,7 @@ export class MockScheduleRepository implements ScheduleRepository {
       schedule = {
         id: generateTestUUID(),
         sessions: sessionsOrScheduleData.map(s => ({ ...s, id: s.id || generateTestUUID() })),
-        generatedAt: new Date(),
-        isActive: true
+        generatedAt: new Date()
       };
     } else {
       // Called with schedule data (for testing)
@@ -65,28 +59,15 @@ export class MockScheduleRepository implements ScheduleRepository {
         id: generateTestUUID(),
         sessions: [],
         generatedAt: new Date(),
-        isActive: true,
         ...sessionsOrScheduleData
       };
     }
     
-    this.schedules.push(schedule);
+    this.schedules.unshift(schedule); // Add to beginning to maintain desc order
     return { ...schedule };
   }
 
-  async setActive(id: string): Promise<Schedule> {
-    const schedule = this.schedules.find(s => s.id === id);
-    if (!schedule) {
-      throw new Error('Schedule not found');
-    }
 
-    // Deactivate all schedules
-    this.schedules.forEach(s => s.isActive = false);
-    // Activate the target schedule
-    schedule.isActive = true;
-    
-    return { ...schedule };
-  }
 
   async delete(id: string): Promise<void> {
     const index = this.schedules.findIndex(s => s.id === id);

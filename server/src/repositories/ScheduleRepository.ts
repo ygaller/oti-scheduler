@@ -60,44 +60,13 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     return schedule ? mapPrismaScheduleWithPatientsToAPI(schedule) : null;
   }
 
-  async findActive(): Promise<Schedule | null> {
-    const schedule = await this.prisma.schedule.findFirst({
-      where: { isActive: true },
-      include: { 
-        sessions: {
-          include: {
-            sessionEmployees: {
-              include: {
-                employee: {
-                  include: {
-                    role: true
-                  }
-                }
-              }
-            },
-            sessionPatients: {
-              include: {
-                patient: true
-              }
-            }
-          }
-        }
-      }
-    });
-    return schedule ? mapPrismaScheduleWithPatientsToAPI(schedule) : null;
-  }
+
 
   async create(sessions: Session[]): Promise<Schedule> {
-    // First, deactivate all existing schedules
-    await this.prisma.schedule.updateMany({
-      data: { isActive: false }
-    });
-
-    // Create new schedule as active
+    // Create new schedule
     const schedule = await this.prisma.schedule.create({
       data: {
         generatedAt: new Date(),
-        isActive: true, // New schedules are active by default
         sessions: {
           create: sessions.map(session => ({
             roomId: session.roomId,
@@ -141,40 +110,7 @@ export class PrismaScheduleRepository implements ScheduleRepository {
     return mapPrismaScheduleWithPatientsToAPI(schedule);
   }
 
-  async setActive(id: string): Promise<Schedule> {
-    // First, deactivate all schedules
-    await this.prisma.schedule.updateMany({
-      data: { isActive: false }
-    });
 
-    // Then activate the specified schedule
-    const schedule = await this.prisma.schedule.update({
-      where: { id },
-      data: { isActive: true },
-      include: { 
-        sessions: {
-          include: {
-            sessionEmployees: {
-              include: {
-                employee: {
-                  include: {
-                    role: true
-                  }
-                }
-              }
-            },
-            sessionPatients: {
-              include: {
-                patient: true
-              }
-            }
-          }
-        }
-      }
-    });
-    
-    return mapPrismaScheduleWithPatientsToAPI(schedule);
-  }
 
   async delete(id: string): Promise<void> {
     await this.prisma.schedule.delete({

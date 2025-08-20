@@ -21,9 +21,7 @@ export const scheduleService = {
     return api.get<Schedule[]>('/schedule/all');
   },
 
-  async activate(id: string): Promise<Schedule> {
-    return api.put<Schedule>(`/schedule/${id}/activate`, {});
-  },
+
 
   async delete(id: string): Promise<void> {
     return api.delete(`/schedule/${id}`);

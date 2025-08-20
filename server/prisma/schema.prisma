@@ -82,7 +82,6 @@ model Room {
 model Schedule {
   id          String    @id @default(uuid())
   generatedAt DateTime  @map("generated_at") @default(now())
-  isActive    Boolean   @default(false) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   

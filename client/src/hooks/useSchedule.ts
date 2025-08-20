@@ -8,7 +8,6 @@ interface UseScheduleResult {
   loading: boolean;
   error: string | null;
   resetSchedule: () => Promise<Schedule>;
-  activateSchedule: (id: string) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
   refetchActive: () => Promise<void>;
   refetchAll: () => Promise<void>;
@@ -61,21 +60,7 @@ export const useSchedule = (): UseScheduleResult => {
     }
   }, [fetchAllSchedules, fetchActiveSchedule]);
 
-  const activateSchedule = useCallback(async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      await scheduleService.activate(id);
-      await fetchActiveSchedule();
-      await fetchAllSchedules();
-    } catch (err) {
-      console.error('Failed to activate schedule:', err);
-      setError(err instanceof ApiError ? err.message : 'Failed to activate schedule');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchActiveSchedule, fetchAllSchedules]);
+
 
   const deleteSchedule = useCallback(async (id: string) => {
     try {
@@ -107,7 +92,6 @@ export const useSchedule = (): UseScheduleResult => {
     loading,
     error,
     resetSchedule,
-    activateSchedule,
     deleteSchedule,
     refetchActive: fetchActiveSchedule,
     refetchAll: fetchAllSchedules,

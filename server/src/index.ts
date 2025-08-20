@@ -18,19 +18,19 @@ import { RoleRepository, ScheduleRepository } from './repositories/interfaces';
 // Ensure empty schedule exists in the database
 async function ensureDefaultSchedule(scheduleRepo: ScheduleRepository): Promise<void> {
   try {
-    console.log('🔍 Checking for active schedule...');
+    console.log('🔍 Checking for existing schedules...');
     
-    // Check if any active schedule exists
-    const activeSchedule = await scheduleRepo.findActive();
+    // Check if any schedules exist
+    const schedules = await scheduleRepo.findAll();
     
-    if (!activeSchedule) {
+    if (schedules.length === 0) {
       console.log('📝 Creating default empty schedule...');
       
       // Create an empty schedule
       const newSchedule = await scheduleRepo.create([]);
       console.log(`✅ Created default empty schedule: ${newSchedule.id}`);
     } else {
-      console.log(`✅ Found active schedule (${activeSchedule.id}), skipping default schedule creation`);
+      console.log(`✅ Found ${schedules.length} existing schedule(s), skipping default schedule creation`);
     }
   } catch (error) {
     console.error('❌ Error ensuring default schedule:', error);
