@@ -15,6 +15,13 @@ export interface WorkingHours {
   endTime: string;   // HH:mm format
 }
 
+export interface ReservedHour {
+  day: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday';
+  startTime: string; // HH:mm format
+  endTime: string;   // HH:mm format
+  notes?: string;
+}
+
 export interface Employee {
   id: string;
   firstName: string;
@@ -28,6 +35,7 @@ export interface Employee {
     wednesday?: WorkingHours;
     thursday?: WorkingHours;
   };
+  reservedHours: ReservedHour[];
   weeklySessionsCount: number;
   color: string;
   isActive: boolean;
@@ -149,6 +157,7 @@ export interface CreateEmployeeDto {
     wednesday?: WorkingHours;
     thursday?: WorkingHours;
   };
+  reservedHours?: ReservedHour[];
   weeklySessionsCount: number;
   color: string;
   isActive?: boolean;

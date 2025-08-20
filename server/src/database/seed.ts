@@ -26,6 +26,10 @@ const demoEmployees = [
       wednesday: { startTime: '08:00', endTime: '14:00' },
       thursday: { startTime: '08:00', endTime: '16:00' }
     },
+    reservedHours: [
+      { day: 'monday', startTime: '12:00', endTime: '13:00', notes: 'ארוחת צהריים' },
+      { day: 'wednesday', startTime: '11:00', endTime: '12:30', notes: 'מפגש צוות' }
+    ],
     color: '#845ec2',
     isActive: true
   },
@@ -41,6 +45,9 @@ const demoEmployees = [
       wednesday: { startTime: '09:00', endTime: '15:00' },
       thursday: { startTime: '09:00', endTime: '17:00' }
     },
+    reservedHours: [
+      { day: 'tuesday', startTime: '10:00', endTime: '11:00', notes: 'פגישה אישית' }
+    ],
     color: '#ff6f91',
     isActive: true
   },
@@ -54,7 +61,27 @@ const demoEmployees = [
       tuesday: { startTime: '08:30', endTime: '15:30' },
       thursday: { startTime: '08:30', endTime: '15:30' }
     },
+    reservedHours: [], // No reserved hours for this employee
     color: '#00c9a7',
+    isActive: true
+  },
+  {
+    firstName: 'יעל',
+    lastName: 'מנהלת',
+    roleName: 'עבודה סוציאלית',
+    weeklySessionsCount: 0, // Management role with no direct therapy sessions
+    workingHours: {
+      sunday: { startTime: '08:00', endTime: '16:00' },
+      monday: { startTime: '08:00', endTime: '16:00' },
+      tuesday: { startTime: '08:00', endTime: '16:00' },
+      wednesday: { startTime: '08:00', endTime: '16:00' },
+      thursday: { startTime: '08:00', endTime: '16:00' }
+    },
+    reservedHours: [
+      { day: 'monday', startTime: '09:00', endTime: '11:00', notes: 'ישיבת הנהלה' },
+      { day: 'wednesday', startTime: '14:00', endTime: '15:00', notes: 'פיקוח וייעוץ' }
+    ],
+    color: '#ff8a80',
     isActive: true
   }
 ];
@@ -124,32 +151,46 @@ async function seed() {
   try {
     console.log('🌱 Starting database seeding...');
 
-    // Clear existing data
+    // Clear existing data (but preserve roles to maintain data consistency)
     console.log('Clearing existing data...');
     await prisma.session.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.patient.deleteMany();
     await prisma.room.deleteMany();
-    await prisma.role.deleteMany();
+    // NOTE: We do NOT delete roles to preserve existing patient therapy requirements
 
-    // Seed default roles
-    console.log('Seeding default roles...');
-    const createdRoles = await Promise.all(
-      defaultRoles.map((roleName, index) =>
-        prisma.role.create({
-          data: {
-            name: roleName,
-            roleStringKey: `role_${index + 1}`,
-            isActive: true
-          }
+    // Ensure default roles exist (create only if they don't exist)
+    console.log('Ensuring default roles exist...');
+    const existingRoles = await prisma.role.findMany();
+    const existingRoleNames = new Set(existingRoles.map(role => role.name));
+    
+    const rolesToCreate = defaultRoles.filter(roleName => !existingRoleNames.has(roleName));
+    
+    let allRoles = existingRoles;
+    if (rolesToCreate.length > 0) {
+      console.log(`Creating ${rolesToCreate.length} missing roles...`);
+      const newRoles = await Promise.all(
+        rolesToCreate.map((roleName) => {
+          // Find the next available role string key number
+          const nextRoleNumber = defaultRoles.indexOf(roleName) + 1;
+          return prisma.role.create({
+            data: {
+              name: roleName,
+              roleStringKey: `role_${nextRoleNumber}`,
+              isActive: true
+            }
+          });
         })
-      )
-    );
-    console.log(`✅ Created ${createdRoles.length} roles`);
+      );
+      allRoles = [...existingRoles, ...newRoles];
+      console.log(`✅ Created ${newRoles.length} new roles`);
+    } else {
+      console.log('✅ All default roles already exist');
+    }
 
     // Create a map from role name to role for easy lookup
-    const roleMap = new Map(createdRoles.map(role => [role.name, role]));
+    const roleMap = new Map(allRoles.map(role => [role.name, role]));
 
     // Seed employees with role IDs
     console.log('Seeding employees...');
@@ -164,9 +205,10 @@ async function seed() {
           data: {
             firstName: employee.firstName,
             lastName: employee.lastName ?? '',
-            roleId: role.id,
+            roleId: (role as any).id,
             weeklySessionsCount: employee.weeklySessionsCount,
             workingHours: JSON.stringify(employee.workingHours),
+            reservedHours: JSON.stringify(employee.reservedHours || []),
             color: employee.color,
             isActive: employee.isActive
           }
@@ -185,7 +227,7 @@ async function seed() {
         Object.entries(patient.therapyRequirementsMap).forEach(([roleName, sessions]) => {
           const role = roleMap.get(roleName);
           if (role) {
-            therapyRequirements[role.roleStringKey] = sessions;
+            therapyRequirements[(role as any).roleStringKey] = sessions;
           }
         });
 
@@ -213,13 +255,13 @@ async function seed() {
 
     console.log('🎉 Database seeding completed successfully!');
     console.log('\nCreated:');
-    console.log(`  - ${createdRoles.length} roles`);
+    console.log(`  - ${allRoles.length} roles`);
     console.log(`  - ${createdEmployees.length} employees`);
     console.log(`  - ${createdPatients.length} patients`);
     console.log(`  - ${createdRooms.length} rooms`);
 
-    console.log('\nRoles created:');
-    createdRoles.forEach(role => {
+    console.log('\nRoles available:');
+    allRoles.forEach(role => {
       console.log(`  - ${role.name} (${role.roleStringKey})`);
     });
 

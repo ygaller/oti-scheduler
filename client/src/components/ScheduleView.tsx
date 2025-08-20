@@ -50,7 +50,7 @@ import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
-import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from '../services';
+import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../services';
 import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
@@ -86,6 +86,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [confirmCreateSessionOpen, setConfirmCreateSessionOpen] = useState(false); // New state for session creation confirmation
   const [pendingSessionCreationData, setPendingSessionCreationData] = useState<Partial<Session> | null>(null); // New state for pending session data
   const [pendingSessionUpdateData, setPendingSessionUpdateData] = useState<{sessionId: string, data: Partial<Session>} | null>(null); // New state for pending session update data
+  
+  // Warning dialog for reserved hours and blocking activities
+  const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+  const [warningDialogTitle, setWarningDialogTitle] = useState('');
+  const [warningDialogMessage, setWarningDialogMessage] = useState('');
+  const [pendingSessionData, setPendingSessionData] = useState<{day: WeekDay, startTime: string, employeeId: string, endTime?: string} | null>(null);
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorInfo, setErrorInfo] = useState<{
     title: string;
@@ -258,22 +264,93 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }, 250);
   };
 
-  const handleAddSession = (
-    day?: WeekDay,
-    startTime?: string,
-    employeeId?: string
-  ) => {
+  const checkForConflicts = (day: WeekDay, startTime: string, employeeId: string) => {
+    // Check for reserved hours
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (employee) {
+      const reservedHour = employee.reservedHours.find(rh => 
+        rh.day === day && 
+        timeToMinutes(startTime) >= timeToMinutes(rh.startTime) && 
+        timeToMinutes(startTime) < timeToMinutes(rh.endTime)
+      );
+      
+      if (reservedHour) {
+        return {
+          type: 'reservedHour',
+          title: 'שעה חסומה',
+          message: `הטיפול שאתה מנסה ליצור נופל על שעה חסומה של ${employee.firstName}${reservedHour.notes ? ` (${reservedHour.notes})` : ''}. האם אתה בטוח שברצונך להמשיך?`
+        };
+      }
+    }
+
+    // Check for blocking activities
+    const reservedSlot = getReservedSlot(startTime, day);
+    if (reservedSlot && reservedSlot.isBlocking) {
+      return {
+        type: 'blockingActivity',
+        title: 'פעילות חוסמת',
+        message: `הטיפול שאתה מנסה ליצור נופל על פעילות קיימת (${reservedSlot.label}). האם אתה בטוח שברצונך ליצור את הטיפול בכל זאת?`
+      };
+    }
+
+    return null;
+  };
+
+  const handleWarningDialogConfirm = () => {
+    setWarningDialogOpen(false);
+    if (pendingSessionData) {
+      // Proceed with creating the session
+      const { day, startTime, employeeId, endTime } = pendingSessionData;
+      proceedWithAddSession(day, startTime, employeeId, endTime);
+    }
+    setPendingSessionData(null);
+  };
+
+  const handleWarningDialogCancel = () => {
+    setWarningDialogOpen(false);
+    setPendingSessionData(null);
+  };
+
+  const proceedWithAddSession = (day: WeekDay, startTime: string, employeeId?: string, endTime?: string) => {
     setEditingSession(null);
-    setSessionForm({
-      day: day || 'sunday',
-      startTime: startTime || '09:00',
-      endTime: startTime ? formatTime(new Date(parseTime(startTime).getTime() + 45 * 60 * 1000)) : '09:45',
+    
+    const sessionData = {
+      day,
+      startTime,
+      endTime: endTime || formatTime(new Date(parseTime(startTime).getTime() + 45 * 60 * 1000)),
       employeeIds: employeeId ? [employeeId] : (employees[0]?.id ? [employees[0].id] : []),
       roomId: rooms[0]?.id || '',
       patientIds: [] // Initialize patientIds
-    });
+    };
+    
+    setSessionForm(sessionData);
     setPreselectedEmployeeId(employeeId || null);
     setEditDialogOpen(true);
+  };
+
+  const handleAddSession = (
+    day?: WeekDay,
+    startTime?: string,
+    employeeId?: string,
+    endTime?: string
+  ) => {
+    const sessionDay = day || 'sunday';
+    const sessionStartTime = startTime || '09:00';
+    const sessionEmployeeId = employeeId || employees[0]?.id || '';
+
+    // Check for conflicts
+    const conflict = checkForConflicts(sessionDay, sessionStartTime, sessionEmployeeId);
+    
+    if (conflict) {
+      // Show warning dialog
+      setWarningDialogTitle(conflict.title);
+      setWarningDialogMessage(conflict.message);
+      setPendingSessionData({ day: sessionDay, startTime: sessionStartTime, employeeId: sessionEmployeeId, endTime });
+      setWarningDialogOpen(true);
+    } else {
+      // No conflicts, proceed directly
+      proceedWithAddSession(sessionDay, sessionStartTime, sessionEmployeeId, endTime);
+    }
   };
 
   const handleSaveSession = async () => {
@@ -317,21 +394,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setPreselectedEmployeeId(null);
     } catch (error) {
       console.error('Error saving session:', error);
-      console.log('Received error object:', error); // Add this line for debugging
-      
-      // Handle blocking activity confirmation
-      if (error instanceof BlockingActivityWarning) {
-        if (editingSession) {
-          // Session update - handle differently
-          setPendingSessionUpdateData({ sessionId: editingSession.id, data: newSession as Partial<Session> });
-          setConfirmCreateSessionOpen(true); // Reuse the same dialog
-        } else {
-          // Session creation
-          setPendingSessionCreationData(sessionForm);
-          setConfirmCreateSessionOpen(true);
-        }
-        return; // Exit, confirmation dialog will handle further action
-      }
       
       let errorMessage = 'שגיאה בשמירת הטיפול';
       let errorDetails = '';
@@ -530,30 +592,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     } catch (error) {
       console.error('Error updating session:', error);
       
-      // Handle blocking activity confirmation for session updates (only when employees change)
-      if (error instanceof BlockingActivityWarning) {
-        // This should only happen when employees changed and triggered blocking validation
-        const originalEmployees = editingSessionForAssignment.employeeIds || [];
-        const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
-        
-        if (employeesChanged) {
-          setPendingSessionUpdateData({ 
-            sessionId: editingSessionForAssignment.id, 
-            data: {
-              employeeIds: selectedEmployees,
-              patientIds: selectedPatients.filter(id => id !== ''),
-              scheduleId: editingSessionForAssignment.scheduleId,
-              notes: editingSessionForAssignment.notes
-            }
-          });
-          setConfirmCreateSessionOpen(true); // Reuse the same dialog
-          return;
-        } else {
-          // This shouldn't happen for patient-only changes, but log it as an error
-          console.error('Unexpected BlockingActivityWarning for patient-only assignment');
-        }
-      }
-      
+
       // Handle consecutive sessions warning
       if (error instanceof ConsecutiveSessionsWarning) {
         // Create enriched warnings with patient names
@@ -1440,6 +1479,36 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
     };
+
+    const isTimeWithinReservedHours = (employee: Employee, time: string, currentDay: WeekDay): boolean => {
+      if (!employee.reservedHours || employee.reservedHours.length === 0) return false;
+
+      const currentTimeMinutes = timeToMinutes(time);
+
+      return employee.reservedHours.some(reservedHour => {
+        if (reservedHour.day !== currentDay) return false;
+
+        const startMinutes = timeToMinutes(reservedHour.startTime);
+        const endMinutes = timeToMinutes(reservedHour.endTime);
+
+        return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
+      });
+    };
+
+    const getReservedHourForTime = (employee: Employee, time: string, currentDay: WeekDay) => {
+      if (!employee.reservedHours || employee.reservedHours.length === 0) return null;
+
+      const currentTimeMinutes = timeToMinutes(time);
+
+      return employee.reservedHours.find(reservedHour => {
+        if (reservedHour.day !== currentDay) return false;
+
+        const startMinutes = timeToMinutes(reservedHour.startTime);
+        const endMinutes = timeToMinutes(reservedHour.endTime);
+
+        return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
+      }) || null;
+    };
     
     return (
       <TableContainer sx={{ border: 1, borderColor: 'divider', maxHeight: 'none' }}>
@@ -1571,15 +1640,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     }
                     
                     const isWorkingHour = isTimeWithinWorkingHours(employee, time, day);
+                    const isReservedHour = isTimeWithinReservedHours(employee, time, day);
+                    const reservedHourDetails = getReservedHourForTime(employee, time, day);
+                    
+                    // Determine background color: reserved hours are greyed out like non-working hours but still clickable
+                    const backgroundColor = !isWorkingHour ? 'grey.400' : (isReservedHour ? 'grey.400' : 'transparent');
+                    const cursor = isWorkingHour ? 'pointer' : 'not-allowed'; // Working hours are always clickable, even if reserved
+                    const hoverColor = isWorkingHour ? '#f0f0f0' : 'grey.400';
                     
                     return (
                       <TableCell key={employee.id} sx={{
                         p: 0.5,
-                        backgroundColor: isWorkingHour ? 'transparent' : 'grey.400', // Darker grey for non-working hours
+                        backgroundColor,
                         borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                        cursor: isWorkingHour ? 'pointer' : 'not-allowed',
+                        cursor,
                         '&:hover': {
-                          backgroundColor: isWorkingHour ? '#f0f0f0' : 'grey.400', // Highlight on hover for interactive cells
+                          backgroundColor: hoverColor,
                         }
                       }}
                       onClick={() => {
@@ -1587,6 +1663,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                           handleAddSession(day, time, employee.id);
                         }
                       }}>
+                        {reservedHourDetails && reservedHourDetails.notes && time === reservedHourDetails.startTime && (
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              fontSize: '0.6rem', 
+                              color: 'text.secondary',
+                              display: 'block',
+                              textAlign: 'center',
+                              lineHeight: 1.2,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {reservedHourDetails.notes}
+                          </Typography>
+                        )}
                       </TableCell>
                     );
                   })}
@@ -2390,6 +2483,30 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <Button onClick={() => handleConfirmCreateSession(false)} autoFocus>ביטול</Button>
           <Button onClick={() => handleConfirmCreateSession(true)} variant="contained" color="primary">
             אישור יצירה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Warning Dialog for reserved hours and blocking activities */}
+      <Dialog
+        open={warningDialogOpen}
+        onClose={handleWarningDialogCancel}
+        aria-labelledby="warning-dialog-title"
+        aria-describedby="warning-dialog-description"
+      >
+        <DialogTitle id="warning-dialog-title">
+          <Warning color="warning" sx={{ verticalAlign: 'middle', mr: 1 }} />
+          {warningDialogTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="warning-dialog-description">
+            {warningDialogMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleWarningDialogCancel} autoFocus>ביטול</Button>
+          <Button onClick={handleWarningDialogConfirm} variant="contained" color="primary">
+            המשך בכל זאת
           </Button>
         </DialogActions>
       </Dialog>

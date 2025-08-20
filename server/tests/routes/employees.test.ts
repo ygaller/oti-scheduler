@@ -214,6 +214,20 @@ describe('Employee API Endpoints', () => {
 
       expect(response.body.workingHours).toEqual(employeeData.workingHours);
     });
+
+    it('should allow 0 weekly sessions count', async () => {
+      const employeeData = createEmployeeFixture({
+        roleId: roleId,
+        weeklySessionsCount: 0
+      });
+
+      const response = await request(app)
+        .post('/api/employees')
+        .send(employeeData)
+        .expect(201);
+
+      expect(response.body.weeklySessionsCount).toBe(0);
+    });
   });
 
   describe('PUT /api/employees/:id', () => {

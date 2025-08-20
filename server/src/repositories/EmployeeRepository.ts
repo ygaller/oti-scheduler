@@ -39,6 +39,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
         lastName: employeeData.lastName ?? '',
         roleId: employeeData.roleId,
         workingHours: JSON.stringify(employeeData.workingHours),
+        reservedHours: JSON.stringify(employeeData.reservedHours ?? []),
         weeklySessionsCount: employeeData.weeklySessionsCount,
         color: employeeData.color,
         isActive: employeeData.isActive ?? true,
@@ -57,6 +58,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     if (employeeData.lastName !== undefined) updateData.lastName = employeeData.lastName;
     if (employeeData.roleId !== undefined) updateData.roleId = employeeData.roleId;
     if (employeeData.workingHours !== undefined) updateData.workingHours = JSON.stringify(employeeData.workingHours);
+    if (employeeData.reservedHours !== undefined) updateData.reservedHours = JSON.stringify(employeeData.reservedHours);
     if (employeeData.weeklySessionsCount !== undefined) updateData.weeklySessionsCount = employeeData.weeklySessionsCount;
     if (employeeData.color !== undefined) updateData.color = employeeData.color;
     if (employeeData.isActive !== undefined) updateData.isActive = employeeData.isActive;

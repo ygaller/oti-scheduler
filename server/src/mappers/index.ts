@@ -39,6 +39,7 @@ export const mapPrismaEmployeeToAPI = (prismaEmployee: PrismaEmployee & { role?:
     roleId: prismaEmployee.roleId,
     role: prismaEmployee.role ? mapPrismaRoleToAPI(prismaEmployee.role) : undefined,
     workingHours: JSON.parse(prismaEmployee.workingHours) as Employee['workingHours'],
+    reservedHours: JSON.parse(prismaEmployee.reservedHours) as Employee['reservedHours'],
     weeklySessionsCount: prismaEmployee.weeklySessionsCount,
     color: prismaEmployee.color,
     isActive: prismaEmployee.isActive,

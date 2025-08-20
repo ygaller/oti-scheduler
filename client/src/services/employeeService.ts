@@ -1,4 +1,4 @@
-import { Employee } from '../types';
+import { Employee, CreateEmployeeDto } from '../types';
 import { api } from './api';
 
 export const employeeService = {
@@ -11,8 +11,8 @@ export const employeeService = {
     return api.get<Employee>(`/employees/${id}`);
   },
 
-  async create(employee: Omit<Employee, 'id' | 'isActive'>): Promise<Employee> {
-    return api.post<Employee>('/employees', { ...employee, isActive: true });
+  async create(employee: CreateEmployeeDto): Promise<Employee> {
+    return api.post<Employee>('/employees', { ...employee, reservedHours: employee.reservedHours || [], isActive: true });
   },
 
   async update(id: string, employee: Partial<Employee>): Promise<Employee> {

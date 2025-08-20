@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { EmployeeRepository } from '../repositories';
 import { CreateEmployeeDto, UpdateEmployeeDto } from '../types';
-import { validateUUID } from '../utils/validation';
+import { validateUUID, validateReservedHours } from '../utils/validation';
 
 export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router => {
   const router = Router();
@@ -49,6 +49,14 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
         return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
       }
 
+      // Validate reserved hours if provided
+      if (employeeData.reservedHours && employeeData.reservedHours.length > 0) {
+        const validationError = validateReservedHours(employeeData.reservedHours);
+        if (validationError) {
+          return res.status(400).json({ error: validationError });
+        }
+      }
+
       const employee = await employeeRepo.create(employeeData);
       res.status(201).json(employee);
     } catch (error) {
@@ -61,6 +69,15 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
   router.put('/:id', validateUUID(), async (req, res) => {
     try {
       const employeeData: UpdateEmployeeDto = req.body;
+      
+      // Validate reserved hours if provided
+      if (employeeData.reservedHours && employeeData.reservedHours.length > 0) {
+        const validationError = validateReservedHours(employeeData.reservedHours);
+        if (validationError) {
+          return res.status(400).json({ error: validationError });
+        }
+      }
+      
       const employee = await employeeRepo.update(req.params.id, employeeData);
       res.json(employee);
     } catch (error) {

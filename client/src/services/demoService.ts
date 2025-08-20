@@ -112,6 +112,10 @@ export const demoService = {
             wednesday: { startTime: '08:00', endTime: '14:00' },
             thursday: { startTime: '08:00', endTime: '16:00' }
           },
+          reservedHours: [
+            { day: 'monday', startTime: '12:00', endTime: '13:00', notes: 'ארוחת צהריים' },
+            { day: 'wednesday', startTime: '11:00', endTime: '12:30', notes: 'מפגש צוות' }
+          ],
           color: AVAILABLE_COLORS[0]
         },
         {
@@ -127,6 +131,9 @@ export const demoService = {
             wednesday: { startTime: '09:00', endTime: '15:00' },
             thursday: { startTime: '09:00', endTime: '17:00' }
           },
+          reservedHours: [
+            { day: 'tuesday', startTime: '10:00', endTime: '11:00', notes: 'פגישה אישית' }
+          ],
           color: AVAILABLE_COLORS[3]
         },
         {
@@ -140,7 +147,27 @@ export const demoService = {
             tuesday: { startTime: '08:30', endTime: '15:30' },
             thursday: { startTime: '08:30', endTime: '15:30' }
           },
+          reservedHours: [], // No reserved hours for this employee
           color: AVAILABLE_COLORS[8]
+        },
+        {
+          firstName: 'יעל',
+          lastName: 'מנהלת',
+          roleId: roleMap.get('עבודה סוציאלית') || roles[1]?.id || '',
+          isActive: true,
+          weeklySessionsCount: 0, // Management role with no direct therapy sessions
+          workingHours: {
+            sunday: { startTime: '08:00', endTime: '16:00' },
+            monday: { startTime: '08:00', endTime: '16:00' },
+            tuesday: { startTime: '08:00', endTime: '16:00' },
+            wednesday: { startTime: '08:00', endTime: '16:00' },
+            thursday: { startTime: '08:00', endTime: '16:00' }
+          },
+          reservedHours: [
+            { day: 'monday', startTime: '09:00', endTime: '11:00', notes: 'ישיבת הנהלה' },
+            { day: 'wednesday', startTime: '14:00', endTime: '15:00', notes: 'פיקוח וייעוץ' }
+          ],
+          color: AVAILABLE_COLORS[13]
         }
       ];
 

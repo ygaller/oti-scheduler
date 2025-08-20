@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { Add, Edit, PowerOff, Power, HelpOutline } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { Employee, getRandomColor, getRoleName } from '../types';
+import { Employee, ReservedHour, getRandomColor, getRoleName } from '../types';
 import { DAY_LABELS, WEEK_DAYS, WeekDay } from '../types/schedule';
 import { employeeService } from '../services';
 import { useRoles } from '../hooks';
@@ -51,6 +51,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
     roleId: '',
     weeklySessionsCount: 10,
     workingHours: {},
+    reservedHours: [],
     color: ''
   });
 
@@ -70,6 +71,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         roleId: activeRoles.length > 0 ? activeRoles[0].id : '',
         weeklySessionsCount: 10,
         workingHours: {},
+        reservedHours: [],
         color: getRandomColor()
       });
     }
@@ -93,8 +95,9 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         firstName: formData.firstName,
         lastName: formData.lastName ?? '', // Ensure lastName is an empty string if undefined
         roleId: formData.roleId,
-        weeklySessionsCount: formData.weeklySessionsCount || 10,
+        weeklySessionsCount: formData.weeklySessionsCount ?? 10,
         workingHours: formData.workingHours || {},
+        reservedHours: formData.reservedHours || [],
         color: formData.color || getRandomColor()
       };
 
@@ -163,6 +166,43 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
     return date;
   };
 
+  const handleReservedHourAdd = () => {
+    const newReservedHour: ReservedHour = {
+      day: 'sunday',
+      startTime: '09:00',
+      endTime: '10:00',
+      notes: ''
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      reservedHours: [...(prev.reservedHours || []), newReservedHour]
+    }));
+  };
+
+  const handleReservedHourRemove = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      reservedHours: (prev.reservedHours || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleReservedHourChange = (index: number, field: keyof ReservedHour, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      reservedHours: (prev.reservedHours || []).map((hour, i) => 
+        i === index ? { ...hour, [field]: value } : hour
+      )
+    }));
+  };
+
+  const handleReservedHourTimeChange = (index: number, field: 'startTime' | 'endTime', value: Date | null) => {
+    if (!value) return;
+    
+    const timeString = value.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    handleReservedHourChange(index, field, timeString);
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -202,6 +242,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableCell>תפקיד</TableCell>
               <TableCell>מספר טיפולים שבועי</TableCell>
               <TableCell>ימי עבודה</TableCell>
+              <TableCell>שעות חסומות</TableCell>
               <TableCell>צבע</TableCell>
               <TableCell>סטטוס</TableCell>
               <TableCell>פעולות</TableCell>
@@ -236,6 +277,25 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                         />
                       ) : null;
                     })}
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Box display="flex" gap={1} flexWrap="wrap">
+                    {employee.reservedHours.map((reservedHour, index) => (
+                                              <Chip
+                          key={index}
+                          label={`${DAY_LABELS[reservedHour.day]}: ${reservedHour.startTime}-${reservedHour.endTime}${reservedHour.notes ? ` (${reservedHour.notes})` : ''}`}
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                          title={reservedHour.notes || 'שעה חסומה'}
+                        />
+                    ))}
+                    {employee.reservedHours.length === 0 && (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        ללא שעות חסומות
+                      </Typography>
+                    )}
                   </Box>
                 </TableCell>
                 <TableCell>
@@ -312,8 +372,12 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                 fullWidth
                 label="מספר טיפולים שבועי"
                 type="number"
-                value={formData.weeklySessionsCount || 10}
-                onChange={(e) => setFormData(prev => ({ ...prev, weeklySessionsCount: parseInt(e.target.value) }))}
+                inputProps={{ min: 0 }}
+                value={formData.weeklySessionsCount ?? 10}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setFormData(prev => ({ ...prev, weeklySessionsCount: isNaN(value) ? 0 : Math.max(0, value) }));
+                }}
               />
             </Box>
             
@@ -349,6 +413,77 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                   </Box>
                 </Box>
               ))}
+            </Box>
+
+            {/* Reserved Hours */}
+            <Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6">שעות חסומות</Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleReservedHourAdd}
+                  startIcon={<Add />}
+                >
+                  הוסף שעה חסומה
+                </Button>
+              </Box>
+              
+              {(formData.reservedHours || []).map((reservedHour, index) => (
+                <Box key={index} sx={{ mb: 2, p: 2, border: 1, borderColor: 'grey.300', borderRadius: 1 }}>
+                  <Box display="flex" alignItems="center" gap={2} sx={{ mb: 2 }}>
+                    <FormControl sx={{ minWidth: '120px' }}>
+                      <InputLabel>יום</InputLabel>
+                      <Select
+                        value={reservedHour.day}
+                        label="יום"
+                        onChange={(e) => handleReservedHourChange(index, 'day', e.target.value)}
+                        size="small"
+                      >
+                        {WEEK_DAYS.map((day: WeekDay) => (
+                          <MenuItem key={day} value={day}>{DAY_LABELS[day]}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <TimePicker
+                      label="שעת התחלה"
+                      value={parseTime(reservedHour.startTime)}
+                      onChange={(newValue) => handleReservedHourTimeChange(index, 'startTime', newValue)}
+                      ampm={false}
+                      slotProps={{ textField: { size: 'small' } }}
+                    />
+                    <TimePicker
+                      label="שעת סיום"
+                      value={parseTime(reservedHour.endTime)}
+                      onChange={(newValue) => handleReservedHourTimeChange(index, 'endTime', newValue)}
+                      ampm={false}
+                      slotProps={{ textField: { size: 'small' } }}
+                    />
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => handleReservedHourRemove(index)}
+                    >
+                      הסר
+                    </Button>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    label="הערות"
+                    value={reservedHour.notes || ''}
+                    onChange={(e) => handleReservedHourChange(index, 'notes', e.target.value)}
+                    size="small"
+                    placeholder="למשל: ארוחת צהריים, מפגש צוות, פגישה אישית"
+                  />
+                </Box>
+              ))}
+              
+              {(formData.reservedHours || []).length === 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  אין שעות חסומות מוגדרות
+                </Typography>
+              )}
             </Box>
           </Box>
         </DialogContent>

@@ -17,6 +17,7 @@ export const createSystemRouter = (
       console.log('Starting system reset...');
       
       // Delete all data in order (respecting foreign key constraints)
+      // NOTE: We preserve roles to maintain consistency with patient therapy requirements
       await sessionRepo.deleteAll();
       console.log('Deleted all sessions');
       
