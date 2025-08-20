@@ -5,12 +5,14 @@
  * 
  * Usage:
  * node scripts/release.js --version 1.2.0 --type patch
- * node scripts/release.js --version 1.2.0 --type minor --prerelease
+ * node scripts/release.js --version 1.2.0 --type minor --signed
+ * node scripts/release.js --version 1.2.0-beta.1 --prerelease
  * 
  * Options:
  * --version: Version to release (e.g., 1.2.0)
  * --type: Release type (patch, minor, major)
- * --prerelease: Create a prerelease
+ * --signed: Create signed production release (triggers code signing workflow)
+ * --prerelease: Create a prerelease (for beta/testing versions)
  * --dry-run: Show what would be done without executing
  */
 
@@ -29,6 +31,7 @@ const hasFlag = (name) => args.includes(`--${name}`);
 const version = getArg('version');
 const type = getArg('type') || 'patch';
 const prerelease = hasFlag('prerelease');
+const signed = hasFlag('signed');
 const dryRun = hasFlag('dry-run');
 
 if (!version) {
@@ -44,7 +47,7 @@ if (!versionRegex.test(version)) {
 }
 
 console.log(`🚀 Preparing release v${version}`);
-console.log(`📦 Release type: ${type}${prerelease ? ' (prerelease)' : ''}`);
+console.log(`📦 Release type: ${type}${prerelease ? ' (prerelease)' : ''}${signed ? ' (signed)' : ''}`);
 console.log(`🧪 Dry run: ${dryRun ? 'Yes' : 'No'}`);
 console.log('');
 
@@ -109,7 +112,8 @@ const main = async () => {
     run(`git commit -m "chore: bump version to ${version}"`, 'Committing version changes');
 
     // 6. Create and push tag
-    const tagName = `v${version}${prerelease ? '-release' : ''}`;
+    const useSigned = signed || prerelease; // Support both flags for backward compatibility
+    const tagName = `v${version}${useSigned ? '-release' : ''}`;
     run(`git tag -a ${tagName} -m "Release ${version}"`, `Creating tag ${tagName}`);
     run(`git push origin master`, 'Pushing changes to remote');
     run(`git push origin ${tagName}`, 'Pushing tag to remote');
@@ -125,8 +129,10 @@ const main = async () => {
 
     if (prerelease) {
       console.log('⚠️  This is a prerelease. Use for testing only.');
+    } else if (signed || useSigned) {
+      console.log('🔒 This is a signed production release.');
     } else {
-      console.log('✨ This is a production release.');
+      console.log('✨ This is an unsigned production release.');
     }
 
   } catch (error) {
@@ -146,15 +152,16 @@ Usage:
 Options:
   --version <version>    Version to release (required, e.g., 1.2.0)
   --type <type>         Release type: patch, minor, major (default: patch)
-  --prerelease          Create a prerelease for testing
+  --signed              Create signed production release (triggers code signing)
+  --prerelease          Create a prerelease for beta/testing versions
   --dry-run             Show what would be done without executing
   --help, -h            Show this help message
 
 Examples:
-  node scripts/release.js --version 1.2.0
-  node scripts/release.js --version 1.3.0 --type minor
-  node scripts/release.js --version 2.0.0-beta.1 --prerelease
-  node scripts/release.js --version 1.2.1 --dry-run
+  node scripts/release.js --version 1.2.0                    # Unsigned production release
+  node scripts/release.js --version 1.3.0 --signed          # Signed production release  
+  node scripts/release.js --version 2.0.0-beta.1 --prerelease # Beta release for testing
+  node scripts/release.js --version 1.2.1 --dry-run         # Preview what would happen
 
 The script will:
 1. Check that the working directory is clean
@@ -165,8 +172,13 @@ The script will:
 6. Create and push a git tag
 7. Trigger GitHub Actions to build and release
 
-For prereleases, use the --prerelease flag. This will create a tag 
+For signed releases, use the --signed flag. This creates a tag 
 with '-release' suffix which triggers the signed build workflow.
+
+For beta/testing versions, use the --prerelease flag. This should be 
+used with version numbers like '1.0.0-beta.1' or '1.0.0-rc.1'.
+
+Note: For backward compatibility, --prerelease also triggers signed builds.
 `);
   process.exit(0);
 }

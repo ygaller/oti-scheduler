@@ -360,16 +360,19 @@ cd server && npm run db:seed
 המערכת כוללת סקריפט אוטומטי לניהול שחרורים שמבצע את כל השלבים הנדרשים:
 
 ```bash
-# שחרור גרסה חדשה עם בניה מוכנת לייצור
-node scripts/release.js --version 1.2.3 --prerelease
+# שחרור גרסה חדשה עם חתימה דיגיטלית (מומלץ לייצור)
+node scripts/release.js --version 1.2.3 --signed
 
-# שחרור גרסה ללא הפעלת תהליך בניה אוטומטי
+# שחרור גרסה ללא חתימה דיגיטלית
 node scripts/release.js --version 1.2.3
 
+# שחרור גרסת בטא לבדיקות
+node scripts/release.js --version 1.2.3-beta.1 --prerelease
+
 # שימוש בסוגי שחרור שונים
-node scripts/release.js --version 1.2.3 --type patch --prerelease
-node scripts/release.js --version 1.3.0 --type minor --prerelease  
-node scripts/release.js --version 2.0.0 --type major --prerelease
+node scripts/release.js --version 1.2.3 --type patch --signed
+node scripts/release.js --version 1.3.0 --type minor --signed  
+node scripts/release.js --version 2.0.0 --type major --signed
 ```
 
 ### 🎯 אפשרויות סקריפט השחרור
@@ -379,7 +382,8 @@ node scripts/release.js --version 2.0.0 --type major --prerelease
 
 #### פרמטרים אופציונליים:
 - `--type <type>`: סוג השחרור (`patch`, `minor`, `major`) - ברירת מחדל: `patch`
-- `--prerelease`: יוצר גרסת prerelease עם חתימה דיגיטלית מלאה
+- `--signed`: יוצר שחרור עם חתימה דיגיטלית מלאה (מומלץ לייצור)
+- `--prerelease`: יוצר גרסת בטא לבדיקות (להשתמש עם גרסאות כמו 1.0.0-beta.1)
 - `--dry-run`: מציג מה יבוצע מבלי לבצע בפועל
 - `--help`, `-h`: מציג הוראות שימוש
 
@@ -387,16 +391,19 @@ node scripts/release.js --version 2.0.0 --type major --prerelease
 
 ```bash
 # שחרור רגיל עם בניה וחתימה דיגיטלית (מומלץ לייצור)
-node scripts/release.js --version 1.2.3 --prerelease
+node scripts/release.js --version 1.2.3 --signed
 
 # בדיקה מה יבוצע לפני השחרור
-node scripts/release.js --version 1.2.3 --prerelease --dry-run
+node scripts/release.js --version 1.2.3 --signed --dry-run
 
-# שחרור מהיר בלי הפעלת GitHub Actions
+# שחרור מהיר בלי חתימה דיגיטלית
 node scripts/release.js --version 1.2.3
 
+# שחרור גרסת בטא לבדיקות
+node scripts/release.js --version 1.2.3-beta.1 --prerelease
+
 # שחרור גרסה ראשית חדשה
-node scripts/release.js --version 2.0.0 --type major --prerelease
+node scripts/release.js --version 2.0.0 --type major --signed
 ```
 
 ### 🔄 מה קורה בתהליך השחרור?
@@ -429,7 +436,7 @@ v1.2.3-release    # מפעיל בניה עם חתימה דיגיטלית
 
 ### ⚙️ GitHub Actions - בניה אוטומטית
 
-כאשר משתמשים ב-flag `--prerelease`, נוצר tag עם סיומת `-release` שמפעיל:
+כאשר משתמשים ב-flag `--signed`, נוצר tag עם סיומת `-release` שמפעיל:
 
 #### 🔧 תהליך בניה מלא:
 - **בניה עבור Windows** (64-bit) עם חתימה דיגיטלית
@@ -485,7 +492,7 @@ git push origin v1.2.3-release  # דחוף את ה-tag
 
 ### 📈 מעקב אחר בניות
 
-לאחר השחרור עם `--prerelease`, ניתן לעקוב אחר התהליך:
+לאחר השחרור עם `--signed`, ניתן לעקוב אחר התהליך:
 
 1. **GitHub Actions**: https://github.com/ygaller/oti-scheduler/actions
 2. **Releases**: https://github.com/ygaller/oti-scheduler/releases
