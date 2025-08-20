@@ -1,6 +1,7 @@
 import * as XLSX from 'sheetjs-style';
 import { Session, Employee, Room, Patient, Activity, getRoleName } from '../types';
 import { DAY_LABELS, WeekDay, WEEK_DAYS } from '../types/schedule';
+import { getContrastingTextColor } from './colorUtils';
 
 interface ExcelExportOptions {
   sessions: Session[];
@@ -74,6 +75,13 @@ function generateTimeSlots(): string[] {
   return slots;
 }
 
+// Helper function to get the next hour for session overlap checking
+function getNextHour(time: string): string {
+  const [hours] = time.split(':').map(Number);
+  const nextHour = hours + 1;
+  return `${nextHour.toString().padStart(2, '0')}:00`;
+}
+
 // Create employee schedule worksheet
 function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkSheet {
   const { sessions, employees, activities } = options;
@@ -117,17 +125,31 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
       sortedEmployees.forEach(employee => {
         const session = daySessions.find(s => 
           s.employeeIds && s.employeeIds.includes(employee.id) && 
-          s.startTime <= time && 
-          s.endTime > time
+          s.startTime >= time && 
+          s.startTime < getNextHour(time)
         );
         
         if (session) {
           const room = options.rooms.find(r => r.id === session.roomId);
           const patientNames = session.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
           const employeeNames = session.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
-          row.push(`${session.startTime}-${session.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`);
+          let cellContent = `${session.startTime}-${session.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+          if (session.notes && session.notes.trim()) {
+            cellContent += `\nהערות: ${session.notes}`;
+          }
+          row.push(cellContent);
         } else {
-          row.push('');
+          // Check for reserved hours if no session (only show in start time slot)
+          const reservedHour = employee.reservedHours?.find(rh => 
+            rh.day === day && 
+            rh.startTime >= time && 
+            rh.startTime < getNextHour(time)
+          );
+          if (reservedHour) {
+            row.push(`${reservedHour.startTime}-${reservedHour.endTime}\nשעות שמורות\n${reservedHour.notes || 'ללא הערות'}`);
+          } else {
+            row.push('');
+          }
         }
       });
     });
@@ -195,12 +217,13 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
         const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
         if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
           if (!ws[cellRef].s) ws[cellRef].s = {};
+          const textColor = getContrastingTextColor(employee.color);
           ws[cellRef].s.fill = { 
             patternType: 'solid',
             fgColor: { rgb: hexToExcelColor(employee.color) }
           };
-          ws[cellRef].s.alignment = { wrapText: true, vertical: 'top' };
-          ws[cellRef].s.font = { color: { rgb: 'FFFFFF' } };
+          ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+          ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
         }
       }
       colIndex++;
@@ -266,14 +289,18 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
       sortedRooms.forEach(room => {
         const session = daySessions.find(s => 
           s.roomId === room.id && 
-          s.startTime <= time && 
-          s.endTime > time
+          s.startTime >= time && 
+          s.startTime < getNextHour(time)
         );
         
         if (session) {
           const patientNames = session.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
           const employeeNames = session.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
-          row.push(`${session.startTime}-${session.endTime}\n${employeeNames}\n${patientNames}`);
+          let cellContent = `${session.startTime}-${session.endTime}\n${employeeNames}\n${patientNames}`;
+          if (session.notes && session.notes.trim()) {
+            cellContent += `\nהערות: ${session.notes}`;
+          }
+          row.push(cellContent);
         } else {
           row.push('');
         }
@@ -343,12 +370,13 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
         const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
         if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
           if (!ws[cellRef].s) ws[cellRef].s = {};
+          const textColor = getContrastingTextColor(room.color);
           ws[cellRef].s.fill = { 
             patternType: 'solid',
             fgColor: { rgb: hexToExcelColor(room.color) }
           };
-          ws[cellRef].s.alignment = { wrapText: true, vertical: 'top' };
-          ws[cellRef].s.font = { color: { rgb: 'FFFFFF' } };
+          ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+          ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
         }
       }
       colIndex++;
