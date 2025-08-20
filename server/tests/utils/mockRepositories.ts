@@ -311,7 +311,7 @@ export class MockActivityRepository implements ActivityRepository {
   private idCounter = 1;
 
   async findAll(): Promise<Activity[]> {
-    return this.activities.filter(a => a.isActive);
+    return this.activities;
   }
 
   async findById(id: string): Promise<Activity | null> {
@@ -324,7 +324,7 @@ export class MockActivityRepository implements ActivityRepository {
       createdAt: new Date(),
       updatedAt: new Date(),
       ...activity,
-      isActive: activity.isActive ?? true
+
     };
     this.activities.push(newActivity);
     return { ...newActivity };
@@ -344,16 +344,7 @@ export class MockActivityRepository implements ActivityRepository {
     return { ...this.activities[index] };
   }
 
-  async setActive(id: string, isActive: boolean): Promise<Activity> {
-    const index = this.activities.findIndex(a => a.id === id);
-    if (index === -1) {
-      throw new Error('Activity not found');
-    }
-    
-    this.activities[index].isActive = isActive;
-    this.activities[index].updatedAt = new Date();
-    return { ...this.activities[index] };
-  }
+
 
   async delete(id: string): Promise<void> {
     const index = this.activities.findIndex(a => a.id === id);

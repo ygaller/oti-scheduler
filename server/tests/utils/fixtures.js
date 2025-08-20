@@ -67,7 +67,7 @@ const createMockRoles = () => [
     }),
     (0, exports.createCompleteRoleFixture)({
         id: generateTestUUID(),
-        name: 'טיפול בהבעה ויציאה',
+        name: 'טיפול בהבעה ויצירה',
         roleStringKey: 'role_5'
     })
 ];

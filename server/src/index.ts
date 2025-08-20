@@ -51,7 +51,7 @@ async function ensureDefaultRoles(roleRepo: RoleRepository): Promise<void> {
       
       // Default roles in alphabetical order (Hebrew)
       const defaultRoles = [
-        'טיפול בהבעה ויציאה',
+        'טיפול בהבעה ויצירה',
         'עבודה סוציאלית', 
         'פיזיותרפיה',
         'קלינאות תקשורת',

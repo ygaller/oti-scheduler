@@ -250,7 +250,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
                   <IconButton onClick={() => handleOpenDialog(patient)}>
                     <Edit />
                   </IconButton>
-                  <Tooltip title={patient.isActive ? 'כבה' : 'הפעל'}>
+                  <Tooltip title={patient.isActive ? 'השבת' : 'הפעל'}>
                     <IconButton onClick={() => handleToggleActive(patient.id, patient.isActive)}>
                       {patient.isActive ? <PowerOff /> : <Power />}
                     </IconButton>

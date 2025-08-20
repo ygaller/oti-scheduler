@@ -35,7 +35,6 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [demoSuccess, setDemoSuccess] = useState(false);
-  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [showActiveOnlyRoles, setShowActiveOnlyRoles] = useState(true);
 
   // Use the blocked periods hook
@@ -45,9 +44,8 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
     error: activitiesError,
     createActivity,
     updateActivity,
-    setActivityActive,
     deleteActivity
-  } = useActivities(false); // Include inactive for management
+  } = useActivities();
 
   // Use the roles hook
   const {
@@ -205,10 +203,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
             activities={activities}
             onCreateActivity={createActivity}
             onUpdateActivity={updateActivity}
-            onSetActivityActive={setActivityActive}
             onDeleteActivity={deleteActivity}
-            showActiveOnly={showActiveOnly}
-            onShowActiveToggle={setShowActiveOnly}
           />
         )}
       </Box>

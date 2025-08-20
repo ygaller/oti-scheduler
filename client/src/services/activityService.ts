@@ -3,9 +3,8 @@ import { api } from './api';
 
 export const activityService = {
   // Get all activities
-  async getAll(includeInactive = false): Promise<Activity[]> {
-    const params = includeInactive ? '?includeInactive=true' : '';
-    return api.get<Activity[]>(`/activities${params}`);
+  async getAll(): Promise<Activity[]> {
+    return api.get<Activity[]>('/activities');
   },
 
   // Get a specific activity by ID
@@ -23,10 +22,7 @@ export const activityService = {
     return api.put<Activity>(`/activities/${id}`, data);
   },
 
-  // Toggle active status
-  async setActive(id: string, isActive: boolean): Promise<Activity> {
-    return api.patch<Activity>(`/activities/${id}/active`, { isActive });
-  },
+
 
   // Delete an activity
   async delete(id: string): Promise<void> {

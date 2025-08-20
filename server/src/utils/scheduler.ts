@@ -92,7 +92,7 @@ export function validateScheduleConstraints(
 
   // Check activities/blocked periods
   for (const activity of activities) {
-    if (!activity.isBlocking || !activity.isActive) continue;
+    if (!activity.isBlocking) continue;
 
     const activityTime = getActivityTimeForDay(activity, session.day);
     if (!activityTime) continue;

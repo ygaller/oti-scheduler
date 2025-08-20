@@ -56,11 +56,10 @@ export interface ScheduleRepository {
 
 
 export interface ActivityRepository {
-  findAll(includeInactive?: boolean): Promise<Activity[]>;
+  findAll(): Promise<Activity[]>;
   findById(id: string): Promise<Activity | null>;
   create(activity: CreateActivityDto): Promise<Activity>;
   update(id: string, activity: UpdateActivityDto): Promise<Activity>;
-  setActive(id: string, isActive: boolean): Promise<Activity>;
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
 }

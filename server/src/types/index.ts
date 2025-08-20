@@ -76,7 +76,6 @@ export interface Activity {
   defaultEndTime: string | null;   // null means no default time
   dayOverrides: DayTimeOverride;   // JSON field for day-specific overrides
   isBlocking: boolean;
-  isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -159,7 +158,6 @@ export interface CreateActivityDto {
   defaultEndTime?: string | null;
   dayOverrides?: DayTimeOverride;
   isBlocking?: boolean;
-  isActive?: boolean;
 }
 
 export interface UpdateActivityDto extends Partial<CreateActivityDto> {}

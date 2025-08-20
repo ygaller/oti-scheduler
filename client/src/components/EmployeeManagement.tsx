@@ -321,7 +321,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                   <IconButton onClick={() => handleOpenDialog(employee)}>
                     <Edit />
                   </IconButton>
-                  <Tooltip title={employee.isActive ? 'כבה' : 'הפעל'}>
+                  <Tooltip title={employee.isActive ? 'השבת' : 'הפעל'}>
                     <IconButton onClick={() => handleToggleActive(employee.id, employee.isActive)}>
                       {employee.isActive ? <PowerOff /> : <Power />}
                     </IconButton>

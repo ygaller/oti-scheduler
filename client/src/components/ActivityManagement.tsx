@@ -42,10 +42,7 @@ interface ActivityManagementProps {
   activities: Activity[];
   onCreateActivity: (data: CreateActivityDto) => Promise<Activity>;
   onUpdateActivity: (id: string, data: UpdateActivityDto) => Promise<Activity>;
-  onSetActivityActive: (id: string, isActive: boolean) => Promise<Activity>;
   onDeleteActivity: (id: string) => Promise<void>;
-  showActiveOnly: boolean;
-  onShowActiveToggle: (checked: boolean) => void;
 }
 
 interface FormData {
@@ -55,7 +52,6 @@ interface FormData {
   defaultEndTime: string | null;
   dayOverrides: Record<WeekDay, { startTime: string; endTime: string } | null>;
   isBlocking: boolean;
-  isActive: boolean;
 }
 
 const initialFormData: FormData = {
@@ -64,18 +60,14 @@ const initialFormData: FormData = {
   defaultStartTime: null,
   defaultEndTime: null,
   dayOverrides: {} as Record<WeekDay, { startTime: string; endTime: string } | null>,
-  isBlocking: false,
-  isActive: true
+  isBlocking: false
 };
 
 const ActivityManagement: React.FC<ActivityManagementProps> = ({
   activities,
   onCreateActivity,
   onUpdateActivity,
-  onSetActivityActive,
-  onDeleteActivity,
-  showActiveOnly,
-  onShowActiveToggle
+  onDeleteActivity
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -94,8 +86,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
         defaultStartTime: activity.defaultStartTime,
         defaultEndTime: activity.defaultEndTime,
         dayOverrides: { ...activity.dayOverrides } as Record<WeekDay, { startTime: string; endTime: string } | null>,
-        isBlocking: activity.isBlocking,
-        isActive: activity.isActive
+        isBlocking: activity.isBlocking
       });
     } else {
       setEditingId(null);
@@ -124,8 +115,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
           defaultStartTime: formData.defaultStartTime,
           defaultEndTime: formData.defaultEndTime,
           dayOverrides: formData.dayOverrides,
-          isBlocking: formData.isBlocking,
-          isActive: formData.isActive
+          isBlocking: formData.isBlocking
         };
         await onUpdateActivity(editingId!, updateDto);
       } else {
@@ -135,8 +125,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
           defaultStartTime: formData.defaultStartTime,
           defaultEndTime: formData.defaultEndTime,
           dayOverrides: formData.dayOverrides,
-          isBlocking: formData.isBlocking,
-          isActive: formData.isActive
+          isBlocking: formData.isBlocking
         };
         await onCreateActivity(createDto);
       }
@@ -150,13 +139,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
     }
   };
 
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    try {
-      await onSetActivityActive(id, !currentStatus);
-    } catch (error) {
-      console.error('Error updating activity status:', error);
-    }
-  };
+
 
   const handleDelete = async (id: string) => {
     if (window.confirm('האם אתה בטוח שברצונך למחוק את התקופה החסומה?')) {
@@ -215,9 +198,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
     });
   };
 
-  const filteredActivities = showActiveOnly 
-    ? activities.filter(activity => activity.isActive)
-    : activities;
+  const filteredActivities = activities;
 
   return (
     <Box>
@@ -226,15 +207,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
         פעילויות שוטפות
         </Typography>
         <Box display="flex" gap={2} alignItems="center">
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showActiveOnly}
-                onChange={(e) => onShowActiveToggle(e.target.checked)}
-              />
-            }
-            label="הצג פעילים בלבד"
-          />
+
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -275,13 +248,9 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
                     </Typography>
                   </Box>
                   <Box display="flex" flexDirection="column" gap={0.5}>
+
                     <Chip
-                      label={activity.isActive ? 'פעיל' : 'לא פעיל'}
-                      color={activity.isActive ? 'success' : 'default'}
-                      size="small"
-                    />
-                    <Chip
-                      label={activity.isBlocking ? 'חוסם טיפולים' : 'לא חוסם טיפולים'}
+                      label={activity.isBlocking ? 'מתריע על התנגשות' : 'לא מתריע על התנגשות'}
                       color={activity.isBlocking ? 'warning' : 'info'}
                       size="small"
                     />
@@ -326,13 +295,7 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
                   >
                     ערוך
                   </Button>
-                  <Button
-                    size="small"
-                    color={activity.isActive ? 'warning' : 'success'}
-                    onClick={() => handleToggleActive(activity.id, activity.isActive)}
-                  >
-                    {activity.isActive ? 'השבת' : 'הפעל'}
-                  </Button>
+
                   <Button
                     size="small"
                     color="error"
@@ -482,18 +445,10 @@ const ActivityManagement: React.FC<ActivityManagementProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, isBlocking: e.target.checked }))}
                 />
               }
-              label="חסימת תזמון טיפולים"
+              label="התרע על התנגשות עם טיפולים"
             />
 
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                />
-              }
-              label="תקופה פעילה"
-            />
+
           </Box>
         </DialogContent>
         <DialogActions>

@@ -59,7 +59,7 @@ A schedule can be exported as a csv file.
 ** Speech Therapist - קלינאות תקשורת
 ** Pysiotherapist - פיזיותרפיה
 ** Social worker - עבודה סוציאלית
-** Art Therapist - טיפול בהבעה ויציאה
+** Art Therapist - טיפול בהבעה ויצירה
 ** Room - חדר טיפול
 ** Session - טיפול
 ** Breakfast - ארוחת בוקר

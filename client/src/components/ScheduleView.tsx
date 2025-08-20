@@ -50,7 +50,7 @@ import { useRoles } from '../hooks';
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
-import { scheduleService, ApiError, ConsecutiveSessionsWarning } from '../services';
+import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from '../services';
 import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
@@ -124,9 +124,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   } | null>(null);
 
   const [preselectedEmployeeId, setPreselectedEmployeeId] = useState<string | null>(null);
+  const [forceCreateSession, setForceCreateSession] = useState(false); // Track if user confirmed through blocking activity warning
 
   // Get blocked periods for display
-  const { activities } = useActivities(true); // Only active ones
+  const { activities } = useActivities();
   const { getRoleByStringKey } = useRoles(true); // Include inactive roles to properly display therapy requirements
 
   // Set default selected patient to first active patient
@@ -312,6 +313,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const handleWarningDialogConfirm = () => {
     setWarningDialogOpen(false);
     if (pendingSessionData) {
+      // User confirmed to proceed through blocking activity - set force flag
+      setForceCreateSession(true);
       // Proceed with creating the session
       const { day, startTime, employeeId, endTime } = pendingSessionData;
       proceedWithAddSession(day, startTime, employeeId, endTime);
@@ -322,6 +325,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const handleWarningDialogCancel = () => {
     setWarningDialogOpen(false);
     setPendingSessionData(null);
+    setForceCreateSession(false); // Reset force flag on cancel
   };
 
   const proceedWithAddSession = (day: WeekDay, startTime: string, employeeId?: string, endTime?: string) => {
@@ -333,7 +337,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       endTime: endTime || formatTime(new Date(parseTime(startTime).getTime() + 45 * 60 * 1000)),
       employeeIds: employeeId ? [employeeId] : (employees[0]?.id ? [employees[0].id] : []),
       roomId: rooms[0]?.id || '',
-      patientIds: [] // Initialize patientIds
+      patientIds: [], // Initialize patientIds
+      notes: '' // Initialize notes
     };
     
     setSessionForm(sessionData);
@@ -384,6 +389,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       day: sessionForm.day as WeekDay,
       startTime: sessionForm.startTime!,
       endTime: sessionForm.endTime!,
+      notes: sessionForm.notes,
+      forceCreate: forceCreateSession, // Use force create if user already confirmed through warning
     };
 
     // Server-side validation will handle all schedule constraints
@@ -405,8 +412,55 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       await setSchedule(); // Refresh the schedule from the server
       setEditDialogOpen(false);
       setPreselectedEmployeeId(null);
+      setForceCreateSession(false); // Reset force flag after successful creation
     } catch (error) {
       console.error('Error saving session:', error);
+      
+      // Handle blocking activity warning - proceed with force create since warning was already shown
+      if (error instanceof BlockingActivityWarning) {
+        console.log('Blocking activity warning received, proceeding with force create');
+        try {
+          let savedSession: Session;
+          if (editingSession) {
+            const sessionWithForce = { ...newSession, forceCreate: true };
+            savedSession = await scheduleService.updateSession(editingSession.id, sessionWithForce as Partial<Session>);
+          } else {
+            const sessionWithForce = { ...newSession, forceCreate: true };
+            savedSession = await scheduleService.createSession(sessionWithForce);
+          }
+          
+          // Handle patient assignments if they were included
+          if (sessionForm.patientIds !== undefined) {
+            await scheduleService.updateSessionPatients(savedSession.id, sessionForm.patientIds);
+          }
+
+          await setSchedule(); // Refresh the schedule from the server
+          setEditDialogOpen(false);
+          setPreselectedEmployeeId(null);
+          setForceCreateSession(false); // Reset force flag after successful force creation
+          return;
+        } catch (forceError) {
+          console.error('Error force creating session after blocking warning:', forceError);
+          // Show error if force creation also fails
+          let errorMessage = 'שגיאה בשמירת הטיפול לאחר התרעת חסימה';
+          let errorDetails = '';
+          
+          if (forceError instanceof ApiError) {
+            errorMessage = forceError.message;
+            errorDetails = forceError.details || '';
+          } else if (forceError instanceof Error) {
+            errorMessage = forceError.message || errorMessage;
+          }
+          
+          setErrorInfo({
+            title: 'שגיאה בשמירה',
+            message: errorMessage,
+            details: errorDetails
+          });
+          setErrorModalOpen(true);
+          return;
+        }
+      }
       
       let errorMessage = 'שגיאה בשמירת הטיפול';
       let errorDetails = '';
@@ -606,6 +660,65 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       console.error('Error updating session:', error);
       
 
+      // Handle blocking activity warning - proceed with force since warning was already shown
+      if (error instanceof BlockingActivityWarning) {
+        console.log('Blocking activity warning in session assignment, proceeding with force');
+        try {
+          // Check what changed to determine how to force update
+          const originalEmployees = editingSessionForAssignment.employeeIds || [];
+          const originalRoomId = editingSessionForAssignment.roomId || '';
+          const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
+          const roomChanged = originalRoomId !== selectedRoomId;
+          const notesChanged = true; // Always save notes
+          
+          // Force update the session if properties changed
+          if (employeesChanged || roomChanged || notesChanged) {
+            await scheduleService.updateSession(editingSessionForAssignment.id, {
+              employeeIds: selectedEmployees,
+              roomId: selectedRoomId,
+              scheduleId: editingSessionForAssignment.scheduleId,
+              notes: editingSessionForAssignment.notes,
+              forceCreate: true
+            });
+          } else {
+            // Only update notes if no other changes
+            await scheduleService.updateSession(editingSessionForAssignment.id, {
+              notes: editingSessionForAssignment.notes,
+              forceCreate: true
+            });
+          }
+          
+          // Update patients with force
+          const filteredPatients = selectedPatients.filter(id => id !== '');
+          await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, true);
+          
+          await setSchedule();
+          setSessionEditDialogOpen(false);
+          setPendingAssignmentData(null);
+          return;
+        } catch (forceError) {
+          console.error('Error force updating session after blocking warning:', forceError);
+          // Show error if force update also fails
+          let errorMessage = 'שגיאה בעדכון הטיפול לאחר התרעת חסימה';
+          let errorDetails = '';
+          
+          if (forceError instanceof ApiError) {
+            errorMessage = forceError.message;
+            errorDetails = forceError.details || '';
+          } else if (forceError instanceof Error) {
+            errorMessage = forceError.message || errorMessage;
+          }
+          
+          setErrorInfo({
+            title: 'שגיאה בעדכון',
+            message: errorMessage,
+            details: errorDetails
+          });
+          setErrorModalOpen(true);
+          return;
+        }
+      }
+      
       // Handle consecutive sessions warning
       if (error instanceof ConsecutiveSessionsWarning) {
         // Create enriched warnings with patient names
@@ -2332,7 +2445,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       )}
 
       {/* Edit/Add Session Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={editDialogOpen} onClose={() => { setEditDialogOpen(false); setForceCreateSession(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>
           {editingSession ? 'מחיקת טיפול' : 'הוספת טיפול חדש'}
         </DialogTitle>
@@ -2404,30 +2517,83 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 />
               </Box>
 
-              <Autocomplete
-                multiple
-                id="employees-autocomplete-form"
-                options={employees.filter(e => e.isActive)}
-                getOptionLabel={(option) => `${option.firstName} ${option.lastName} - ${getRoleName(option.role, option.roleId)}`}
-                value={employees.filter(e => sessionForm.employeeIds && sessionForm.employeeIds.includes(e.id))}
-                onChange={(event, newValue) => {
-                  setSessionForm(prev => ({ ...prev, employeeIds: newValue.map(emp => emp.id) }));
-                }}
-                disabled={!!preselectedEmployeeId}
-                renderInput={(params) => (
-                  <TextField {...params} variant="outlined" label="עובדים" placeholder="בחר עובדים" />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
+              {preselectedEmployeeId ? (
+                // Show preselected employee as read-only and allow additional employees
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box>
+                    <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                      עובד נבחר:
+                    </Typography>
                     <Chip
-                      variant="outlined"
-                      label={`${option.firstName} ${option.lastName}`}
-                      {...getTagProps({ index })}
-                      key={option.id}
+                      variant="filled"
+                      color="primary"
+                      label={(() => {
+                        const preselectedEmployee = employees.find(e => e.id === preselectedEmployeeId);
+                        return preselectedEmployee 
+                          ? `${preselectedEmployee.firstName} ${preselectedEmployee.lastName} - ${getRoleName(preselectedEmployee.role, preselectedEmployee.roleId)}`
+                          : 'לא נמצא';
+                      })()}
+                      sx={{ mr: 1 }}
                     />
-                  ))
-                }
-              />
+                  </Box>
+                  <Autocomplete
+                    multiple
+                    id="additional-employees-autocomplete"
+                    options={employees.filter(e => e.isActive && e.id !== preselectedEmployeeId)}
+                    getOptionLabel={(option) => `${option.firstName} ${option.lastName} - ${getRoleName(option.role, option.roleId)}`}
+                    value={employees.filter(e => 
+                      sessionForm.employeeIds && 
+                      sessionForm.employeeIds.includes(e.id) && 
+                      e.id !== preselectedEmployeeId
+                    )}
+                    onChange={(event, newValue) => {
+                      const additionalEmployeeIds = newValue.map(emp => emp.id);
+                      setSessionForm(prev => ({ 
+                        ...prev, 
+                        employeeIds: [preselectedEmployeeId, ...additionalEmployeeIds]
+                      }));
+                    }}
+                    renderInput={(params) => (
+                      <TextField {...params} variant="outlined" label="עובדים נוספים" placeholder="בחר עובדים נוספים (אופציונלי)" />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          variant="outlined"
+                          label={`${option.firstName} ${option.lastName}`}
+                          {...getTagProps({ index })}
+                          key={option.id}
+                        />
+                      ))
+                    }
+                  />
+                </Box>
+              ) : (
+                // Show regular employee selection when no preselected employee
+                <Autocomplete
+                  multiple
+                  id="employees-autocomplete-form"
+                  options={employees.filter(e => e.isActive)}
+                  getOptionLabel={(option) => `${option.firstName} ${option.lastName} - ${getRoleName(option.role, option.roleId)}`}
+                  value={employees.filter(e => sessionForm.employeeIds && sessionForm.employeeIds.includes(e.id))}
+                  onChange={(event, newValue) => {
+                    setSessionForm(prev => ({ ...prev, employeeIds: newValue.map(emp => emp.id) }));
+                  }}
+                  renderInput={(params) => (
+                    <TextField {...params} variant="outlined" label="עובדים" placeholder="בחר עובדים" />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        variant="outlined"
+                        label={`${option.firstName} ${option.lastName}`}
+                        {...getTagProps({ index })}
+                        key={option.id}
+                      />
+                    ))
+                  }
+                />
+              )}
               
               <FormControl fullWidth>
                 <InputLabel>חדר</InputLabel>
@@ -2471,7 +2637,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>ביטול</Button>
+          <Button onClick={() => { setEditDialogOpen(false); setForceCreateSession(false); }}>ביטול</Button>
           {editingSession ? (
             <Button 
               onClick={handleDeleteSession} 

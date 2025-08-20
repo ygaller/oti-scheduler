@@ -102,7 +102,6 @@ model Activity {
   defaultEndTime   String? @map("default_end_time")   // Optional default HH:mm format
   dayOverrides String    @default("{}") @map("day_overrides") // JSON string: { "monday": { "startTime": "12:30", "endTime": "13:30" }, "tuesday": null }
   isBlocking   Boolean   @default(false) @map("is_blocking") // Whether this activity should block session scheduling
-  isActive     Boolean   @default(true) @map("is_active")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   

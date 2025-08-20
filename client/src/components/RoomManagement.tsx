@@ -179,7 +179,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ rooms, setRooms, setRoo
                     <IconButton onClick={() => handleOpenDialog(room)}>
                       <Edit />
                     </IconButton>
-                    <Tooltip title={room.isActive ? 'כבה' : 'הפעל'}>
+                    <Tooltip title={room.isActive ? 'השבת' : 'הפעל'}>
                       <IconButton onClick={() => handleToggleActive(room.id, room.isActive)}>
                         {room.isActive ? <PowerOff /> : <Power />}
                       </IconButton>

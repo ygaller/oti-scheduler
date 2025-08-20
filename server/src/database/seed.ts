@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 // Default roles in Hebrew (alphabetically sorted)
 const defaultRoles = [
-  'טיפול בהבעה ויציאה',
+  'טיפול בהבעה ויצירה',
   'עבודה סוציאלית', 
   'פיזיותרפיה',
   'קלינאות תקשורת',
@@ -114,7 +114,7 @@ const demoPatients = [
     color: '#f3c5ff',
     therapyRequirementsMap: {
       'קלינאות תקשורת': 2,
-      'טיפול בהבעה ויציאה': 1
+      'טיפול בהבעה ויצירה': 1
     },
     isActive: true
   },

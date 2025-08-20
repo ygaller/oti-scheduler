@@ -9,8 +9,7 @@ export const createActivityRouter = (activityRepo: ActivityRepository): Router =
   // GET /api/activities - Get all activities
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const includeInactive = req.query.includeInactive === 'true';
-      const activities = await activityRepo.findAll(includeInactive);
+      const activities = await activityRepo.findAll();
       res.json(activities);
     } catch (error) {
       console.error('Error fetching activities:', error);
@@ -44,8 +43,7 @@ export const createActivityRouter = (activityRepo: ActivityRepository): Router =
         defaultStartTime: req.body.defaultStartTime || null,
         defaultEndTime: req.body.defaultEndTime || null,
         dayOverrides: req.body.dayOverrides || {},
-        isBlocking: req.body.isBlocking !== undefined ? req.body.isBlocking : false,
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true
+        isBlocking: req.body.isBlocking !== undefined ? req.body.isBlocking : false
       };
 
       // Basic validation
@@ -83,7 +81,6 @@ export const createActivityRouter = (activityRepo: ActivityRepository): Router =
       if (req.body.defaultEndTime !== undefined) dto.defaultEndTime = req.body.defaultEndTime;
       if (req.body.dayOverrides !== undefined) dto.dayOverrides = req.body.dayOverrides;
       if (req.body.isBlocking !== undefined) dto.isBlocking = req.body.isBlocking;
-      if (req.body.isActive !== undefined) dto.isActive = req.body.isActive;
 
       // Validate name if provided
       if (dto.name !== undefined && (typeof dto.name !== 'string' || dto.name.trim().length === 0)) {
@@ -110,26 +107,7 @@ export const createActivityRouter = (activityRepo: ActivityRepository): Router =
     }
   });
 
-  // PATCH /api/activities/:id/active - Toggle active status
-  router.patch('/:id/active', async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const { isActive } = req.body;
 
-      if (typeof isActive !== 'boolean') {
-        return res.status(400).json({ error: 'isActive must be a boolean' });
-      }
-
-      const activity = await activityRepo.setActive(id, isActive);
-      res.json(activity);
-    } catch (error: any) {
-      console.error('Error updating activity status:', error);
-      if (error.code === 'P2025') {
-        return res.status(404).json({ error: 'Activity not found' });
-      }
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
 
   // DELETE /api/activities/:id - Delete an activity
   router.delete('/:id', async (req: Request, res: Response) => {

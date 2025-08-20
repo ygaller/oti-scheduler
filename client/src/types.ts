@@ -80,7 +80,6 @@ export interface Activity {
   defaultEndTime: string | null;   // null means no default time
   dayOverrides: DayTimeOverride;   // JSON field for day-specific overrides
   isBlocking: boolean;
-  isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

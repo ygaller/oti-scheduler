@@ -10,10 +10,10 @@ async function checkSessionOverlapsBlocking(
   session: any,
   activityRepo: ActivityRepository
 ): Promise<boolean> {
-  const activities = await activityRepo.findAll(true); // Get active blocking activities
+  const activities = await activityRepo.findAll(); // Get all activities
   
   for (const activity of activities) {
-    if (!activity.isBlocking || !activity.isActive) continue;
+    if (!activity.isBlocking) continue;
     
     // Helper function to get activity time for day (copied from scheduler.ts)
     const getActivityTimeForDay = (activity: any, day: string) => {
@@ -194,7 +194,7 @@ export const createScheduleRouter = (
       const rooms = await roomRepo.findAll();
       // Only validate against sessions in the active schedule
       const allSessions = await sessionRepo.findByScheduleId(activeSchedule.id!);
-      const activities = await activityRepo.findAll(true); // Include all active activities
+      const activities = await activityRepo.findAll(); // Include all activities
 
       const validation = validateScheduleConstraints(
         sessionData as any, // Type conversion needed for validation as sessionData does not have 'id' yet but can have forceCreate
@@ -246,7 +246,7 @@ export const createScheduleRouter = (
           return res.status(500).json({ error: 'Session is not associated with any schedule.' });
         }
         const allSessions = await sessionRepo.findByScheduleId(currentSession.scheduleId);
-        const activities = await activityRepo.findAll(true); // Include all active activities
+        const activities = await activityRepo.findAll(); // Include all activities
 
         const updatedSession = { ...currentSession, ...sessionData, forceCreate: sessionData.forceCreate };
         

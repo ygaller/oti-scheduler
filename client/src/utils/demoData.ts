@@ -106,7 +106,7 @@ export const createDemoPatients = (): Patient[] => [
     color: AVAILABLE_COLORS[9],
     therapyRequirements: {
       'role_4': 2, // קלינאות תקשורת
-      'role_1': 1  // טיפול בהבעה ויציאה
+      'role_1': 1  // טיפול בהבעה ויצירה
     },
     isActive: true
   },
