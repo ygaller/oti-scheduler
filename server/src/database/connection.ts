@@ -7,6 +7,7 @@ import fsSync from 'fs';
 
 let prisma: PrismaClient | null = null;
 let migrationCompleted = false;
+let backupPath: string | null = null;
 
 // Migration tracking system compatible with Prisma migrations
 async function ensureMigrationTable(): Promise<void> {
@@ -58,6 +59,63 @@ async function markMigrationAsApplied(migrationName: string, checksum: string): 
   }
 }
 
+// Database backup and restore functions
+async function createDatabaseBackup(dbPath: string): Promise<string> {
+  if (!prisma) throw new Error('Prisma client not available');
+  
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupFileName = `backup-${timestamp}.db`;
+  const backupDir = path.dirname(dbPath);
+  const backupFullPath = path.join(backupDir, backupFileName);
+  
+  try {
+    console.log('💾 Creating database backup...');
+    
+    // Use SQLite's VACUUM INTO command to create a clean backup
+    await prisma.$executeRawUnsafe(`VACUUM INTO '${backupFullPath}'`);
+    
+    console.log(`✅ Database backup created: ${backupFullPath}`);
+    return backupFullPath;
+  } catch (error) {
+    console.error('❌ Failed to create database backup:', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+async function restoreDatabaseFromBackup(originalDbPath: string, backupPath: string): Promise<void> {
+  try {
+    console.log('🔄 Restoring database from backup...');
+    
+    // Close the current Prisma connection
+    if (prisma) {
+      await prisma.$disconnect();
+      prisma = null;
+    }
+    
+    // Wait a moment for the connection to fully close
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Copy backup over the original database
+    await fs.copyFile(backupPath, originalDbPath);
+    
+    console.log('✅ Database restored from backup successfully');
+  } catch (error) {
+    console.error('❌ Failed to restore database from backup:', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+async function cleanupBackup(backupPath: string): Promise<void> {
+  try {
+    if (fsSync.existsSync(backupPath)) {
+      await fs.unlink(backupPath);
+      console.log('🧹 Backup file cleaned up');
+    }
+  } catch (error) {
+    console.log('⚠️  Could not cleanup backup file:', error instanceof Error ? error.message : String(error));
+  }
+}
+
 async function findMigrationFiles(): Promise<Array<{name: string, path: string}>> {
   const migrations: Array<{name: string, path: string}> = [];
   
@@ -98,6 +156,47 @@ async function findMigrationFiles(): Promise<Array<{name: string, path: string}>
   return migrations;
 }
 
+
+
+async function tableExists(tableName: string): Promise<boolean> {
+  if (!prisma) return false;
+  
+  try {
+    const result = await prisma.$queryRaw<Array<{name: string}>>`
+      SELECT name FROM sqlite_master WHERE type='table' AND name=${tableName}
+    `;
+    return result.length > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  if (!prisma) return false;
+  
+  try {
+    const result = await prisma.$queryRaw<Array<{name: string}>>`
+      PRAGMA table_info(${tableName})
+    `;
+    return result.some(col => col.name === columnName);
+  } catch (error) {
+    return false;
+  }
+}
+
+async function indexExists(indexName: string): Promise<boolean> {
+  if (!prisma) return false;
+  
+  try {
+    const result = await prisma.$queryRaw<Array<{name: string}>>`
+      SELECT name FROM sqlite_master WHERE type='index' AND name=${indexName}
+    `;
+    return result.length > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function executeMigrationFile(migrationPath: string): Promise<void> {
   if (!prisma) throw new Error('Prisma client not available');
   
@@ -116,20 +215,70 @@ async function executeMigrationFile(migrationPath: string): Promise<void> {
     .map(stmt => stmt.trim())
     .filter(stmt => stmt.length > 0);
   
-  console.log(`📄 Executing ${statements.length} migration statements...`);
+  console.log(`📄 Executing ${statements.length} migration statements (strict mode - any error triggers restore)...`);
   
   for (let i = 0; i < statements.length; i++) {
     const statement = statements[i];
     if (statement.trim()) {
       try {
+        // Check for CREATE TABLE statements
+        if (statement.includes('CREATE TABLE')) {
+          const tableMatch = statement.match(/CREATE TABLE "([^"]+)"/);
+          if (tableMatch) {
+            const tableName = tableMatch[1];
+            const exists = await tableExists(tableName);
+            if (exists) {
+              console.log(`✅ Table ${tableName} already exists, skipping...`);
+              continue;
+            }
+          }
+        }
+        
+        // Check for CREATE INDEX statements
+        if (statement.includes('CREATE') && statement.includes('INDEX')) {
+          const indexMatch = statement.match(/CREATE (?:UNIQUE )?INDEX "([^"]+)"/);
+          if (indexMatch) {
+            const indexName = indexMatch[1];
+            const exists = await indexExists(indexName);
+            if (exists) {
+              console.log(`✅ Index ${indexName} already exists, skipping...`);
+              continue;
+            }
+          }
+        }
+        
+        // Special handling for ALTER TABLE ADD COLUMN - check if column exists first
+        if (statement.includes('ALTER TABLE') && statement.includes('ADD COLUMN')) {
+          const tableMatch = statement.match(/ALTER TABLE "([^"]+)"/);
+          const columnMatch = statement.match(/ADD COLUMN "([^"]+)"/);
+          
+          if (tableMatch && columnMatch) {
+            const tableName = tableMatch[1];
+            const columnName = columnMatch[1];
+            
+            const exists = await columnExists(tableName, columnName);
+            if (exists) {
+              console.log(`✅ Column ${columnName} already exists in table ${tableName}, skipping...`);
+              continue;
+            }
+          }
+        }
+        
         await prisma.$executeRawUnsafe(statement);
+        console.log(`✅ Statement ${i + 1}/${statements.length} executed successfully`);
       } catch (stmtError) {
-        console.error(`❌ Migration statement ${i + 1} failed:`, stmtError instanceof Error ? stmtError.message : String(stmtError));
+        const errorMessage = stmtError instanceof Error ? stmtError.message : String(stmtError);
+        console.error(`❌ Migration statement ${i + 1} failed:`, errorMessage);
         console.error(`💥 Failed statement: ${statement}`);
-        throw stmtError; // Re-throw to stop migration
+        console.error(`🚨 STRICT MODE: Any error triggers database restore`);
+        
+        // In strict mode, ANY error is treated as critical
+        throw stmtError;
       }
     }
   }
+  
+  console.log(`✅ All migration statements executed successfully`);
 }
 
 // Programmatic migration fallback for when Prisma CLI is not available
@@ -138,6 +287,10 @@ async function attemptProgrammaticMigration(): Promise<void> {
     console.log('✅ Migration already completed, skipping...');
     return;
   }
+
+  // Get database path for backup
+  const config = getDatabaseConfig();
+  const dbPath = config.sqliteFile;
 
   try {
     console.log('🔧 Attempting programmatic migration...');
@@ -170,9 +323,21 @@ async function attemptProgrammaticMigration(): Promise<void> {
     
     console.log(`📦 Found ${pendingMigrations.length} pending migrations to apply`);
     
-    // Apply each pending migration
+    // Create backup before applying migrations
+    try {
+      backupPath = await createDatabaseBackup(dbPath);
+    } catch (backupError) {
+      console.log('⚠️  Could not create backup, proceeding without backup protection');
+      backupPath = null;
+    }
+    
+    // Apply each pending migration (STRICT MODE - any error triggers restore)
+    let migrationFailed = false;
+    let failedMigration = '';
+    let migrationError: Error | null = null;
+    
     for (const migration of pendingMigrations) {
-      console.log(`🔄 Applying migration: ${migration.name}`);
+      console.log(`🔄 Applying migration: ${migration.name} (STRICT MODE)`);
       
       try {
         await executeMigrationFile(migration.path);
@@ -187,8 +352,29 @@ async function attemptProgrammaticMigration(): Promise<void> {
         console.log(`✅ Migration ${migration.name} applied successfully`);
       } catch (error) {
         console.error(`❌ Migration ${migration.name} failed:`, error instanceof Error ? error.message : String(error));
-        throw error; // Stop on first failure
+        console.error(`🚨 STRICT MODE: Migration failure detected, will restore from backup`);
+        
+        migrationFailed = true;
+        failedMigration = migration.name;
+        migrationError = error instanceof Error ? error : new Error(String(error));
+        break; // Stop immediately on any error
       }
+    }
+    
+    // Handle restore if ANY migration failed
+    if (migrationFailed && backupPath) {
+      try {
+        console.log(`🔄 Restoring database due to failed migration: ${failedMigration}`);
+        await restoreDatabaseFromBackup(dbPath, backupPath);
+        console.log('✅ Database successfully restored from backup');
+        throw new Error(`Migration '${failedMigration}' failed and database was restored from backup: ${migrationError?.message}`);
+      } catch (restoreError) {
+        console.error('❌ Failed to restore database from backup:', restoreError);
+        throw new Error(`Migration '${failedMigration}' failed AND database restore failed: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
+      }
+    } else if (migrationFailed && !backupPath) {
+      console.error('❌ Migration failed but no backup available for restore');
+      throw new Error(`Migration '${failedMigration}' failed and no backup was available for restore: ${migrationError?.message}`);
     }
     
     console.log('✅ All programmatic migrations completed successfully');
@@ -204,12 +390,27 @@ async function attemptProgrammaticMigration(): Promise<void> {
     if (Array.isArray(tables) && tables.length > 0) {
       console.log(`✅ Migration verified: ${tables.length} tables created successfully`);
       migrationCompleted = true;
+      
+      // Clean up backup on successful migration
+      if (backupPath) {
+        await cleanupBackup(backupPath);
+        backupPath = null;
+      }
     } else {
       console.error('❌ Migration verification failed: No tables found!');
       throw new Error('Migration failed - no tables created');
     }
   } catch (error) {
-    console.log('⚠️  Programmatic migration failed:', error instanceof Error ? error.message : String(error));
+    console.error('❌ Programmatic migration failed:', error instanceof Error ? error.message : String(error));
+    console.error('🚨 STRICT MODE: Application startup will be aborted due to migration failure');
+    
+    // Clean up backup on failure (restore already happened if needed)
+    if (backupPath) {
+      await cleanupBackup(backupPath);
+      backupPath = null;
+    }
+    
+    // In strict mode, we throw the error to prevent application startup with inconsistent database state
     throw error;
   }
 }
@@ -301,7 +502,9 @@ export const initializeDatabase = async (): Promise<{ prisma: PrismaClient; port
       }
       
     } catch (error) {
-      console.log('⚠️  Migration failed, will try to continue:', error instanceof Error ? error.message : String(error));
+      console.error('❌ Migration failed:', error instanceof Error ? error.message : String(error));
+      console.error('🚨 STRICT MODE: Cannot start application with failed migrations');
+      throw error; // Re-throw to prevent application startup
     }
     
   } catch (error) {

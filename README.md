@@ -183,19 +183,22 @@ npm run dist:all
 המערכת משתמשת ב-SQLite כברירת מחדל. מסד הנתונים:
 - מתחיל אוטומטית עם השרת ללא צורך בהתקנה נוספת
 - נשמר בקובץ מקומי (למשל: `~/.oti-scheduler/database/scheduling.db`)
-- כולל ניהול אוטומטי של migrations עם fallback programmatic migration
+- כולל ניהול אוטומטי של migrations עם backup קפדני ושחזור אוטומטי
 - מספק פשטות, מהירות ואמינות
 - **אין צורך בהגדרת קבצי .env**
 - **תמיכה מלאה ב-Electron למערכות Windows ו-macOS**
 
 #### תכונות מיוחדות של מערכת ה-Migration
 
-המערכת כוללת מנגנון migration מתקדם שמטפל באתגרים של Electron:
+המערכת כוללת מנגנון migration מתקדם וקפדני שמטפל באתגרים של Electron:
 
 1. **Programmatic Migration**: אם Prisma CLI לא זמין (כמו ב-Electron), המערכת מריצה את ה-migrations באופן programmatic
-2. **Fallback Strategy**: ניסיון ראשון עם Prisma CLI, נפילה למערכת הפנימית במידת הצורך  
-3. **Cross-Platform Support**: עובד בצורה מושלמת על Windows, macOS ו-Linux
-4. **Electron Optimization**: התאמה מיוחדת לסביבת Electron עם זיהוי אוטומטי של נתיבי קבצים
+2. **🚨 Strict Mode**: מצב קפדני - כל שגיאה מובילה לשחזור מהגיבוי ועצירת האפליקציה
+3. **Automatic Backup**: יצירת גיבוי אוטומטי לפני כל migration באמצעות SQLite VACUUM INTO
+4. **Smart Pre-Checks**: בדיקה מוקדמת של קיום טבלאות, אינדקסים ועמודות לפני ביצוע
+5. **Zero-Risk Updates**: אפס סיכון לנתונים - או שהכל עובד או שהכל חוזר למצב הקודם
+6. **Cross-Platform Support**: עובד בצורה מושלמת על Windows, macOS ו-Linux
+7. **Electron Optimization**: התאמה מיוחדת לסביבת Electron עם זיהוי אוטומטי של נתיבי קבצים
 
 #### הפעלה
 
@@ -489,6 +492,35 @@ npm run test:fix             # תקן בעיות אם יש
 git push origin main         # נסה לדחוף ידנית
 git push origin v1.2.3-release  # דחוף את ה-tag
 ```
+
+#### בעיות migration באפליקציית Electron:
+
+אם האפליקציה נכשלת בעדכון עם שגיאות migration כגון "table already exists":
+
+**הסיבה**: האפליקציה מנסה להריץ migrations קיימים על מסד נתונים שכבר מכיל חלק מהטבלאות.
+
+**הפתרון**: המערכת תתמודד עם זה אוטומטית החל מגרסה 1.0.8+:
+
+**🔧 מערכת Migration קפדנית עם Backup אוטומטי:**
+- **יצירת גיבוי אוטומטי**: לפני כל migration נוצר גיבוי של מסד הנתונים באמצעות `VACUUM INTO`
+- **בדיקות קיום מתקדמות**: בודק קיום טבלאות, אינדקסים ועמודות לפני ביצוע כל statement
+- **שמירה על SQL המקורי**: לא משנה את ה-SQL המקורי כדי למנוע קונפליקטים
+- **🚨 מצב קפדני**: **כל שגיאה** מובילה לשחזור מהגיבוי ועצירת האפליקציה
+- **אפס סיכון**: מועדפות אפליקציה שלא עולה על פני מסד נתונים פגום
+
+**🔍 מה קורה במהלך ה-migration (מצב קפדני):**
+1. נוצר גיבוי של מסד הנתונים הנוכחי
+2. כל statement נבדק מראש לקיום טבלאות/אינדקסים/עמודות
+3. רק statements שלא קיימים מבוצעים (שאר מדולגים בבטחה)
+4. **במקרה של כל שגיאה** - מסד הנתונים מוחזר מהגיבוי מיידית
+5. במקרה של הצלחה - הגיבוי נמחק ואפליקציה ממשיכה
+6. במקרה של כשל - האפליקציה לא עולה (מסד נתונים שלם מובטח)
+
+**אם הבעיה נמשכת**:
+1. סגור את האפליקציה לחלוטין  
+2. בדוק את הלוגים לפרטים נוספים
+3. במקרה קיצון: מחק את `%APPDATA%\oti-scheduler\database` (Windows)
+4. הפעל מחדש - יווצר מסד נתונים חדש עם כל ה-migrations
 
 ### 📈 מעקב אחר בניות
 
