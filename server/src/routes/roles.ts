@@ -140,5 +140,16 @@ export const createRoleRouter = (roleRepo: RoleRepository): Router => {
     }
   });
 
+  // GET /api/roles/:id/session-stats - Get session statistics for role
+  router.get('/:id/session-stats', validateUUID(), async (req, res) => {
+    try {
+      const stats = await roleRepo.getSessionStats(req.params.id);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting session stats for role:', error);
+      res.status(500).json({ error: 'Failed to get session stats' });
+    }
+  });
+
   return router;
 };

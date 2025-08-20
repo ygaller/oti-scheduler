@@ -152,6 +152,34 @@ export class PrismaRoleRepository implements RoleRepository {
     });
   }
 
+  async getSessionStats(roleId: string): Promise<{ assignedSessions: number; allocatedSessions: number }> {
+    // Get all employees for this role and sum their weekly session counts (allocated sessions)
+    const employees = await this.prisma.employee.findMany({
+      where: { roleId, isActive: true },
+      select: { 
+        id: true,
+        weeklySessionsCount: true 
+      }
+    });
+
+    const allocatedSessions = employees.reduce((sum, employee) => sum + employee.weeklySessionsCount, 0);
+
+    // Count actual assigned sessions for all employees of this role
+    const assignedSessions = await this.prisma.sessionEmployee.count({
+      where: {
+        employee: {
+          roleId: roleId,
+          isActive: true
+        }
+      }
+    });
+
+    return {
+      assignedSessions,
+      allocatedSessions
+    };
+  }
+
   private mapPrismaRoleToRole(prismaRole: PrismaRole): Role {
     return {
       id: prismaRole.id,

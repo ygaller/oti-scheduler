@@ -41,5 +41,10 @@ export const roleService = {
   getEmployeeCount: async (id: string): Promise<number> => {
     const response = await api.get<{ count: number }>(`/roles/${id}/employee-count`);
     return response.count;
+  },
+
+  // Get session statistics for role
+  getSessionStats: async (id: string): Promise<{ assignedSessions: number; allocatedSessions: number }> => {
+    return api.get<{ assignedSessions: number; allocatedSessions: number }>(`/roles/${id}/session-stats`);
   }
 };

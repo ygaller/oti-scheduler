@@ -58,7 +58,8 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
     updateRole,
     setRoleActive,
     deleteRole,
-    getEmployeeCount
+    getEmployeeCount,
+    getSessionStats
   } = useRoles(false); // Include inactive for management
 
 
@@ -181,6 +182,7 @@ const ScheduleConfiguration: React.FC<ScheduleConfigurationProps> = ({ onDataCha
           onSetRoleActive={setRoleActive}
           onDeleteRole={deleteRole}
           onGetEmployeeCount={getEmployeeCount}
+          onGetSessionStats={getSessionStats}
           showActiveOnly={showActiveOnlyRoles}
           onShowActiveToggle={setShowActiveOnlyRoles}
         />

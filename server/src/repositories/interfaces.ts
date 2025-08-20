@@ -75,5 +75,6 @@ export interface RoleRepository {
   setActive(id: string, isActive: boolean): Promise<Role | null>;
   delete(id: string): Promise<{ success: boolean; error?: string; notFound?: boolean }>;
   getEmployeeCount(roleId: string): Promise<number>;
+  getSessionStats(roleId: string): Promise<{ assignedSessions: number; allocatedSessions: number }>;
 }
 

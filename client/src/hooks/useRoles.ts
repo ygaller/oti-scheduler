@@ -90,6 +90,15 @@ export const useRoles = (includeInactive = false) => {
     }
   };
 
+  const getSessionStats = async (id: string): Promise<{ assignedSessions: number; allocatedSessions: number }> => {
+    try {
+      return await roleService.getSessionStats(id);
+    } catch (err) {
+      console.error('Error getting session stats:', err);
+      return { assignedSessions: 0, allocatedSessions: 0 };
+    }
+  };
+
   // Helper to get role by ID
   const getRoleById = (id: string): Role | undefined => {
     return roles.find(role => role.id === id);
@@ -115,6 +124,7 @@ export const useRoles = (includeInactive = false) => {
     setRoleActive,
     deleteRole,
     getEmployeeCount,
+    getSessionStats,
     getRoleById,
     getRoleByStringKey,
     getActiveRoles,

@@ -39,6 +39,7 @@ interface RoleManagementProps {
   onSetRoleActive: (id: string, isActive: boolean) => Promise<Role>;
   onDeleteRole: (id: string) => Promise<void>;
   onGetEmployeeCount: (id: string) => Promise<number>;
+  onGetSessionStats: (id: string) => Promise<{ assignedSessions: number; allocatedSessions: number }>;
   showActiveOnly: boolean;
   onShowActiveToggle: (showActiveOnly: boolean) => void;
 }
@@ -55,6 +56,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
   onSetRoleActive,
   onDeleteRole,
   onGetEmployeeCount,
+  onGetSessionStats,
   showActiveOnly,
   onShowActiveToggle,
 }) => {
@@ -64,27 +66,38 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [employeeCounts, setEmployeeCounts] = useState<Record<string, number>>({});
+  const [sessionStats, setSessionStats] = useState<Record<string, { assignedSessions: number; allocatedSessions: number }>>({});
 
   const displayedRoles = showActiveOnly ? roles.filter(role => role.isActive) : roles;
 
-  // Load employee counts for roles
+  // Load employee counts and session stats for roles
   React.useEffect(() => {
-    const loadEmployeeCounts = async () => {
+    const loadRoleData = async () => {
       const counts: Record<string, number> = {};
+      const stats: Record<string, { assignedSessions: number; allocatedSessions: number }> = {};
+      
       for (const role of roles) {
         try {
           counts[role.id] = await onGetEmployeeCount(role.id);
         } catch (err) {
           counts[role.id] = 0;
         }
+        
+        try {
+          stats[role.id] = await onGetSessionStats(role.id);
+        } catch (err) {
+          stats[role.id] = { assignedSessions: 0, allocatedSessions: 0 };
+        }
       }
+      
       setEmployeeCounts(counts);
+      setSessionStats(stats);
     };
 
     if (roles.length > 0) {
-      loadEmployeeCounts();
+      loadRoleData();
     }
-  }, [roles, onGetEmployeeCount]);
+  }, [roles, onGetEmployeeCount, onGetSessionStats]);
 
   const handleOpenDialog = (role?: Role) => {
     if (role) {
@@ -204,6 +217,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
             <TableRow>
               <TableCell>שם התפקיד</TableCell>
               <TableCell>מספר עובדים</TableCell>
+              <TableCell>סה״כ טיפולים</TableCell>
               <TableCell>סטטוס</TableCell>
               <TableCell align="left">פעולות</TableCell>
             </TableRow>
@@ -221,6 +235,13 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                     label={employeeCounts[role.id] || 0} 
                     size="small"
                     color={employeeCounts[role.id] > 0 ? "default" : "secondary"}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Chip 
+                    label={`${sessionStats[role.id]?.assignedSessions || 0}/${sessionStats[role.id]?.allocatedSessions || 0}`}
+                    size="small"
+                    color={sessionStats[role.id]?.assignedSessions > 0 ? "primary" : "default"}
                   />
                 </TableCell>
                 <TableCell>
@@ -262,7 +283,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
             ))}
             {displayedRoles.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center">
+                <TableCell colSpan={5} align="center">
                   <Typography variant="body2" color="text.secondary">
                     {showActiveOnly ? 'אין תפקידים פעילים' : 'אין תפקידים במערכת'}
                   </Typography>
