@@ -39,14 +39,17 @@ export interface SessionRepository {
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
   deleteByScheduleId(scheduleId: string): Promise<void>;
-  addPatient(sessionId: string, patientId: string): Promise<Session>;
+  assignPatient(sessionId: string, patientId: string): Promise<Session>;
   removePatient(sessionId: string, patientId: string): Promise<Session>;
+  updatePatients(sessionId: string, patientIds: string[]): Promise<Session>;
 }
 
 export interface ScheduleRepository {
   findAll(): Promise<Schedule[]>;
   findById(id: string): Promise<Schedule | null>;
   create(sessions: Session[]): Promise<Schedule>;
+  createWithName(name: string): Promise<Schedule>;
+  updateName(id: string, name: string): Promise<Schedule>;
   delete(id: string): Promise<void>;
   deleteAll(): Promise<void>;
 }

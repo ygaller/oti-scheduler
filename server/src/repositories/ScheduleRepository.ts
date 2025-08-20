@@ -63,9 +63,14 @@ export class PrismaScheduleRepository implements ScheduleRepository {
 
 
   async create(sessions: Session[]): Promise<Schedule> {
-    // Create new schedule
+    // Create new schedule with auto-generated name
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+    const defaultName = `${currentYear} - ${nextYear}`;
+    
     const schedule = await this.prisma.schedule.create({
       data: {
+        name: defaultName,
         generatedAt: new Date(),
         sessions: {
           create: sessions.map(session => ({
@@ -86,6 +91,65 @@ export class PrismaScheduleRepository implements ScheduleRepository {
           }))
         }
       },
+      include: { 
+        sessions: {
+          include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      }
+    });
+    return mapPrismaScheduleWithPatientsToAPI(schedule);
+  }
+
+  async createWithName(name: string): Promise<Schedule> {
+    // Create new schedule with specified name
+    const schedule = await this.prisma.schedule.create({
+      data: {
+        name: name,
+        generatedAt: new Date(),
+      },
+      include: { 
+        sessions: {
+          include: {
+            sessionEmployees: {
+              include: {
+                employee: {
+                  include: {
+                    role: true
+                  }
+                }
+              }
+            },
+            sessionPatients: {
+              include: {
+                patient: true
+              }
+            }
+          }
+        }
+      }
+    });
+    return mapPrismaScheduleWithPatientsToAPI(schedule);
+  }
+
+  async updateName(id: string, name: string): Promise<Schedule> {
+    const schedule = await this.prisma.schedule.update({
+      where: { id },
+      data: { name },
       include: { 
         sessions: {
           include: {

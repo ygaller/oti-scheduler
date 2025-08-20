@@ -125,6 +125,7 @@ export const mapAPIWeekDayToPrisma = (weekDay: WeekDay): string => {
 export const mapPrismaScheduleToAPI = (prismaSchedule: PrismaSchedule & { sessions: PrismaSession[] }): Schedule => {
   return {
     id: prismaSchedule.id,
+    name: prismaSchedule.name,
     sessions: prismaSchedule.sessions.map(session => ({
       ...mapPrismaSessionToAPI(session),
       employees: [],
@@ -145,6 +146,7 @@ export const mapPrismaScheduleWithPatientsToAPI = (
 ): Schedule => {
   return {
     id: prismaSchedule.id,
+    name: prismaSchedule.name,
     sessions: prismaSchedule.sessions.map(mapPrismaSessionWithPatientsToAPI),
     generatedAt: prismaSchedule.generatedAt,
   };

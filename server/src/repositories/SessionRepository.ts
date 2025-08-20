@@ -32,29 +32,6 @@ export class PrismaSessionRepository implements SessionRepository {
     return sessions.map(mapPrismaSessionWithPatientsToAPI);
   }
 
-  async findById(id: string): Promise<Session | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { id },
-      include: {
-        sessionEmployees: {
-          include: {
-            employee: {
-              include: {
-                role: true
-              }
-            }
-          }
-        },
-        sessionPatients: {
-          include: {
-            patient: true
-          }
-        }
-      }
-    });
-    return session ? mapPrismaSessionWithPatientsToAPI(session) : null;
-  }
-
   async findByScheduleId(scheduleId: string): Promise<Session[]> {
     const sessions = await this.prisma.session.findMany({
       where: { scheduleId },
@@ -80,6 +57,29 @@ export class PrismaSessionRepository implements SessionRepository {
       ]
     });
     return sessions.map(mapPrismaSessionWithPatientsToAPI);
+  }
+
+  async findById(id: string): Promise<Session | null> {
+    const session = await this.prisma.session.findUnique({
+      where: { id },
+      include: {
+        sessionEmployees: {
+          include: {
+            employee: {
+              include: {
+                role: true
+              }
+            }
+          }
+        },
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
+    });
+    return session ? mapPrismaSessionWithPatientsToAPI(session) : null;
   }
 
   async create(sessionData: CreateSessionDto): Promise<Session> {
@@ -256,7 +256,7 @@ export class PrismaSessionRepository implements SessionRepository {
     });
   }
 
-  async addPatient(sessionId: string, patientId: string): Promise<Session> {
+  async assignPatient(sessionId: string, patientId: string): Promise<Session> {
     // Create the session-patient relationship
     await this.prisma.sessionPatient.create({
       data: {
@@ -301,6 +301,50 @@ export class PrismaSessionRepository implements SessionRepository {
         patientId
       }
     });
+
+    // Return the updated session with employees and patients
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        sessionEmployees: {
+          include: {
+            employee: {
+              include: {
+                role: true
+              }
+            }
+          }
+        },
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    return mapPrismaSessionWithPatientsToAPI(session);
+  }
+
+  async updatePatients(sessionId: string, patientIds: string[]): Promise<Session> {
+    // First, remove all existing patient assignments for this session
+    await this.prisma.sessionPatient.deleteMany({
+      where: { sessionId }
+    });
+
+    // Then add the new patient assignments
+    if (patientIds.length > 0) {
+      await this.prisma.sessionPatient.createMany({
+        data: patientIds.map(patientId => ({
+          sessionId,
+          patientId
+        }))
+      });
+    }
 
     // Return the updated session with employees and patients
     const session = await this.prisma.session.findUnique({

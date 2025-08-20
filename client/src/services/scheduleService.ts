@@ -4,57 +4,49 @@ import { api } from './api';
 export const scheduleService = {
 
   // Schedule Management
-  async reset(): Promise<Schedule> {
-    return api.post<Schedule>('/schedule/reset');
-  },
-
-  async generateEmpty(): Promise<Schedule> {
-    return api.post<Schedule>('/schedule/generate-empty');
-  },
-
-  // Schedule Management
-  async getActive(): Promise<Schedule | null> {
-    return api.get<Schedule | null>('/schedule/active');
-  },
-
   async getAll(): Promise<Schedule[]> {
     return api.get<Schedule[]>('/schedule/all');
   },
 
-
-
-  async delete(id: string): Promise<void> {
-    return api.delete(`/schedule/${id}`);
+  async create(name: string): Promise<Schedule> {
+    return api.post<Schedule>('/schedule', { name });
   },
 
-  // Session Management (for manual editing)
-  async getSessions(): Promise<Session[]> {
-    return api.get<Session[]>('/schedule/sessions');
+  async updateName(scheduleId: string, name: string): Promise<Schedule> {
+    return api.put<Schedule>(`/schedule/${scheduleId}/name`, { name });
   },
 
-  async createSession(session: CreateSessionDto, forceCreate: boolean = false): Promise<Session> {
-    return api.post<Session>('/schedule/sessions', { ...session, forceCreate });
+  async delete(scheduleId: string): Promise<void> {
+    return api.delete(`/schedule/${scheduleId}`);
   },
 
-  async updateSession(id: string, session: UpdateSessionDto): Promise<Session> {
-    return api.put<Session>(`/schedule/sessions/${id}`, session);
+  // Session Management (for manual editing) - all require scheduleId
+  async getSessions(scheduleId: string): Promise<Session[]> {
+    return api.get<Session[]>(`/schedule/${scheduleId}/sessions`);
   },
 
-  async deleteSession(id: string): Promise<void> {
-    return api.delete(`/schedule/sessions/${id}`);
+  async createSession(scheduleId: string, session: CreateSessionDto, forceCreate: boolean = false): Promise<Session> {
+    return api.post<Session>(`/schedule/${scheduleId}/sessions`, { ...session, forceCreate });
+  },
+
+  async updateSession(scheduleId: string, sessionId: string, session: UpdateSessionDto): Promise<Session> {
+    return api.put<Session>(`/schedule/${scheduleId}/sessions/${sessionId}`, session);
+  },
+
+  async deleteSession(scheduleId: string, sessionId: string): Promise<void> {
+    return api.delete(`/schedule/${scheduleId}/sessions/${sessionId}`);
   },
 
   // Session-Patient Assignment
-  async assignPatientToSession(sessionId: string, patientId: string, forceAssign: boolean = false): Promise<Session> {
-    return api.post<Session>(`/schedule/sessions/${sessionId}/patients`, { patientId, forceAssign });
+  async assignPatientToSession(scheduleId: string, sessionId: string, patientId: string, forceAssign: boolean = false): Promise<Session> {
+    return api.post<Session>(`/schedule/${scheduleId}/sessions/${sessionId}/patients`, { patientId, forceAssign });
   },
 
-  async removePatientFromSession(sessionId: string, patientId: string): Promise<Session> {
-    return api.delete<Session>(`/schedule/sessions/${sessionId}/patients/${patientId}`);
+  async removePatientFromSession(scheduleId: string, sessionId: string, patientId: string): Promise<Session> {
+    return api.delete<Session>(`/schedule/${scheduleId}/sessions/${sessionId}/patients/${patientId}`);
   },
 
-  async updateSessionPatients(sessionId: string, patientIds: string[], forceAssign: boolean = false): Promise<Session> {
-    return api.put<Session>(`/schedule/sessions/${sessionId}/patients`, { patientIds, forceAssign });
+  async updateSessionPatients(scheduleId: string, sessionId: string, patientIds: string[], forceAssign: boolean = false): Promise<Session> {
+    return api.put<Session>(`/schedule/${scheduleId}/sessions/${sessionId}/patients`, { patientIds, forceAssign });
   },
 };
-

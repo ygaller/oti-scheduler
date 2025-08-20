@@ -16,7 +16,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Tabs,
   Tab,
   Table,
@@ -24,16 +23,11 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  IconButton
+  TableRow
 } from '@mui/material';
 import { 
-  CalendarToday, 
-  Download, 
-  Print,
   Warning,
-  Delete,
-  HelpOutline // Import HelpOutline
+  Delete
 } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { 
@@ -63,8 +57,8 @@ interface ScheduleViewProps {
   rooms: Room[];
   patients: Patient[];
   schedule: Schedule | null;
+  selectedScheduleId: string;
   setSchedule: () => Promise<void>;
-  setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
   activeTab: number; // Add prop to pass active tab index
 }
 
@@ -73,8 +67,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   rooms,
   patients,
   schedule,
+  selectedScheduleId,
   setSchedule,
-  setShowHelpModal, // Destructure new prop
   activeTab // Destructure new prop
 }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -82,7 +76,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [sessionForm, setSessionForm] = useState<Partial<Session>>({
     patientIds: []
   });
-  const [isResetting, setIsResetting] = useState(false);
+
   const [scheduleViewTab, setScheduleViewTab] = useState(0); // Renamed from activeTab to avoid conflict
   const [confirmCreateSessionOpen, setConfirmCreateSessionOpen] = useState(false); // New state for session creation confirmation
   const [pendingSessionCreationData, setPendingSessionCreationData] = useState<Partial<Session> | null>(null); // New state for pending session data
@@ -99,7 +93,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     message: string;
     details?: string;
   } | null>(null);
-  const [resetScheduleDialogOpen, setResetScheduleDialogOpen] = useState(false);
+
 
   // Patient view states
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -146,173 +140,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   }, [patients, selectedPatientId]);
 
-  const handleResetScheduleClick = () => {
-    console.log('Reset schedule button clicked!');
-    
-    // Show reset confirmation dialog
-    setResetScheduleDialogOpen(true);
-  };
 
-  const handleResetSchedule = async () => {
-    setResetScheduleDialogOpen(false);
-    setIsResetting(true);
 
-    try {
-      console.log('Calling scheduleService.reset()...');
-      const newSchedule = await scheduleService.reset();
-      console.log('Schedule reset successfully:', newSchedule);
 
-      console.log('Refreshing schedule from server...');
-      await setSchedule(); // Refresh the schedule from the server
-      console.log('Schedule refreshed successfully');
 
-      console.log('Schedule reset completed successfully');
-    } catch (error) {
-      console.error('Error resetting schedule:', error);
 
-      const isApiError = error instanceof ApiError;
-      setErrorInfo({
-        title: 'שגיאה באיפוס לוח הזמנים',
-        message: isApiError ? error.message : 'שגיאה לא ידועה בתקשורת עם השרת',
-        details: isApiError ? error.details : undefined
-      });
-      setErrorModalOpen(true);
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (!schedule || schedule.sessions.length === 0) {
-      setErrorInfo({
-        title: 'לא ניתן לייצא',
-        message: 'אין נתונים לייצוא'
-      });
-      setErrorModalOpen(true);
-      return;
-    }
-
-    try {
-      // Import the Excel export function dynamically
-      import('../utils/excelExport').then(({ exportScheduleToExcel }) => {
-        exportScheduleToExcel({
-          sessions: schedule.sessions,
-          employees,
-          rooms,
-          patients,
-          activities
-        });
-      });
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-      setErrorInfo({
-        title: 'שגיאה בייצוא',
-        message: 'שגיאה בייצוא לקובץ Excel'
-      });
-      setErrorModalOpen(true);
-    }
-  };
-
-  const handlePrint = async () => {
-    console.log('🖨️ [PRINT DEBUG] handlePrint function called');
-    console.log('🖨️ [PRINT DEBUG] Schedule exists:', !!schedule);
-    console.log('🖨️ [PRINT DEBUG] Schedule sessions count:', schedule?.sessions?.length || 0);
-    
-    if (!schedule || schedule.sessions.length === 0) {
-      console.log('🖨️ [PRINT DEBUG] No schedule or sessions, showing error modal');
-      setErrorInfo({
-        title: 'לא ניתן להדפיס',
-        message: 'אין נתונים להדפסה'
-      });
-      setErrorModalOpen(true);
-      return;
-    }
-
-    console.log('🖨️ [PRINT DEBUG] Generating printable content...');
-    console.log('🖨️ [PRINT DEBUG] Schedule view tab:', scheduleViewTab);
-    console.log('🖨️ [PRINT DEBUG] Selected patient ID:', selectedPatientId);
-    
-    // Generate the printable content based on schedule view tab
-    const printContent = generatePrintableSchedule(scheduleViewTab, selectedPatientId);
-    console.log('🖨️ [PRINT DEBUG] Print content length:', printContent.length);
-    
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html dir="rtl" lang="he">
-      <head>
-        <meta charset="UTF-8">
-        <title>לוח זמנים - ${new Date().toLocaleDateString('he-IL')}</title>
-        <style>
-          ${getPrintStyles()}
-        </style>
-      </head>
-      <body>
-        ${printContent}
-      </body>
-      </html>
-    `;
-    console.log('🖨️ [PRINT DEBUG] HTML content length:', htmlContent.length);
-
-    // Check if running in Electron
-    console.log('🖨️ [PRINT DEBUG] Checking for Electron API...');
-    console.log('🖨️ [PRINT DEBUG] window.electronAPI exists:', !!window.electronAPI);
-    console.log('🖨️ [PRINT DEBUG] window.electronAPI.print exists:', !!window.electronAPI?.print);
-    console.log('🖨️ [PRINT DEBUG] window.electronAPI.print.schedule exists:', !!window.electronAPI?.print?.schedule);
-    
-    if (window.electronAPI?.print) {
-      console.log('🖨️ [PRINT DEBUG] Using Electron print API');
-      try {
-        console.log('🖨️ [PRINT DEBUG] Calling window.electronAPI.print.schedule...');
-        const result = await window.electronAPI.print.schedule(htmlContent);
-        console.log('🖨️ [PRINT DEBUG] Print result:', result);
-        
-        if (!result.success) {
-          console.log('🖨️ [PRINT DEBUG] Print failed with error:', result.error);
-          setErrorInfo({
-            title: 'שגיאה בהדפסה',
-            message: 'שגיאה בהדפסה דרך המערכת',
-            details: result.error
-          });
-          setErrorModalOpen(true);
-        } else {
-          console.log('🖨️ [PRINT DEBUG] Print completed successfully');
-        }
-      } catch (error) {
-        console.error('🖨️ [PRINT DEBUG] Exception during print:', error);
-        setErrorInfo({
-          title: 'שגיאה בהדפסה',
-          message: 'שגיאה בהדפסה דרך המערכת',
-          details: error instanceof Error ? error.message : 'שגיאה לא ידועה'
-        });
-        setErrorModalOpen(true);
-      }
-    } else {
-      console.log('🖨️ [PRINT DEBUG] Using web fallback print');
-      // Fallback for web version - use window.open
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        console.log('🖨️ [PRINT DEBUG] Failed to open print window (popup blocked)');
-        setErrorInfo({
-          title: 'שגיאה בהדפסה',
-          message: 'חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה',
-          details: 'אנא אפשר חלונות קופצים עבור אתר זה ונסה שוב'
-        });
-        setErrorModalOpen(true);
-        return;
-      }
-
-      console.log('🖨️ [PRINT DEBUG] Writing content to print window');
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      
-      // Wait for content to load then print
-      setTimeout(() => {
-        console.log('🖨️ [PRINT DEBUG] Triggering print dialog');
-        printWindow.print();
-        printWindow.close();
-      }, 250);
-    }
-  };
 
   const checkForConflicts = (day: WeekDay, startTime: string, employeeId: string) => {
     // Check for reserved hours
@@ -435,14 +267,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     try {
       let savedSession: Session;
       if (editingSession) {
-        savedSession = await scheduleService.updateSession(editingSession.id, newSession as Partial<Session>);
+        savedSession = await scheduleService.updateSession(selectedScheduleId, editingSession.id, newSession as Partial<Session>);
       } else {
-        savedSession = await scheduleService.createSession(newSession);
+        savedSession = await scheduleService.createSession(selectedScheduleId, newSession);
       }
       
       // If patient assignments were changed, update them separately
       if (sessionForm.patientIds !== undefined) {
-        await scheduleService.updateSessionPatients(savedSession.id, sessionForm.patientIds);
+        await scheduleService.updateSessionPatients(selectedScheduleId, savedSession.id, sessionForm.patientIds);
       }
 
       await setSchedule(); // Refresh the schedule from the server
@@ -459,15 +291,15 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           let savedSession: Session;
           if (editingSession) {
             const sessionWithForce = { ...newSession, forceCreate: true };
-            savedSession = await scheduleService.updateSession(editingSession.id, sessionWithForce as Partial<Session>);
+            savedSession = await scheduleService.updateSession(selectedScheduleId, editingSession.id, sessionWithForce as Partial<Session>);
           } else {
             const sessionWithForce = { ...newSession, forceCreate: true };
-            savedSession = await scheduleService.createSession(sessionWithForce);
+            savedSession = await scheduleService.createSession(selectedScheduleId, sessionWithForce);
           }
           
           // Handle patient assignments if they were included
           if (sessionForm.patientIds !== undefined) {
-            await scheduleService.updateSessionPatients(savedSession.id, sessionForm.patientIds);
+            await scheduleService.updateSessionPatients(selectedScheduleId, savedSession.id, sessionForm.patientIds);
           }
 
           await setSchedule(); // Refresh the schedule from the server
@@ -531,12 +363,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       if (pendingSessionUpdateData) {
         // Handle session update with force
         const sessionToUpdate = { ...pendingSessionUpdateData.data, forceCreate: true };
-        savedSession = await scheduleService.updateSession(pendingSessionUpdateData.sessionId, sessionToUpdate);
+        savedSession = await scheduleService.updateSession(selectedScheduleId, pendingSessionUpdateData.sessionId, sessionToUpdate);
         
         // If patient assignments were included in the original session update, handle them now
         if (sessionForm.patientIds !== undefined) {
           try {
-            await scheduleService.updateSessionPatients(savedSession.id, sessionForm.patientIds, true); // Force assign patients
+            await scheduleService.updateSessionPatients(selectedScheduleId, savedSession.id, sessionForm.patientIds, true); // Force assign patients
           } catch (patientError) {
             console.warn('Error assigning patients after force session update:', patientError);
             // Continue even if patient assignment fails - the session is updated
@@ -545,12 +377,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       } else if (pendingSessionCreationData) {
         // Handle session creation with force
         const sessionToCreate = { ...pendingSessionCreationData, forceCreate: true } as CreateSessionDto;
-        savedSession = await scheduleService.createSession(sessionToCreate, true); // Pass true for forceCreate
+        savedSession = await scheduleService.createSession(selectedScheduleId, sessionToCreate, true); // Pass true for forceCreate
         
         // If patient assignments were included in the original session creation, handle them now
         if (pendingSessionCreationData.patientIds && pendingSessionCreationData.patientIds.length > 0) {
           try {
-            await scheduleService.updateSessionPatients(savedSession.id, pendingSessionCreationData.patientIds, true); // Force assign patients
+            await scheduleService.updateSessionPatients(selectedScheduleId, savedSession.id, pendingSessionCreationData.patientIds, true); // Force assign patients
           } catch (patientError) {
             console.warn('Error assigning patients after force session creation:', patientError);
             // Continue even if patient assignment fails - the session is created
@@ -592,7 +424,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     if (!editingSession) return;
 
     try {
-      await scheduleService.deleteSession(editingSession.id);
+      await scheduleService.deleteSession(selectedScheduleId, editingSession.id);
       await setSchedule(); // Refresh the schedule from the server
       setEditDialogOpen(false);
     } catch (error) {
@@ -670,7 +502,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       
       if (employeesChanged || roomChanged || notesChanged) {
         // Employees, room, or notes changed - need to update session properties (may trigger blocking validation for employee/room changes)
-        await scheduleService.updateSession(editingSessionForAssignment.id, {
+        await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
           employeeIds: selectedEmployees,
           roomId: selectedRoomId,
           scheduleId: editingSessionForAssignment.scheduleId,
@@ -678,13 +510,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         });
         
         // Then update patients separately
-        await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, forceAssign);
+        await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       } else {
         // Only patients changed (and possibly notes) - update both patient assignments and notes
-        await scheduleService.updateSession(editingSessionForAssignment.id, {
+        await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
           notes: editingSessionForAssignment.notes
         });
-        await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, forceAssign);
+        await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       }
       
       await setSchedule(); // Refresh the schedule from the server
@@ -709,7 +541,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           
           // Force update the session if properties changed
           if (employeesChanged || roomChanged || notesChanged) {
-            await scheduleService.updateSession(editingSessionForAssignment.id, {
+            await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
               employeeIds: selectedEmployees,
               roomId: selectedRoomId,
               scheduleId: editingSessionForAssignment.scheduleId,
@@ -718,7 +550,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             });
           } else {
             // Only update notes if no other changes
-            await scheduleService.updateSession(editingSessionForAssignment.id, {
+            await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
               notes: editingSessionForAssignment.notes,
               forceCreate: true
             });
@@ -726,7 +558,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           
           // Update patients with force
           const filteredPatients = selectedPatients.filter(id => id !== '');
-          await scheduleService.updateSessionPatients(editingSessionForAssignment.id, filteredPatients, true);
+          await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, true);
           
           await setSchedule();
           setSessionEditDialogOpen(false);
@@ -806,6 +638,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     
     try {
       await scheduleService.updateSessionPatients(
+        selectedScheduleId,
         pendingAssignmentData.sessionId, 
         pendingAssignmentData.patientIds, 
         true // Force assign
@@ -2058,42 +1891,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          לוח זמנים
-        </Typography>
-        <Box display="flex" gap={2}>
-          <Button
-            variant="contained"
-            startIcon={isResetting ? <CircularProgress size={16} /> : <CalendarToday />}
-            onClick={handleResetScheduleClick}
-            disabled={isResetting}
-            color="warning"
-          >
-            {isResetting ? 'מאפס לוח זמנים...' : 'אפס לוח זמנים'}
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={handleExportExcel}
-            disabled={!schedule || schedule.sessions.length === 0}
-          >
-            ייצא ל Excel
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Print />}
-            onClick={handlePrint}
-            disabled={!schedule || schedule.sessions.length === 0}
-          >
-            הדפס
-          </Button>
-          {/* Help Button for Schedule Tab */}
-          <IconButton color="primary" onClick={() => setShowHelpModal(true)}>
-            <HelpOutline sx={{ fontSize: 24 }} />
-          </IconButton>
-        </Box>
-      </Box>
+
 
       {employees.length === 0 || rooms.length === 0 ? (
         <Alert severity="warning" sx={{ mb: 3 }}>
@@ -2609,32 +2407,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         onClose={() => setErrorModalOpen(false)}
       />
 
-      {/* Reset Schedule Confirmation Dialog */}
-      <Dialog open={resetScheduleDialogOpen} onClose={() => setResetScheduleDialogOpen(false)} maxWidth="sm">
-        <DialogTitle>
-          <Warning color="warning" sx={{ verticalAlign: 'middle', mr: 1 }} />
-          אישור איפוס לוח זמנים
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            האם אתה בטוח שברצונך לאפס את לוח הזמנים?
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            פעולה זו תמחק את כל הטיפולים מלוח הזמנים ותיצור לוח זמנים ריק חדש. פעולה זו אינה ניתנת לביטול.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setResetScheduleDialogOpen(false)} color="inherit">ביטול</Button>
-          <Button
-            onClick={handleResetSchedule}
-            variant="contained"
-            color="warning"
-            autoFocus
-          >
-            אפס לוח זמנים
-          </Button>
-        </DialogActions>
-      </Dialog>
+
 
       {/* Confirmation Dialog for creating session over blocking activity */}
       <Dialog

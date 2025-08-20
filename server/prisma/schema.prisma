@@ -81,6 +81,7 @@ model Room {
 
 model Schedule {
   id          String    @id @default(uuid())
+  name        String    @unique
   generatedAt DateTime  @map("generated_at") @default(now())
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")

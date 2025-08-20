@@ -104,7 +104,8 @@ export interface Session {
 }
 
 export interface Schedule {
-  id?: string;
+  id: string;
+  name: string;
   sessions: Session[];
   generatedAt: Date;
 }

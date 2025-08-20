@@ -15,12 +15,15 @@ import EmployeeManagement from './components/EmployeeManagement';
 import PatientManagement from './components/PatientManagement';
 import RoomManagement from './components/RoomManagement';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
-import ScheduleView from './components/ScheduleView';
+import ScheduleViewWrapper from './components/ScheduleViewWrapper';
 import HelpModal from './components/HelpModal'; // Import the new HelpModal component
 
-import { employeeService, patientService, roomService, scheduleService } from './services';
+import { employeeService, patientService, roomService } from './services';
+import { useSchedule } from './hooks';
+import ScheduleSelector from './components/ScheduleSelector';
+import { useActivities } from './hooks';
 
-import { Employee, Patient, Room, Schedule } from './types';
+import { Employee, Patient, Room } from './types';
 
 // Create RTL cache
 const cacheRtl = createCache({
@@ -124,8 +127,26 @@ function AppContent() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
 
-  const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Use the new schedule hook
+  const {
+    allSchedules,
+    selectedSchedule,
+    selectedScheduleId,
+    sessions,
+    loading: scheduleLoading,
+    error: scheduleError,
+    setSelectedScheduleId,
+    createSchedule,
+    updateScheduleName,
+    deleteSchedule,
+    refetchSchedules,
+    refetchSessions,
+  } = useSchedule();
+
+  // Use activities hook for export functionality
+  const { activities } = useActivities();
 
   useEffect(() => {
     fetchData();
@@ -136,17 +157,15 @@ function AppContent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [employeesData, patientsData, roomsData, activeSchedule] = await Promise.all([
+      const [employeesData, patientsData, roomsData] = await Promise.all([
         employeeService.getAll(),
         patientService.getAll(),
         roomService.getAll(),
-        scheduleService.getActive().catch(() => null) // Handle case where no active schedule exists
       ]);
       
       setEmployees(employeesData);
       setPatients(patientsData);
       setRooms(roomsData);
-      setSchedule(activeSchedule);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -214,16 +233,44 @@ function AppContent() {
     }
   };
 
+  // Export and Print handlers
+  const handleExportExcel = () => {
+    if (!selectedSchedule || selectedSchedule.sessions.length === 0) {
+      // Could add error modal here if needed
+      console.warn('No schedule data to export');
+      return;
+    }
 
+    try {
+      // Import the Excel export function dynamically
+      import('./utils/excelExport').then(({ exportScheduleToExcel }) => {
+        exportScheduleToExcel({
+          sessions: selectedSchedule.sessions,
+          employees,
+          rooms,
+          patients,
+          activities
+        }, selectedSchedule.name);
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!selectedSchedule || selectedSchedule.sessions.length === 0) {
+      console.warn('No schedule data to print');
+      return;
+    }
+
+    // For now, just log that print was called - the actual print logic is complex
+    // and would need to be extracted from ScheduleView component
+    console.log('Print functionality called for schedule:', selectedSchedule.name);
+    // TODO: Implement print functionality by extracting it from ScheduleView
+  };
 
   const refreshSchedule = async () => {
-    try {
-      const activeSchedule = await scheduleService.getActive();
-      setSchedule(activeSchedule);
-    } catch (error) {
-      console.error('Error refreshing schedule:', error);
-      setSchedule(null);
-    }
+    await refetchSessions();
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -341,15 +388,32 @@ function AppContent() {
                       )}
                       
                       {activeTab === 4 && (
-                        <ScheduleView 
-                          employees={employees} 
-                          rooms={rooms} 
-                          patients={patients}
-                          schedule={schedule}
-                          setSchedule={refreshSchedule} 
-                          setShowHelpModal={setShowHelpModal} // Pass to ScheduleView
-                          activeTab={activeTab}
-                        />
+                        <Box>
+                          <ScheduleSelector
+                            schedules={allSchedules}
+                            selectedScheduleId={selectedScheduleId}
+                            selectedSchedule={selectedSchedule}
+                            loading={scheduleLoading}
+                            error={scheduleError}
+                            onScheduleSelect={setSelectedScheduleId}
+                            onCreateSchedule={createSchedule}
+                            onUpdateScheduleName={updateScheduleName}
+                            onDeleteSchedule={deleteSchedule}
+                            onExportExcel={handleExportExcel}
+                            onPrint={handlePrint}
+                            onShowHelp={() => setShowHelpModal(true)}
+                          />
+                          <ScheduleViewWrapper 
+                            employees={employees} 
+                            rooms={rooms} 
+                            patients={patients}
+                            schedule={selectedSchedule ? { ...selectedSchedule, sessions } : null}
+                            selectedScheduleId={selectedScheduleId}
+                            setSchedule={refreshSchedule} 
+                            activeTab={activeTab}
+                            allSchedules={allSchedules}
+                          />
+                        </Box>
                       )}
                     </>
                   )}

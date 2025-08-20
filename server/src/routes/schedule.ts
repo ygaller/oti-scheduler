@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, ActivityRepository } from '../repositories';
-import { validateScheduleConstraints, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
+import { validateScheduleConstraintsAsync, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -63,54 +63,8 @@ export const createScheduleRouter = (
 ): Router => {
   const router = Router();
 
-
-
-  // POST /api/schedule/generate - Generate new schedule
-
-
-  // POST /api/schedule/generate-empty - Generate new empty schedule
-  router.post('/generate-empty', async (req, res) => {
-    try {
-      // Create an empty schedule by passing an empty array of sessions
-      const schedule = await scheduleRepo.create([]);
-      
-      res.status(201).json(schedule);
-    } catch (error) {
-      console.error('Error generating empty schedule:', error);
-      res.status(500).json({ error: 'Failed to generate empty schedule' });
-    }
-  });
-
-  // POST /api/schedule/reset - Reset schedule (delete all and create new empty one)
-  router.post('/reset', async (req, res) => {
-    try {
-      // Delete all existing schedules
-      await scheduleRepo.deleteAll();
-      console.log('Deleted all existing schedules');
-      
-      // Create a new empty schedule
-      const newSchedule = await scheduleRepo.create([]);
-      console.log('Created new empty schedule:', newSchedule.id);
-      
-      res.status(201).json(newSchedule);
-    } catch (error) {
-      console.error('Error resetting schedule:', error);
-      res.status(500).json({ error: 'Failed to reset schedule' });
-    }
-  });
-
-  // GET /api/schedule/active - Get latest schedule (most recent)
-  router.get('/active', async (req, res) => {
-    try {
-      const schedules = await scheduleRepo.findAll();
-      const latestSchedule = schedules.length > 0 ? schedules[0] : null; // findAll returns sorted by generatedAt desc
-      res.json(latestSchedule);
-    } catch (error) {
-      console.error('Error fetching latest schedule:', error);
-      res.status(500).json({ error: 'Failed to fetch latest schedule' });
-    }
-  });
-
+  // Schedule Management Routes
+  
   // GET /api/schedule/all - Get all schedules
   router.get('/all', async (req, res) => {
     try {
@@ -122,12 +76,58 @@ export const createScheduleRouter = (
     }
   });
 
-
-
-  // DELETE /api/schedule/:id - Delete schedule
-  router.delete('/:id', validateUUID(), async (req, res) => {
+  // POST /api/schedule - Create new schedule
+  router.post('/', async (req, res) => {
     try {
-      await scheduleRepo.delete(req.params.id);
+      const { name } = req.body;
+      
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Schedule name is required' });
+      }
+
+      // Create an empty schedule with the given name
+      const schedule = await scheduleRepo.createWithName(name.trim());
+      
+      res.status(201).json(schedule);
+    } catch (error) {
+      console.error('Error creating schedule:', error);
+      if (error instanceof Error && error.message.includes('Unique constraint')) {
+        res.status(409).json({ error: 'A schedule with this name already exists' });
+      } else {
+        res.status(500).json({ error: 'Failed to create schedule' });
+      }
+    }
+  });
+
+  // PUT /api/schedule/:scheduleId/name - Update schedule name
+  router.put('/:scheduleId/name', validateUUID('scheduleId'), async (req, res) => {
+    try {
+      const { scheduleId } = req.params;
+      const { name } = req.body;
+      
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Schedule name is required' });
+      }
+
+      const schedule = await scheduleRepo.updateName(scheduleId, name.trim());
+      res.json(schedule);
+    } catch (error) {
+      console.error('Error updating schedule name:', error);
+      if (error instanceof Error && error.message.includes('Record to update not found')) {
+        res.status(404).json({ error: 'Schedule not found' });
+      } else if (error instanceof Error && error.message.includes('Unique constraint')) {
+        res.status(409).json({ error: 'A schedule with this name already exists' });
+      } else {
+        res.status(500).json({ error: 'Failed to update schedule name' });
+      }
+    }
+  });
+
+  // DELETE /api/schedule/:scheduleId - Delete schedule
+  router.delete('/:scheduleId', validateUUID('scheduleId'), async (req, res) => {
+    try {
+      const { scheduleId } = req.params;
+      await scheduleRepo.delete(scheduleId);
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting schedule:', error);
@@ -142,10 +142,20 @@ export const createScheduleRouter = (
     }
   });
 
-  // GET /api/schedule/sessions - Get all sessions (for manual editing)
-  router.get('/sessions', async (req, res) => {
+  // Schedule-specific Session Management Routes
+
+  // GET /api/schedule/:scheduleId/sessions - Get all sessions for a schedule
+  router.get('/:scheduleId/sessions', validateUUID('scheduleId'), async (req, res) => {
     try {
-      const sessions = await sessionRepo.findAll();
+      const { scheduleId } = req.params;
+      
+      // First verify the schedule exists
+      const schedule = await scheduleRepo.findById(scheduleId);
+      if (!schedule) {
+        return res.status(404).json({ error: 'Schedule not found' });
+      }
+
+      const sessions = await sessionRepo.findByScheduleId(scheduleId);
       res.json(sessions);
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -153,44 +163,50 @@ export const createScheduleRouter = (
     }
   });
 
-  // POST /api/schedule/sessions - Create new session
-  router.post('/sessions', async (req, res) => {
+  // POST /api/schedule/:scheduleId/sessions - Create session in schedule
+  router.post('/:scheduleId/sessions', validateUUID('scheduleId'), async (req, res) => {
     try {
-      const sessionData: CreateSessionDto = req.body;
-      
-      // Validate that there is a schedule before creating sessions - use latest if scheduleId not provided
-      if (!sessionData.scheduleId) {
-        const schedules = await scheduleRepo.findAll();
-        const latestSchedule = schedules.length > 0 ? schedules[0] : null;
-        if (!latestSchedule) {
-          return res.status(400).json({ 
-            error: 'Cannot create session: No schedule found. Please generate a schedule first.' 
+      const { scheduleId } = req.params;
+      const sessionData: CreateSessionDto & { forceCreate?: boolean } = req.body;
+      const { forceCreate = false, ...sessionCreateData } = sessionData;
+
+      // First verify the schedule exists
+      const schedule = await scheduleRepo.findById(scheduleId);
+      if (!schedule) {
+        return res.status(404).json({ error: 'Schedule not found' });
+      }
+
+      // Add scheduleId to session data
+      const sessionWithSchedule = { ...sessionCreateData, scheduleId };
+
+      // If not forcing creation, run validations
+      if (!forceCreate) {
+        // Check for blocking activities
+        const overlapsBlocking = await checkSessionOverlapsBlocking(sessionWithSchedule, activityRepo);
+        if (overlapsBlocking) {
+          return res.status(409).json({ 
+            error: 'Session overlaps with a blocking activity',
+            code: 'BLOCKING_ACTIVITY_OVERLAP'
           });
         }
-        sessionData.scheduleId = latestSchedule.id!;
-      }
-      
-      // Validate the session constraints
-      const employees = await employeeRepo.findAll();
-      const rooms = await roomRepo.findAll();
-      // Only validate against sessions in the same schedule
-      const allSessions = await sessionRepo.findByScheduleId(sessionData.scheduleId!);
-      const activities = await activityRepo.findAll(); // Include all activities
 
-      const validation = validateScheduleConstraints(
-        sessionData as any, // Type conversion needed for validation as sessionData does not have 'id' yet but can have forceCreate
-        allSessions,
-        employees,
-        rooms,
-        activities
-      );
-
-      // Check if the validation failed (excluding blocking activity conflicts)
-      if (!validation.valid && validation.error !== 'לא ניתן לתזמן טיפול בזמן חסום') {
-        return res.status(400).json({ error: validation.error });
+        // Validate schedule constraints
+        const constraintValidation = await validateScheduleConstraintsAsync(
+          sessionWithSchedule,
+          employeeRepo,
+          sessionRepo,
+          scheduleId
+        );
+        
+        if (!constraintValidation.isValid) {
+          return res.status(409).json({ 
+            error: constraintValidation.error,
+            code: 'SCHEDULE_CONSTRAINT_VIOLATION'
+          });
+        }
       }
 
-      const session = await sessionRepo.create(sessionData);
+      const session = await sessionRepo.create(sessionWithSchedule);
       res.status(201).json(session);
     } catch (error) {
       console.error('Error creating session:', error);
@@ -198,349 +214,243 @@ export const createScheduleRouter = (
     }
   });
 
-  // PUT /api/schedule/sessions/:id - Update session
-  router.put('/sessions/:id', validateUUID(), async (req, res) => {
+  // PUT /api/schedule/:scheduleId/sessions/:sessionId - Update session
+  router.put('/:scheduleId/sessions/:sessionId', validateUUID('scheduleId'), validateUUID('sessionId'), async (req, res) => {
     try {
-      const sessionData: UpdateSessionDto = req.body;
-      
-      // Get the current session to merge with updates
-      const currentSession = await sessionRepo.findById(req.params.id);
-      if (!currentSession) {
+      const { scheduleId, sessionId } = req.params;
+      const updateData: UpdateSessionDto = req.body;
+
+      // First verify the schedule exists
+      const schedule = await scheduleRepo.findById(scheduleId);
+      if (!schedule) {
+        return res.status(404).json({ error: 'Schedule not found' });
+      }
+
+      // Verify the session exists and belongs to this schedule
+      const existingSession = await sessionRepo.findById(sessionId);
+      if (!existingSession) {
         return res.status(404).json({ error: 'Session not found' });
       }
-
-      // If we're updating time/day/employees/room, validate constraints
-      if (sessionData.startTime || sessionData.endTime || sessionData.day || 
-          sessionData.employeeIds || sessionData.roomId) {
-        
-        const employees = await employeeRepo.findAll();
-        const rooms = await roomRepo.findAll();
-        // Only validate against sessions in the active schedule
-        // We fetch all sessions and filter the current one out later
-        if (!currentSession.scheduleId) {
-          return res.status(500).json({ error: 'Session is not associated with any schedule.' });
-        }
-        const allSessions = await sessionRepo.findByScheduleId(currentSession.scheduleId);
-        const activities = await activityRepo.findAll(); // Include all activities
-
-        const updatedSession = { ...currentSession, ...sessionData, forceCreate: sessionData.forceCreate };
-        
-        const validation = validateScheduleConstraints(
-          updatedSession as any,
-          allSessions.filter(s => s.id !== req.params.id), // Exclude current session
-          employees,
-          rooms,
-          activities
-        );
-
-        // Check if the validation failed (excluding blocking activity conflicts)
-        if (!validation.valid && validation.error !== 'לא ניתן לתזמן טיפול בזמן חסום') {
-          return res.status(400).json({ error: validation.error });
-        }
+      if (existingSession.scheduleId !== scheduleId) {
+        return res.status(404).json({ error: 'Session not found in this schedule' });
       }
 
-      const session = await sessionRepo.update(req.params.id, sessionData);
+      const session = await sessionRepo.update(sessionId, updateData);
       res.json(session);
     } catch (error) {
       console.error('Error updating session:', error);
-      if (error instanceof Error && error.message.includes('Record to update not found')) {
-        res.status(404).json({ error: 'Session not found' });
-      } else {
-        res.status(500).json({ error: 'Failed to update session' });
-      }
+      res.status(500).json({ error: 'Failed to update session' });
     }
   });
 
-  // DELETE /api/schedule/sessions/:id - Delete session
-  router.delete('/sessions/:id', validateUUID(), async (req, res) => {
+  // DELETE /api/schedule/:scheduleId/sessions/:sessionId - Delete session
+  router.delete('/:scheduleId/sessions/:sessionId', validateUUID('scheduleId'), validateUUID('sessionId'), async (req, res) => {
     try {
-      await sessionRepo.delete(req.params.id);
+      const { scheduleId, sessionId } = req.params;
+
+      // First verify the schedule exists
+      const schedule = await scheduleRepo.findById(scheduleId);
+      if (!schedule) {
+        return res.status(404).json({ error: 'Schedule not found' });
+      }
+
+      // Verify the session exists and belongs to this schedule
+      const existingSession = await sessionRepo.findById(sessionId);
+      if (!existingSession) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      if (existingSession.scheduleId !== scheduleId) {
+        return res.status(404).json({ error: 'Session not found in this schedule' });
+      }
+
+      await sessionRepo.delete(sessionId);
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting session:', error);
-      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
-        res.status(404).json({ error: 'Session not found' });
-      } else {
-        res.status(500).json({ error: 'Failed to delete session' });
-      }
+      res.status(500).json({ error: 'Failed to delete session' });
     }
   });
 
-  // POST /api/schedule/sessions/:id/patients - Assign patient to session
-  router.post('/sessions/:id/patients', validateUUID(), async (req, res) => {
-    try {
-      const sessionId = req.params.id;
-      const { patientId, forceAssign = false } = req.body;
+  // Session-Patient Assignment Routes
 
-      if (!patientId) {
-        return res.status(400).json({ error: 'Patient ID is required' });
-      }
+  // POST /api/schedule/:scheduleId/sessions/:sessionId/patients - Assign patient to session
+  router.post('/:scheduleId/sessions/:sessionId/patients', 
+    validateUUID('scheduleId'), 
+    validateUUID('sessionId'), 
+    async (req, res) => {
+      try {
+        const { scheduleId, sessionId } = req.params;
+        const { patientId, forceAssign = false } = req.body;
 
-      // Check if session exists
-      const session = await sessionRepo.findById(sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
+        if (!patientId) {
+          return res.status(400).json({ error: 'Patient ID is required' });
+        }
 
-      // Validate that patient is not in another session at the same time
-      // Skip validation for fixture tests (when prisma is null)
-      if (prisma) {
-        try {
+        // First verify the schedule exists
+        const schedule = await scheduleRepo.findById(scheduleId);
+        if (!schedule) {
+          return res.status(404).json({ error: 'Schedule not found' });
+        }
+
+        // Verify the session exists and belongs to this schedule
+        const existingSession = await sessionRepo.findById(sessionId);
+        if (!existingSession) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        if (existingSession.scheduleId !== scheduleId) {
+          return res.status(404).json({ error: 'Session not found in this schedule' });
+        }
+
+        // If not forcing assignment, run validations
+        if (!forceAssign) {
+          // Validate patient time conflicts
           const timeConflictValidation = await validatePatientTimeConflict(
             patientId,
-            sessionId,
-            session.day,
-            session.startTime,
-            session.endTime,
-            prisma
+            existingSession,
+            sessionRepo,
+            scheduleId
           );
-
-          if (!timeConflictValidation.valid) {
-            return res.status(400).json({ error: timeConflictValidation.error });
-          }
-        } catch (validationError) {
-          console.error('Error during patient time conflict validation:', validationError);
-          return res.status(500).json({ 
-            error: 'Failed to validate patient assignment',
-            details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
-          });
-        }
-      }
-
-      // Check for consecutive sessions (only if not forcing assignment)
-      // Skip validation for fixture tests (when prisma is null)
-      if (!forceAssign && prisma) {
-        try {
-          // Check if this session was created over a blocked period (force created)
-          // If so, we should skip consecutive session validation
-          const sessionOverlapsBlocking = await checkSessionOverlapsBlocking(session, activityRepo);
           
-          // If session overlaps with blocking activity, skip consecutive session validation
-          // as it was likely force-created over a blocked period
-          if (!sessionOverlapsBlocking) {
-            const consecutiveValidation = await validatePatientConsecutiveSessions(
-              patientId,
-              sessionId,
-              session.day,
-              session.startTime,
-              session.endTime,
-              prisma
-            );
-
-            if (!consecutiveValidation.valid) {
-              return res.status(409).json({ 
-                warning: consecutiveValidation.warning,
-                consecutiveCount: consecutiveValidation.consecutiveCount,
-                requiresConfirmation: true
-              });
-            }
+          if (!timeConflictValidation.isValid) {
+            return res.status(409).json({ 
+              error: timeConflictValidation.error,
+              code: 'PATIENT_TIME_CONFLICT'
+            });
           }
-        } catch (validationError) {
-          console.error('Error during consecutive sessions validation:', validationError);
-          return res.status(500).json({ 
-            error: 'Failed to validate consecutive sessions',
-            details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
-          });
-        }
-      }
 
-      // Add patient to session using repository
-      const updatedSession = await sessionRepo.addPatient(sessionId, patientId);
-      res.json(updatedSession);
-    } catch (error) {
-      console.error('Error assigning patient to session:', error);
-      
-      // Handle unique constraint violation (patient already assigned)
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-        res.status(400).json({ error: 'Patient is already assigned to this session' });
-      } else {
-        res.status(500).json({ error: 'Failed to assign patient to session' });
-      }
-    }
-  });
-
-  // DELETE /api/schedule/sessions/:id/patients/:patientId - Remove patient from session
-  router.delete('/sessions/:id/patients/:patientId', validateUUID(), async (req, res) => {
-    try {
-      const sessionId = req.params.id;
-      const patientId = req.params.patientId;
-
-      // Remove patient from session using Prisma directly
-      await prisma.sessionPatient.delete({
-        where: {
-          sessionId_patientId: {
-            sessionId,
-            patientId
-          }
-        }
-      });
-
-      // Return the updated session with patients
-      const updatedSession = await sessionRepo.findById(sessionId);
-      res.json(updatedSession);
-    } catch (error) {
-      console.error('Error removing patient from session:', error);
-      
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-        res.status(404).json({ error: 'Patient assignment not found' });
-      } else {
-        res.status(500).json({ error: 'Failed to remove patient from session' });
-      }
-    }
-  });
-
-  // PUT /api/schedule/sessions/:id/patients - Update all patients for a session
-  router.put('/sessions/:id/patients', validateUUID(), async (req, res) => {
-    try {
-      const sessionId = req.params.id;
-      const { patientIds, forceAssign = false } = req.body;
-
-      if (!Array.isArray(patientIds)) {
-        return res.status(400).json({ error: 'Patient IDs must be an array' });
-      }
-
-      // Check if session exists
-      const session = await sessionRepo.findById(sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-
-      // Store any warnings for consecutive sessions
-      const consecutiveWarnings: Array<{ patientId: string; warning: string; consecutiveCount: number }> = [];
-
-      // Validate that each patient is not in another session at the same time
-      for (const patientId of patientIds) {
-        if (patientId) { // Skip empty patient IDs
-          try {
-            const timeConflictValidation = await validatePatientTimeConflict(
-              patientId,
-              sessionId,
-              session.day,
-              session.startTime,
-              session.endTime,
-              prisma
-            );
-
-            if (!timeConflictValidation.valid) {
-              return res.status(400).json({ error: timeConflictValidation.error });
-            }
-
-            // Check for consecutive sessions (only if not forcing assignment)
-            if (!forceAssign) {
-              // Check if this session was created over a blocked period (force created)
-              // If so, we should skip consecutive session validation
-              const sessionOverlapsBlocking = await checkSessionOverlapsBlocking(session, activityRepo);
-              
-              // If session overlaps with blocking activity, skip consecutive session validation
-              // as it was likely force-created over a blocked period
-              if (!sessionOverlapsBlocking) {
-                const consecutiveValidation = await validatePatientConsecutiveSessions(
-                  patientId,
-                  sessionId,
-                  session.day,
-                  session.startTime,
-                  session.endTime,
-                  prisma
-                );
-
-                if (!consecutiveValidation.valid) {
-                  consecutiveWarnings.push({
-                    patientId,
-                    warning: consecutiveValidation.warning || '',
-                    consecutiveCount: consecutiveValidation.consecutiveCount || 0
-                  });
-                }
-              }
-            }
-          } catch (validationError) {
-            console.error('Error during bulk patient validation:', validationError);
-            return res.status(500).json({ 
-              error: 'Failed to validate patient assignments',
-              details: validationError instanceof Error ? validationError.message : 'Unknown validation error'
+          // Validate consecutive sessions constraint
+          const consecutiveValidation = await validatePatientConsecutiveSessions(
+            patientId,
+            existingSession,
+            sessionRepo,
+            scheduleId
+          );
+          
+          if (!consecutiveValidation.isValid) {
+            return res.status(409).json({ 
+              error: consecutiveValidation.error,
+              code: 'CONSECUTIVE_SESSIONS_VIOLATION'
             });
           }
         }
+
+        const session = await sessionRepo.assignPatient(sessionId, patientId);
+        res.json(session);
+      } catch (error) {
+        console.error('Error assigning patient to session:', error);
+        res.status(500).json({ error: 'Failed to assign patient to session' });
       }
+    }
+  );
 
-      // If there are consecutive session warnings and not forcing, return them
-      if (consecutiveWarnings.length > 0 && !forceAssign) {
-        return res.status(409).json({ 
-          warnings: consecutiveWarnings,
-          requiresConfirmation: true
-        });
-      }
+  // DELETE /api/schedule/:scheduleId/sessions/:sessionId/patients/:patientId - Remove patient from session
+  router.delete('/:scheduleId/sessions/:sessionId/patients/:patientId', 
+    validateUUID('scheduleId'), 
+    validateUUID('sessionId'), 
+    validateUUID('patientId'), 
+    async (req, res) => {
+      try {
+        const { scheduleId, sessionId, patientId } = req.params;
 
-      // Use transaction to update all patients at once
-      await prisma.$transaction(async (tx) => {
-        // Remove all existing assignments
-        await tx.sessionPatient.deleteMany({
-          where: { sessionId }
-        });
-
-        // Add new assignments (filter out empty patient IDs)
-        const validPatientIds = patientIds.filter((id: string) => id);
-        if (validPatientIds.length > 0) {
-          await tx.sessionPatient.createMany({
-            data: validPatientIds.map((patientId: string) => ({
-              sessionId,
-              patientId
-            }))
-          });
+        // First verify the schedule exists
+        const schedule = await scheduleRepo.findById(scheduleId);
+        if (!schedule) {
+          return res.status(404).json({ error: 'Schedule not found' });
         }
-      });
 
-      // Return the updated session with patients
-      const updatedSession = await sessionRepo.findById(sessionId);
-      res.json(updatedSession);
-    } catch (error) {
-      console.error('Error updating session patients:', error);
-      res.status(500).json({ error: 'Failed to update session patients' });
-    }
-  });
+        // Verify the session exists and belongs to this schedule
+        const existingSession = await sessionRepo.findById(sessionId);
+        if (!existingSession) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        if (existingSession.scheduleId !== scheduleId) {
+          return res.status(404).json({ error: 'Session not found in this schedule' });
+        }
 
-  // POST /api/schedule/fix-orphaned-sessions - Fix orphaned sessions by assigning them to latest schedule
-  router.post('/fix-orphaned-sessions', async (req, res) => {
-    try {
-      const schedules = await scheduleRepo.findAll();
-      const latestSchedule = schedules.length > 0 ? schedules[0] : null;
-      if (!latestSchedule) {
-        return res.status(400).json({ 
-          error: 'No schedule found. Please generate a schedule first.' 
-        });
+        const session = await sessionRepo.removePatient(sessionId, patientId);
+        res.json(session);
+      } catch (error) {
+        console.error('Error removing patient from session:', error);
+        res.status(500).json({ error: 'Failed to remove patient from session' });
       }
-
-      // Find all sessions without a scheduleId (orphaned sessions)
-      const allSessions = await sessionRepo.findAll();
-      const orphanedSessions = allSessions.filter(session => !session.scheduleId);
-      
-      if (orphanedSessions.length === 0) {
-        return res.json({ 
-          message: 'No orphaned sessions found',
-          fixedCount: 0
-        });
-      }
-
-      // Update orphaned sessions to belong to the latest schedule
-      // Since scheduleId is immutable via UpdateSessionDto, we need to use direct database update
-      const updatePromises = orphanedSessions.map(session => 
-        prisma.session.update({
-          where: { id: session.id },
-          data: { scheduleId: latestSchedule.id }
-        })
-      );
-      
-      await Promise.all(updatePromises);
-
-      res.json({ 
-        message: `Successfully assigned ${orphanedSessions.length} orphaned sessions to latest schedule`,
-        fixedCount: orphanedSessions.length,
-        fixedSessionIds: orphanedSessions.map(s => s.id)
-      });
-    } catch (error) {
-      console.error('Error fixing orphaned sessions:', error);
-      res.status(500).json({ error: 'Failed to fix orphaned sessions' });
     }
-  });
+  );
+
+  // PUT /api/schedule/:scheduleId/sessions/:sessionId/patients - Update session patients
+  router.put('/:scheduleId/sessions/:sessionId/patients', 
+    validateUUID('scheduleId'), 
+    validateUUID('sessionId'), 
+    async (req, res) => {
+      try {
+        const { scheduleId, sessionId } = req.params;
+        const { patientIds, forceAssign = false } = req.body;
+
+        if (!Array.isArray(patientIds)) {
+          return res.status(400).json({ error: 'Patient IDs must be an array' });
+        }
+
+        // First verify the schedule exists
+        const schedule = await scheduleRepo.findById(scheduleId);
+        if (!schedule) {
+          return res.status(404).json({ error: 'Schedule not found' });
+        }
+
+        // Verify the session exists and belongs to this schedule
+        const existingSession = await sessionRepo.findById(sessionId);
+        if (!existingSession) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        if (existingSession.scheduleId !== scheduleId) {
+          return res.status(404).json({ error: 'Session not found in this schedule' });
+        }
+
+        // If not forcing assignment, run validations for each patient
+        if (!forceAssign) {
+          for (const patientId of patientIds) {
+            // Skip if patient is already assigned to this session
+            const isAlreadyAssigned = existingSession.patients?.some(p => p.id === patientId);
+            if (isAlreadyAssigned) continue;
+
+            // Validate patient time conflicts
+            const timeConflictValidation = await validatePatientTimeConflict(
+              patientId,
+              existingSession,
+              sessionRepo,
+              scheduleId
+            );
+            
+            if (!timeConflictValidation.isValid) {
+              return res.status(409).json({ 
+                error: timeConflictValidation.error,
+                code: 'PATIENT_TIME_CONFLICT'
+              });
+            }
+
+            // Validate consecutive sessions constraint
+            const consecutiveValidation = await validatePatientConsecutiveSessions(
+              patientId,
+              existingSession,
+              sessionRepo,
+              scheduleId
+            );
+            
+            if (!consecutiveValidation.isValid) {
+              return res.status(409).json({ 
+                error: consecutiveValidation.error,
+                code: 'CONSECUTIVE_SESSIONS_VIOLATION'
+              });
+            }
+          }
+        }
+
+        const session = await sessionRepo.updatePatients(sessionId, patientIds);
+        res.json(session);
+      } catch (error) {
+        console.error('Error updating session patients:', error);
+        res.status(500).json({ error: 'Failed to update session patients' });
+      }
+    }
+  );
 
   return router;
 };

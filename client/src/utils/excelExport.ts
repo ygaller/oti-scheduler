@@ -82,8 +82,8 @@ function getNextHour(time: string): string {
   return `${nextHour.toString().padStart(2, '0')}:00`;
 }
 
-// Helper function to clean worksheet names
-function cleanSheetName(name: string): string {
+// Helper function to clean file names and worksheet names
+function cleanFileName(name: string): string {
   // Allow English letters, Hebrew letters, spaces, hyphens, and underscores
   return name.replace(/[^a-zA-Z\u0590-\u05FF\s\-_]/g, '');
 }
@@ -521,7 +521,7 @@ function createPatientScheduleWorksheet(patient: Patient, options: ExcelExportOp
   return ws;
 }
 
-export function exportScheduleToExcel(options: ExcelExportOptions): void {
+export function exportScheduleToExcel(options: ExcelExportOptions, scheduleName?: string): void {
   const { sessions, patients } = options;
   
   if (sessions.length === 0) {
@@ -537,11 +537,11 @@ export function exportScheduleToExcel(options: ExcelExportOptions): void {
   
   // Add employee schedule worksheet
   const employeeWs = createEmployeeScheduleWorksheet(options);
-  XLSX.utils.book_append_sheet(workbook, employeeWs, cleanSheetName('לוח עובדים'));
+  XLSX.utils.book_append_sheet(workbook, employeeWs, cleanFileName('לוח עובדים'));
   
   // Add room schedule worksheet
   const roomWs = createRoomScheduleWorksheet(options);
-  XLSX.utils.book_append_sheet(workbook, roomWs, cleanSheetName('לוח חדרים'));
+  XLSX.utils.book_append_sheet(workbook, roomWs, cleanFileName('לוח חדרים'));
   
   // Add individual patient worksheets
   const activePatients = patients.filter(p => p.isActive).sort((a, b) => 
@@ -551,11 +551,12 @@ export function exportScheduleToExcel(options: ExcelExportOptions): void {
   activePatients.forEach(patient => {
     const patientWs = createPatientScheduleWorksheet(patient, options);
     // Limit worksheet name length and ensure it's valid
-    const sheetName = cleanSheetName(`${patient.firstName} ${patient.lastName}`).substring(0, 31);
+    const sheetName = cleanFileName(`${patient.firstName} ${patient.lastName}`).substring(0, 31);
     XLSX.utils.book_append_sheet(workbook, patientWs, sheetName);
   });
   
   // Generate Excel file and download
-  const fileName = `לוח_זמנים_${new Date().toISOString().split('T')[0]}.xlsx`;
+  const cleanedScheduleName = scheduleName ? cleanFileName(scheduleName).replace(/\s+/g, '_') : 'Schedule';
+  const fileName = `Schedule_${cleanedScheduleName}_Export.xlsx`;
   XLSX.writeFile(workbook, fileName);
 }
