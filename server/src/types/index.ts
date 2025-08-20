@@ -24,6 +24,7 @@ export interface Employee {
   id: string;
   firstName: string;
   lastName?: string;
+  email?: string;
   roleId: string;
   role?: Role; // Optional populated role object
   workingHours: {
@@ -47,6 +48,7 @@ export interface Patient {
   id: string;
   firstName: string;
   lastName?: string;
+  email?: string;
   color: string;
   therapyRequirements: TherapyRequirements;
   isActive: boolean;
@@ -108,6 +110,7 @@ export type WeekDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday'
 export interface CreateEmployeeDto {
   firstName: string;
   lastName?: string;
+  email?: string;
   roleId: string;
   workingHours: Employee['workingHours'];
   reservedHours?: Employee['reservedHours'];
@@ -129,6 +132,7 @@ export interface UpdateRoomDto extends Partial<CreateRoomDto> {}
 export interface CreatePatientDto {
   firstName: string;
   lastName?: string;
+  email?: string;
   color: string;
   therapyRequirements?: TherapyRequirements;
   isActive?: boolean;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { EmployeeRepository } from '../repositories';
 import { CreateEmployeeDto, UpdateEmployeeDto } from '../types';
-import { validateUUID, validateReservedHours } from '../utils/validation';
+import { validateUUID, validateReservedHours, isValidEmail } from '../utils/validation';
 
 export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router => {
   const router = Router();
@@ -49,6 +49,16 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
         return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
       }
 
+      // Validate email format if provided
+      if (employeeData.email && !isValidEmail(employeeData.email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Convert empty email to null to ensure it's treated as truly optional
+      if (employeeData.email === '' || employeeData.email === null) {
+        employeeData.email = null;
+      }
+
       // Validate reserved hours if provided
       if (employeeData.reservedHours && employeeData.reservedHours.length > 0) {
         const validationError = validateReservedHours(employeeData.reservedHours);
@@ -70,6 +80,16 @@ export const createEmployeeRouter = (employeeRepo: EmployeeRepository): Router =
     try {
       const employeeData: UpdateEmployeeDto = req.body;
       
+      // Validate email format if provided
+      if (employeeData.email && !isValidEmail(employeeData.email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Convert empty email to null to ensure it's treated as truly optional
+      if (employeeData.email === '' || employeeData.email === null) {
+        employeeData.email = null;
+      }
+
       // Validate reserved hours if provided
       if (employeeData.reservedHours && employeeData.reservedHours.length > 0) {
         const validationError = validateReservedHours(employeeData.reservedHours);

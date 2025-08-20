@@ -26,6 +26,7 @@ export interface Employee {
   id: string;
   firstName: string;
   lastName?: string;
+  email?: string;
   roleId: string;
   role?: Role; // Optional populated role object
   workingHours: {
@@ -49,6 +50,7 @@ export interface Patient {
   id: string;
   firstName: string;
   lastName?: string;
+  email?: string;
   color: string;
   isActive: boolean;
   therapyRequirements: { [roleStringKey: string]: number }; // e.g., { 'role_1': 2, 'role_2': 1 }
@@ -149,6 +151,7 @@ export const getRandomColor = (): string => {
 export interface CreateEmployeeDto {
   firstName: string;
   lastName?: string;
+  email?: string;
   roleId: string;
   workingHours: {
     sunday?: WorkingHours;

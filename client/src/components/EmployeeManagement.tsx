@@ -32,6 +32,7 @@ import { DAY_LABELS, WEEK_DAYS, WeekDay } from '../types/schedule';
 import { employeeService } from '../services';
 import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';
+import { getEmailValidationError } from '../utils/validation';
 
 interface EmployeeManagementProps {
   employees: Employee[];
@@ -48,6 +49,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: '',
     lastName: '',
+    email: '',
     roleId: '',
     weeklySessionsCount: 10,
     workingHours: {},
@@ -68,6 +70,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
       setFormData({
         firstName: '',
         lastName: '',
+        email: '',
         roleId: activeRoles.length > 0 ? activeRoles[0].id : '',
         weeklySessionsCount: 10,
         workingHours: {},
@@ -90,10 +93,18 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
       return;
     }
 
+    // Validate email format
+    const emailError = getEmailValidationError(formData.email || '');
+    if (emailError) {
+      alert(emailError);
+      return;
+    }
+
     try {
       const employeeData: Omit<Employee, 'id' | 'isActive' | 'role'> = {
         firstName: formData.firstName,
         lastName: formData.lastName ?? '', // Ensure lastName is an empty string if undefined
+        email: formData.email ?? '', // Ensure email is an empty string if undefined
         roleId: formData.roleId,
         weeklySessionsCount: formData.weeklySessionsCount ?? 10,
         workingHours: formData.workingHours || {},
@@ -239,6 +250,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
             <TableRow>
               <TableCell>שם פרטי</TableCell>
               <TableCell>שם משפחה</TableCell>
+              <TableCell>אימייל</TableCell>
               <TableCell>תפקיד</TableCell>
               <TableCell>מספר טיפולים שבועי</TableCell>
               <TableCell>ימי עבודה</TableCell>
@@ -255,6 +267,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableRow key={employee.id} sx={{ opacity: employee.isActive ? 1 : 0.6 }}>
                 <TableCell>{employee.firstName}</TableCell>
                 <TableCell>{employee.lastName}</TableCell>
+                <TableCell>{employee.email || '-'}</TableCell>
                 <TableCell>
                   <Chip 
                     label={getRoleName(employee.role, employee.roleId)} 
@@ -353,6 +366,16 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                 onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
               />
             </Box>
+            
+            <TextField
+              fullWidth
+              label="אימייל"
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              error={!!getEmailValidationError(formData.email || '')}
+              helperText={getEmailValidationError(formData.email || '') || "כתובת אימייל (אופציונלי)"}
+            />
             
             <Box display="flex" gap={2}>
               <FormControl fullWidth>

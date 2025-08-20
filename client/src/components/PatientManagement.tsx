@@ -26,6 +26,7 @@ import { Patient, getRandomColor } from '../types';
 import { patientService } from '../services';
 import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';
+import { getEmailValidationError } from '../utils/validation';
 
 interface PatientManagementProps {
   patients: Patient[];
@@ -42,6 +43,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
   const [formData, setFormData] = useState<Partial<Patient>>({
     firstName: '',
     lastName: '',
+    email: '',
     color: '',
     therapyRequirements: {}
   });
@@ -71,6 +73,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
       setFormData({
         firstName: '',
         lastName: '',
+        email: '',
         color: getRandomColor(),
         therapyRequirements: emptyTherapyRequirements
       });
@@ -90,6 +93,13 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
       return;
     }
 
+    // Validate email format
+    const emailError = getEmailValidationError(formData.email || '');
+    if (emailError) {
+      alert(emailError);
+      return;
+    }
+
     try {
       // Filter out 0 values from therapy requirements
       const filteredTherapyRequirements = Object.entries(formData.therapyRequirements || {})
@@ -99,6 +109,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
       const patientData: Omit<Patient, 'id' | 'isActive'> = {
         firstName: formData.firstName,
         lastName: formData.lastName ?? '', // Ensure lastName is an empty string if undefined
+        email: formData.email ?? '', // Ensure email is an empty string if undefined
         color: formData.color || getRandomColor(),
         therapyRequirements: filteredTherapyRequirements
       };
@@ -190,6 +201,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
             <TableRow>
               <TableCell>שם פרטי</TableCell>
               <TableCell>שם משפחה</TableCell>
+              <TableCell>אימייל</TableCell>
               <TableCell>דרישות טיפול</TableCell>
               <TableCell>צבע</TableCell>
               <TableCell>סטטוס</TableCell>
@@ -203,6 +215,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
               <TableRow key={patient.id} sx={{ opacity: patient.isActive ? 1 : 0.6 }}>
                 <TableCell>{patient.firstName}</TableCell>
                 <TableCell>{patient.lastName}</TableCell>
+                <TableCell>{patient.email || '-'}</TableCell>
                 <TableCell>
                   <Box display="flex" gap={1} flexWrap="wrap">
                     {Object.entries(patient.therapyRequirements || {})
@@ -282,6 +295,16 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
                 onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
               />
             </Box>
+            
+            <TextField
+              fullWidth
+              label="אימייל"
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              error={!!getEmailValidationError(formData.email || '')}
+              helperText={getEmailValidationError(formData.email || '') || "כתובת אימייל (אופציונלי)"}
+            />
             
             <ColorPicker
               value={formData.color || ''}

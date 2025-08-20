@@ -31,6 +31,7 @@ model Employee {
   id                  String     @id @default(uuid())
   firstName           String     @map("first_name")
   lastName            String?    @map("last_name")
+  email               String?    @map("email") // Optional email field
   roleId              String     @map("role_id")
   weeklySessionsCount Int        @map("weekly_sessions_count")
   workingHours        String     @map("working_hours") // Store as JSON string: { sunday: { startTime: "08:00", endTime: "16:00" }, ... }
@@ -51,6 +52,7 @@ model Patient {
   id                    String     @id @default(uuid())
   firstName             String     @map("first_name")
   lastName              String?    @map("last_name")
+  email                 String?    @map("email") // Optional email field
   color                 String     @default("#845ec2") // Hex color for visual identification
   therapyRequirements   String     @default("{}") @map("therapy_requirements") // Store as JSON string: { "role_1": 2, "role_2": 1, ... }
   isActive              Boolean    @default(true) @map("is_active")

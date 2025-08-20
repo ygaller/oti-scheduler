@@ -17,6 +17,7 @@ const demoEmployees = [
   {
     firstName: 'שרה',
     // lastName: 'כהן', // Made optional
+    email: 'sara.therapist@example.com',
     roleName: 'ריפוי בעיסוק',
     weeklySessionsCount: 12,
     workingHours: {
@@ -36,6 +37,7 @@ const demoEmployees = [
   {
     firstName: 'דוד',
     // lastName: 'לוי', // Made optional
+    email: 'david.speech@example.com',
     roleName: 'קלינאות תקשורת',
     weeklySessionsCount: 10,
     workingHours: {
@@ -54,6 +56,7 @@ const demoEmployees = [
   {
     firstName: 'מירי',
     lastName: 'אברהם',
+    email: 'miri.avraham@example.com',
     roleName: 'פיזיותרפיה',
     weeklySessionsCount: 8,
     workingHours: {
@@ -68,6 +71,7 @@ const demoEmployees = [
   {
     firstName: 'יעל',
     lastName: 'מנהלת',
+    // No email for this employee (demonstrating optional field)
     roleName: 'עבודה סוציאלית',
     weeklySessionsCount: 0, // Management role with no direct therapy sessions
     workingHours: {
@@ -91,6 +95,7 @@ const demoPatients = [
   {
     firstName: 'אמיר',
     // lastName: 'רוזן', // Made optional
+    email: 'amir.patient@family.com',
     color: '#4b4453',
     therapyRequirementsMap: {
       'ריפוי בעיסוק': 2,
@@ -101,6 +106,7 @@ const demoPatients = [
   {
     firstName: 'דנה',
     // lastName: 'ברק', // Made optional
+    // No email for this patient (demonstrating optional field)
     color: '#b0a8b9',
     therapyRequirementsMap: {
       'פיזיותרפיה': 3,
@@ -111,6 +117,7 @@ const demoPatients = [
   {
     firstName: 'נועם',
     lastName: 'ישראלי',
+    email: 'noam.israeli@gmail.com',
     color: '#f3c5ff',
     therapyRequirementsMap: {
       'קלינאות תקשורת': 2,
@@ -121,6 +128,7 @@ const demoPatients = [
   {
     firstName: 'מיכל',
     lastName: 'אדמון',
+    email: 'michal.admon@email.co.il',
     color: '#ff6f91',
     therapyRequirementsMap: {
       'ריפוי בעיסוק': 1,
@@ -132,6 +140,7 @@ const demoPatients = [
   {
     firstName: 'עידו',
     lastName: 'מורג',
+    // No email for this patient (demonstrating optional field)
     color: '#ffc75f',
     therapyRequirementsMap: {
       'קלינאות תקשורת': 3
@@ -205,6 +214,7 @@ async function seed() {
           data: {
             firstName: employee.firstName,
             lastName: employee.lastName ?? '',
+            email: (employee as any).email ?? null,
             roleId: (role as any).id,
             weeklySessionsCount: employee.weeklySessionsCount,
             workingHours: JSON.stringify(employee.workingHours),
@@ -235,6 +245,7 @@ async function seed() {
           data: {
             firstName: patient.firstName,
             lastName: patient.lastName ?? '',
+            email: (patient as any).email ?? null,
             color: patient.color,
             therapyRequirements: JSON.stringify(therapyRequirements),
             isActive: patient.isActive

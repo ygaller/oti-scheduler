@@ -26,6 +26,14 @@ export const validateUUID = (paramName: string = 'id') => {
 };
 
 /**
+ * Validates email format
+ */
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+/**
  * Validates that reserved hours do not overlap with each other
  */
 export const validateReservedHours = (reservedHours: ReservedHour[]): string | null => {

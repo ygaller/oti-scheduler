@@ -26,6 +26,7 @@ export class PrismaPatientRepository implements PatientRepository {
       data: {
         firstName: patientData.firstName,
         lastName: patientData.lastName ?? '',
+        email: patientData.email ?? null,
         color: patientData.color,
         therapyRequirements: JSON.stringify(patientData.therapyRequirements || {}),
         isActive: patientData.isActive ?? true,
@@ -39,6 +40,7 @@ export class PrismaPatientRepository implements PatientRepository {
     
     if (patientData.firstName !== undefined) updateData.firstName = patientData.firstName;
     if (patientData.lastName !== undefined) updateData.lastName = patientData.lastName;
+    if (patientData.email !== undefined) updateData.email = patientData.email;
     if (patientData.color !== undefined) updateData.color = patientData.color;
     if (patientData.therapyRequirements !== undefined) updateData.therapyRequirements = JSON.stringify(patientData.therapyRequirements);
     if (patientData.isActive !== undefined) updateData.isActive = patientData.isActive;

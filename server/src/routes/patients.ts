@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PatientRepository } from '../repositories';
 import { CreatePatientDto, UpdatePatientDto } from '../types';
-import { validateUUID } from '../utils/validation';
+import { validateUUID, isValidEmail } from '../utils/validation';
 
 export const createPatientRouter = (patientRepo: PatientRepository): Router => {
   const router = Router();
@@ -42,9 +42,19 @@ export const createPatientRouter = (patientRepo: PatientRepository): Router => {
         return res.status(400).json({ error: 'Missing required fields: firstName' });
       }
 
+      // Validate email format if provided
+      if (patientData.email && !isValidEmail(patientData.email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
       // Explicitly remove lastName if it's empty or null to ensure it's treated as truly optional
       if (patientData.lastName === '' || patientData.lastName === null) {
         delete patientData.lastName;
+      }
+
+      // Convert empty email to null to ensure it's treated as truly optional
+      if (patientData.email === '' || patientData.email === null) {
+        patientData.email = null;
       }
 
       const patient = await patientRepo.create(patientData);
@@ -60,9 +70,19 @@ export const createPatientRouter = (patientRepo: PatientRepository): Router => {
     try {
       const patientData: UpdatePatientDto = req.body;
 
+      // Validate email format if provided
+      if (patientData.email && !isValidEmail(patientData.email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
       // Explicitly remove lastName if it's empty or null to ensure it's treated as truly optional
       if (patientData.lastName === '' || patientData.lastName === null) {
         delete patientData.lastName;
+      }
+
+      // Convert empty email to null to ensure it's treated as truly optional
+      if (patientData.email === '' || patientData.email === null) {
+        patientData.email = null;
       }
 
       const patient = await patientRepo.update(req.params.id, patientData);
