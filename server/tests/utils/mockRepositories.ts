@@ -578,6 +578,11 @@ export class MockRoleRepository implements RoleRepository {
     return this.employeeCounts[roleId] || 0;
   }
 
+  async getSessionStats(roleId: string): Promise<{ assignedSessions: number; allocatedSessions: number }> {
+    // Mock implementation: return dummy values
+    return { assignedSessions: 0, allocatedSessions: 0 };
+  }
+
   // Helper methods for testing
   clear(): void {
     this.roles = [];
