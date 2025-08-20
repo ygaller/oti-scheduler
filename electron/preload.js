@@ -30,7 +30,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Print functionality
   print: {
-    schedule: (htmlContent) => ipcRenderer.invoke('print:schedule', htmlContent)
+    schedule: (htmlContent) => {
+      console.log('🖨️ [PRELOAD DEBUG] Print schedule called with content length:', htmlContent?.length || 0);
+      return ipcRenderer.invoke('print:schedule', htmlContent);
+    }
   }
 });
 
@@ -41,4 +44,10 @@ contextBridge.exposeInMainWorld('appContext', {
   version: '1.0.0'
 });
 
-console.log('Preload script loaded successfully');
+console.log('🖨️ [PRELOAD DEBUG] Preload script loaded successfully');
+
+// Add verification after contextBridge exposure
+setTimeout(() => {
+  console.log('🖨️ [PRELOAD DEBUG] electronAPI available:', !!window.electronAPI);
+  console.log('🖨️ [PRELOAD DEBUG] electronAPI.print available:', !!window.electronAPI?.print);
+}, 100);

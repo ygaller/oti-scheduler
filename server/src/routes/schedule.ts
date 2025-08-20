@@ -204,14 +204,8 @@ export const createScheduleRouter = (
         activities
       );
 
-      // Check if the validation failed due to a blocking activity conflict
-      if (!validation.valid) {
-        if (validation.error === 'לא ניתן לתזמן טיפול בזמן חסום' && !sessionData.forceCreate) {
-          return res.status(409).json({ 
-            warning: 'הטיפול מתנגש עם פעילות חוסמת. האם ברצונך ליצור את הטיפול בכל זאת?',
-            requiresConfirmation: true
-          });
-        }
+      // Check if the validation failed (excluding blocking activity conflicts)
+      if (!validation.valid && validation.error !== 'לא ניתן לתזמן טיפול בזמן חסום') {
         return res.status(400).json({ error: validation.error });
       }
 
@@ -258,14 +252,8 @@ export const createScheduleRouter = (
           activities
         );
 
-        // Check if the validation failed due to a blocking activity conflict
-        if (!validation.valid) {
-          if (validation.error === 'לא ניתן לתזמן טיפול בזמן חסום' && !sessionData.forceCreate) {
-            return res.status(409).json({ 
-              warning: 'הטיפול מתנגש עם פעילות חוסמת. האם ברצונך לעדכן את הטיפול בכל זאת?',
-              requiresConfirmation: true
-            });
-          }
+        // Check if the validation failed (excluding blocking activity conflicts)
+        if (!validation.valid && validation.error !== 'לא ניתן לתזמן טיפול בזמן חסום') {
           return res.status(400).json({ error: validation.error });
         }
       }

@@ -139,7 +139,11 @@ if (!gotTheLock) {
 
   // Setup IPC handlers for printing
   ipcMain.handle('print:schedule', async (event, htmlContent) => {
+    console.log('🖨️ [ELECTRON PRINT DEBUG] Print handler called');
+    console.log('🖨️ [ELECTRON PRINT DEBUG] HTML content length:', htmlContent?.length || 0);
+    
     try {
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Creating print window...');
       // Create a new hidden window for printing
       const printWindow = new BrowserWindow({
         width: 800,
@@ -151,14 +155,20 @@ if (!gotTheLock) {
         }
       });
 
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Print window created, loading HTML content...');
       // Load the HTML content
       await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Waiting for content to finish loading...');
       // Wait for content to be ready
       await new Promise(resolve => {
-        printWindow.webContents.once('did-finish-load', resolve);
+        printWindow.webContents.once('did-finish-load', () => {
+          console.log('🖨️ [ELECTRON PRINT DEBUG] Content finished loading');
+          resolve();
+        });
       });
 
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Starting print operation...');
       // Print silently (will show system print dialog)
       await printWindow.webContents.print({
         silent: false, // Show print dialog
@@ -168,12 +178,15 @@ if (!gotTheLock) {
         }
       });
 
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Print operation completed, closing window...');
       // Close the print window
       printWindow.close();
       
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Print process completed successfully');
       return { success: true };
     } catch (error) {
-      console.error('Print error:', error);
+      console.error('🖨️ [ELECTRON PRINT DEBUG] Print error:', error);
+      console.error('🖨️ [ELECTRON PRINT DEBUG] Error stack:', error.stack);
       return { success: false, error: error.message };
     }
   });

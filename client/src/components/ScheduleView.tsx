@@ -214,7 +214,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const handlePrint = async () => {
+    console.log('🖨️ [PRINT DEBUG] handlePrint function called');
+    console.log('🖨️ [PRINT DEBUG] Schedule exists:', !!schedule);
+    console.log('🖨️ [PRINT DEBUG] Schedule sessions count:', schedule?.sessions?.length || 0);
+    
     if (!schedule || schedule.sessions.length === 0) {
+      console.log('🖨️ [PRINT DEBUG] No schedule or sessions, showing error modal');
       setErrorInfo({
         title: 'לא ניתן להדפיס',
         message: 'אין נתונים להדפסה'
@@ -223,8 +228,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
+    console.log('🖨️ [PRINT DEBUG] Generating printable content...');
+    console.log('🖨️ [PRINT DEBUG] Schedule view tab:', scheduleViewTab);
+    console.log('🖨️ [PRINT DEBUG] Selected patient ID:', selectedPatientId);
+    
     // Generate the printable content based on schedule view tab
     const printContent = generatePrintableSchedule(scheduleViewTab, selectedPatientId);
+    console.log('🖨️ [PRINT DEBUG] Print content length:', printContent.length);
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -241,20 +251,34 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       </body>
       </html>
     `;
+    console.log('🖨️ [PRINT DEBUG] HTML content length:', htmlContent.length);
 
     // Check if running in Electron
+    console.log('🖨️ [PRINT DEBUG] Checking for Electron API...');
+    console.log('🖨️ [PRINT DEBUG] window.electronAPI exists:', !!window.electronAPI);
+    console.log('🖨️ [PRINT DEBUG] window.electronAPI.print exists:', !!window.electronAPI?.print);
+    console.log('🖨️ [PRINT DEBUG] window.electronAPI.print.schedule exists:', !!window.electronAPI?.print?.schedule);
+    
     if (window.electronAPI?.print) {
+      console.log('🖨️ [PRINT DEBUG] Using Electron print API');
       try {
+        console.log('🖨️ [PRINT DEBUG] Calling window.electronAPI.print.schedule...');
         const result = await window.electronAPI.print.schedule(htmlContent);
+        console.log('🖨️ [PRINT DEBUG] Print result:', result);
+        
         if (!result.success) {
+          console.log('🖨️ [PRINT DEBUG] Print failed with error:', result.error);
           setErrorInfo({
             title: 'שגיאה בהדפסה',
             message: 'שגיאה בהדפסה דרך המערכת',
             details: result.error
           });
           setErrorModalOpen(true);
+        } else {
+          console.log('🖨️ [PRINT DEBUG] Print completed successfully');
         }
       } catch (error) {
+        console.error('🖨️ [PRINT DEBUG] Exception during print:', error);
         setErrorInfo({
           title: 'שגיאה בהדפסה',
           message: 'שגיאה בהדפסה דרך המערכת',
@@ -263,9 +287,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         setErrorModalOpen(true);
       }
     } else {
+      console.log('🖨️ [PRINT DEBUG] Using web fallback print');
       // Fallback for web version - use window.open
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
+        console.log('🖨️ [PRINT DEBUG] Failed to open print window (popup blocked)');
         setErrorInfo({
           title: 'שגיאה בהדפסה',
           message: 'חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה',
@@ -275,11 +301,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         return;
       }
 
+      console.log('🖨️ [PRINT DEBUG] Writing content to print window');
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       
       // Wait for content to load then print
       setTimeout(() => {
+        console.log('🖨️ [PRINT DEBUG] Triggering print dialog');
         printWindow.print();
         printWindow.close();
       }, 250);

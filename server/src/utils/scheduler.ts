@@ -90,20 +90,7 @@ export function validateScheduleConstraints(
     return { valid: false, error: 'החדר תפוס בזמן זה' };
   }
 
-  // Check activities/blocked periods
-  for (const activity of activities) {
-    if (!activity.isBlocking) continue;
-
-    const activityTime = getActivityTimeForDay(activity, session.day);
-    if (!activityTime) continue;
-
-    if (timesOverlap(activityTime.startTime, activityTime.endTime, session.startTime, session.endTime)) {
-      // If forceCreate is true, do NOT return an error for blocking activities
-      if (!session.forceCreate) {
-        return { valid: false, error: `לא ניתן לתזמן טיפול בזמן חסום` };
-      }
-    }
-  }
+  // Skip blocking activity validation - sessions are allowed to overlap with activities
 
   return { valid: true };
 }
