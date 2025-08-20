@@ -372,7 +372,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                 fullWidth
                 label="מספר טיפולים שבועי"
                 type="number"
-                inputProps={{ min: 0 }}
+                slotProps={{ input: { inputProps: { min: 0 } } }}
                 value={formData.weeklySessionsCount ?? 10}
                 onChange={(e) => {
                   const value = parseInt(e.target.value);

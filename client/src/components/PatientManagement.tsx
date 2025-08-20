@@ -304,7 +304,7 @@ const PatientManagement: React.FC<PatientManagementProps> = ({ patients, setPati
                       size="small"
                       value={formData.therapyRequirements?.[role.roleStringKey] ?? 0}
                       onChange={(e) => handleTherapyRequirementChange(role.roleStringKey, e.target.value)}
-                      inputProps={{ min: 0, max: 20 }}
+                      slotProps={{ input: { inputProps: { min: 0 } } }}
                       sx={{ width: '150px' }}
                     />
                     {(formData.therapyRequirements?.[role.roleStringKey] ?? 0) > 0 && (

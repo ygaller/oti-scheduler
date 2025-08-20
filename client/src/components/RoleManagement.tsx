@@ -293,7 +293,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
             margin="normal"
             required
             disabled={loading}
-            inputProps={{ maxLength: 100 }}
+            slotProps={{ input: { inputProps: { maxLength: 100 } } }}
           />
 
           <FormControlLabel
