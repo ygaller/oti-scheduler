@@ -72,7 +72,8 @@
       {
         "provider": "github",
         "owner": "ygaller",
-        "repo": "oti-scheduler"
+        "repo": "oti-scheduler",
+        "releaseType": "release"
       }
     ],
     "files": [

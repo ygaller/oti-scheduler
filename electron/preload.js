@@ -26,6 +26,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // System information
   system: {
     getSystemInfo: () => ipcRenderer.invoke('system:getInfo')
+  },
+  
+  // Print functionality
+  print: {
+    schedule: (htmlContent) => ipcRenderer.invoke('print:schedule', htmlContent)
   }
 });
 

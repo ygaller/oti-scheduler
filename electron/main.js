@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, Menu } = require('electron');
+const { app, BrowserWindow, dialog, Menu, ipcMain } = require('electron');
 const path = require('path');
 const { startEmbeddedServer, stopEmbeddedServer } = require('./server');
 const AppUpdater = require('./updater');
@@ -136,6 +136,47 @@ if (!gotTheLock) {
       app.quit();
     }
   };
+
+  // Setup IPC handlers for printing
+  ipcMain.handle('print:schedule', async (event, htmlContent) => {
+    try {
+      // Create a new hidden window for printing
+      const printWindow = new BrowserWindow({
+        width: 800,
+        height: 600,
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+
+      // Load the HTML content
+      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+      // Wait for content to be ready
+      await new Promise(resolve => {
+        printWindow.webContents.once('did-finish-load', resolve);
+      });
+
+      // Print silently (will show system print dialog)
+      await printWindow.webContents.print({
+        silent: false, // Show print dialog
+        printBackground: true,
+        margins: {
+          marginType: 'minimum'
+        }
+      });
+
+      // Close the print window
+      printWindow.close();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Print error:', error);
+      return { success: false, error: error.message };
+    }
+  });
 
   // App event handlers
   app.whenReady().then(createWindow);

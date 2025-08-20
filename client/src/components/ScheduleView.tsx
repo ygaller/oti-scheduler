@@ -204,7 +204,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!schedule || schedule.sessions.length === 0) {
       setErrorInfo({
         title: 'לא ניתן להדפיס',
@@ -214,24 +214,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    // No validation needed for patient view - it will show all patients
-
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      setErrorInfo({
-        title: 'שגיאה בהדפסה',
-        message: 'חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה',
-        details: 'אנא אפשר חלונות קופצים עבור אתר זה ונסה שוב'
-      });
-      setErrorModalOpen(true);
-      return;
-    }
-
     // Generate the printable content based on schedule view tab
     const printContent = generatePrintableSchedule(scheduleViewTab, selectedPatientId);
     
-    printWindow.document.write(`
+    const htmlContent = `
       <!DOCTYPE html>
       <html dir="rtl" lang="he">
       <head>
@@ -245,15 +231,50 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         ${printContent}
       </body>
       </html>
-    `);
-    
-    printWindow.document.close();
-    
-    // Wait for content to load then print
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    `;
+
+    // Check if running in Electron
+    if (window.electronAPI?.print) {
+      try {
+        const result = await window.electronAPI.print.schedule(htmlContent);
+        if (!result.success) {
+          setErrorInfo({
+            title: 'שגיאה בהדפסה',
+            message: 'שגיאה בהדפסה דרך המערכת',
+            details: result.error
+          });
+          setErrorModalOpen(true);
+        }
+      } catch (error) {
+        setErrorInfo({
+          title: 'שגיאה בהדפסה',
+          message: 'שגיאה בהדפסה דרך המערכת',
+          details: error instanceof Error ? error.message : 'שגיאה לא ידועה'
+        });
+        setErrorModalOpen(true);
+      }
+    } else {
+      // Fallback for web version - use window.open
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setErrorInfo({
+          title: 'שגיאה בהדפסה',
+          message: 'חסימת חלונות קופצים מונעת את הפתיחה של חלון ההדפסה',
+          details: 'אנא אפשר חלונות קופצים עבור אתר זה ונסה שוב'
+        });
+        setErrorModalOpen(true);
+        return;
+      }
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load then print
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
   };
 
   const checkForConflicts = (day: WeekDay, startTime: string, employeeId: string) => {

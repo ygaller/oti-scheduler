@@ -187,3 +187,34 @@ export interface CreateRoleDto {
 }
 
 export interface UpdateRoleDto extends Partial<CreateRoleDto> {}
+
+// Electron API types
+declare global {
+  interface Window {
+    electronAPI?: {
+      platform: string;
+      getVersion: () => Promise<string>;
+      database: {
+        backup: () => Promise<any>;
+        restore: (filePath: string) => Promise<any>;
+      };
+      file: {
+        showSaveDialog: (options: any) => Promise<any>;
+        showOpenDialog: (options: any) => Promise<any>;
+        writeFile: (filePath: string, data: string) => Promise<any>;
+        readFile: (filePath: string) => Promise<string>;
+      };
+      system: {
+        getSystemInfo: () => Promise<any>;
+      };
+      print: {
+        schedule: (htmlContent: string) => Promise<{ success: boolean; error?: string }>;
+      };
+    };
+    appContext?: {
+      isElectron: boolean;
+      appName: string;
+      version: string;
+    };
+  }
+}

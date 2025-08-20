@@ -82,6 +82,12 @@ function getNextHour(time: string): string {
   return `${nextHour.toString().padStart(2, '0')}:00`;
 }
 
+// Helper function to clean worksheet names
+function cleanSheetName(name: string): string {
+  // Allow English letters, Hebrew letters, spaces, hyphens, and underscores
+  return name.replace(/[^a-zA-Z\u0590-\u05FF\s\-_]/g, '');
+}
+
 // Create employee schedule worksheet
 function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkSheet {
   const { sessions, employees, activities } = options;
@@ -531,11 +537,11 @@ export function exportScheduleToExcel(options: ExcelExportOptions): void {
   
   // Add employee schedule worksheet
   const employeeWs = createEmployeeScheduleWorksheet(options);
-  XLSX.utils.book_append_sheet(workbook, employeeWs, 'לוח עובדים');
+  XLSX.utils.book_append_sheet(workbook, employeeWs, cleanSheetName('לוח עובדים'));
   
   // Add room schedule worksheet
   const roomWs = createRoomScheduleWorksheet(options);
-  XLSX.utils.book_append_sheet(workbook, roomWs, 'לוח חדרים');
+  XLSX.utils.book_append_sheet(workbook, roomWs, cleanSheetName('לוח חדרים'));
   
   // Add individual patient worksheets
   const activePatients = patients.filter(p => p.isActive).sort((a, b) => 
@@ -545,7 +551,7 @@ export function exportScheduleToExcel(options: ExcelExportOptions): void {
   activePatients.forEach(patient => {
     const patientWs = createPatientScheduleWorksheet(patient, options);
     // Limit worksheet name length and ensure it's valid
-    const sheetName = `${patient.firstName} ${patient.lastName}`.substring(0, 31);
+    const sheetName = cleanSheetName(`${patient.firstName} ${patient.lastName}`).substring(0, 31);
     XLSX.utils.book_append_sheet(workbook, patientWs, sheetName);
   });
   
