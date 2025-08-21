@@ -123,10 +123,10 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
 
     try {
       setIsProcessing(true);
-      const newSchedule = await onCreateSchedule(newScheduleName.trim());
+      await onCreateSchedule(newScheduleName.trim());
       setCreateDialogOpen(false);
       setNewScheduleName('');
-      onScheduleSelect(newSchedule.id);
+      // The createSchedule function in useSchedule will handle selection automatically
     } catch (error) {
       console.error('Error creating schedule:', error);
     } finally {

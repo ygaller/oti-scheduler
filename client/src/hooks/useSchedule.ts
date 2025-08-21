@@ -98,7 +98,25 @@ export const useSchedule = (): UseScheduleResult => {
       setLoading(true);
       setError(null);
       const newSchedule = await scheduleService.create(name);
-      await fetchAllSchedules();
+      const updatedSchedules = await fetchAllSchedules();
+      
+      // If this is the first schedule or no schedule is currently selected, select the new one
+      if (!selectedScheduleId || updatedSchedules.length === 1) {
+        // Directly update the state using the fresh schedules list instead of relying on state
+        setSelectedScheduleIdState(newSchedule.id);
+        localStorage.setItem('selectedScheduleId', newSchedule.id);
+        setSelectedSchedule(newSchedule);
+        
+        // Fetch sessions for this schedule
+        try {
+          const scheduleSessions = await scheduleService.getSessions(newSchedule.id);
+          setSessions(scheduleSessions);
+        } catch (err) {
+          console.error('Failed to fetch sessions for new schedule:', err);
+          setSessions([]);
+        }
+      }
+      
       return newSchedule;
     } catch (err) {
       console.error('Failed to create schedule:', err);
@@ -107,7 +125,7 @@ export const useSchedule = (): UseScheduleResult => {
     } finally {
       setLoading(false);
     }
-  }, [fetchAllSchedules]);
+  }, [fetchAllSchedules, selectedScheduleId]);
 
   const updateScheduleName = useCallback(async (scheduleId: string, name: string): Promise<Schedule> => {
     try {
