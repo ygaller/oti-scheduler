@@ -84,6 +84,31 @@ jobs:
           }
         shell: powershell
 
+      - name: Create environment files
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          # Create server .env file
+          echo "DATABASE_URL=file:./production.db" > server/.env
+          echo "DB_TYPE=embedded" >> server/.env
+          echo "NODE_ENV=production" >> server/.env
+          echo "PORT=3001" >> server/.env
+          echo "FRONTEND_URL=http://localhost:3000" >> server/.env
+          echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> server/.env
+          echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> server/.env
+          echo "GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback" >> server/.env
+          echo "GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:3000/auth/google/callback" >> server/.env
+          echo "ELECTRON=true" >> server/.env
+          
+          # Create Electron config file
+          echo "{" > electron/config.json
+          echo "  \"googleClientId\": \"${GOOGLE_CLIENT_ID}\"," >> electron/config.json
+          echo "  \"apiUrl\": \"http://localhost:3001/api\"," >> electron/config.json
+          echo "  \"redirectUri\": \"http://localhost:3000/auth/callback\"," >> electron/config.json
+          echo "  \"isDevelopment\": false" >> electron/config.json
+          echo "}" >> electron/config.json
+
       - name: Build application
         run: npm run prepare:electron
 

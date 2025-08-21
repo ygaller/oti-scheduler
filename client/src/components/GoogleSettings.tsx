@@ -120,7 +120,8 @@ const GoogleSettings: React.FC<GoogleSettingsProps> = ({ open, onClose }) => {
       return (
         <Alert severity="warning" sx={{ mb: 2 }}>
           <Typography variant="body2">
-            Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the server environment.
+            Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID in the server environment. 
+            For Web application clients, also configure GOOGLE_CLIENT_SECRET.
           </Typography>
         </Alert>
       );

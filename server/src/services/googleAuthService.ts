@@ -1,5 +1,8 @@
 import { OAuth2Client } from 'google-auth-library';
 import { GoogleTokenData, GoogleUserInfo, StoredGoogleAuth, GoogleAuthStatus } from '../types/google';
+import crypto from 'crypto';
+// Use node-fetch for older Node versions if global fetch is not available
+const fetch = globalThis.fetch || require('node-fetch');
 
 class GoogleAuthService {
   private oauth2Client: OAuth2Client;
@@ -9,50 +12,174 @@ class GoogleAuthService {
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/userinfo.email'
   ];
+  
+  // Store PKCE parameters for each session
+  private pkceStore = new Map<string, { codeVerifier: string; codeChallenge: string }>();
 
   constructor() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback';
+    // Use web redirect URI for web-based OAuth flow
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/';
 
-    if (!clientId || !clientSecret) {
-      throw new Error('Google OAuth credentials are not configured');
+    if (!clientId) {
+      throw new Error('Google OAuth client ID is not configured');
     }
 
-    this.oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
+    // Support both public (PKCE) and confidential clients
+    // If client secret is provided, use confidential client mode
+    // If not provided, use public client mode (PKCE)
+    this.oauth2Client = new OAuth2Client(clientId, clientSecret || undefined, redirectUri);
   }
 
   /**
-   * Generate authorization URL for OAuth flow
+   * Generate PKCE code verifier and challenge for Desktop clients
+   */
+  private generatePKCE(): { codeVerifier: string; codeChallenge: string; sessionId: string } {
+    // Generate code verifier (43-128 characters)
+    const codeVerifier = crypto.randomBytes(96).toString('base64url');
+    
+    // Generate code challenge
+    const codeChallenge = crypto
+      .createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url');
+    
+    // Generate session ID to store PKCE parameters
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    
+    // Store PKCE parameters
+    this.pkceStore.set(sessionId, { codeVerifier, codeChallenge });
+    
+    // Clean up old sessions (simple cleanup - remove entries older than 10 minutes)
+    setTimeout(() => {
+      this.pkceStore.delete(sessionId);
+    }, 10 * 60 * 1000);
+    
+    return { codeVerifier, codeChallenge, sessionId };
+  }
+
+  /**
+   * Generate authorization URL for OAuth flow with PKCE for Desktop clients
    */
   generateAuthUrl(): string {
-    return this.oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: this.scopes,
-      prompt: 'consent', // Force consent to ensure we get refresh token
-      include_granted_scopes: true
-    });
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    
+    if (clientSecret) {
+      // Confidential client - use traditional flow
+      return this.oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: this.scopes,
+        prompt: 'consent',
+        include_granted_scopes: true
+      });
+    } else {
+      // Public client (Desktop) - use PKCE flow
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/';
+      const { codeChallenge, sessionId } = this.generatePKCE();
+      
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      authUrl.searchParams.set('client_id', clientId!);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('scope', this.scopes.join(' '));
+      authUrl.searchParams.set('access_type', 'offline');
+      authUrl.searchParams.set('prompt', 'consent');
+      authUrl.searchParams.set('include_granted_scopes', 'true');
+      // PKCE parameters
+      authUrl.searchParams.set('code_challenge', codeChallenge);
+      authUrl.searchParams.set('code_challenge_method', 'S256');
+      authUrl.searchParams.set('state', sessionId); // Use session ID as state to retrieve PKCE params later
+      
+      return authUrl.toString();
+    }
   }
 
   /**
-   * Exchange authorization code for tokens
+   * Exchange authorization code for tokens (supports both public and confidential clients)
    */
-  async exchangeCodeForTokens(code: string): Promise<GoogleTokenData> {
+  async exchangeCodeForTokens(code: string, state?: string): Promise<GoogleTokenData> {
     try {
-      const { tokens } = await this.oauth2Client.getToken(code);
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
       
-      if (!tokens.access_token) {
-        throw new Error('No access token received from Google');
-      }
+      if (clientSecret) {
+        // Use OAuth2Client for confidential clients (with client secret)
+        console.log('Using confidential client flow with client secret');
+        const { tokens } = await this.oauth2Client.getToken(code);
+        
+        if (!tokens.access_token) {
+          throw new Error('No access token received from Google');
+        }
 
-      return {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || undefined,
-        expires_in: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : 3600,
-        token_type: 'Bearer',
-        scope: tokens.scope || this.scopes.join(' '),
-        id_token: tokens.id_token || undefined
-      };
+        return {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token || undefined,
+          expires_in: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : 3600,
+          token_type: 'Bearer',
+          scope: tokens.scope || this.scopes.join(' '),
+          id_token: tokens.id_token || undefined
+        };
+      } else {
+        // Use direct API call for public clients (PKCE)
+        console.log('Using public client flow (PKCE) without client secret');
+        const clientId = process.env.GOOGLE_CLIENT_ID;
+        const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/';
+        
+        if (!clientId) {
+          throw new Error('Google client ID not configured');
+        }
+
+        // Retrieve PKCE parameters from state
+        let codeVerifier: string | undefined;
+        if (state && this.pkceStore.has(state)) {
+          const pkceParams = this.pkceStore.get(state)!;
+          codeVerifier = pkceParams.codeVerifier;
+          // Clean up used PKCE parameters
+          this.pkceStore.delete(state);
+        }
+
+        if (!codeVerifier) {
+          throw new Error('PKCE code verifier not found. Invalid or expired session.');
+        }
+
+        const tokenParams = new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: clientId,
+          code: code,
+          redirect_uri: redirectUri,
+          code_verifier: codeVerifier, // Include PKCE code verifier
+        });
+
+        const response = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: tokenParams.toString(),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Token exchange error:', errorData);
+          throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.access_token) {
+          throw new Error('No access token received from Google');
+        }
+
+        return {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token || undefined,
+          expires_in: data.expires_in || 3600,
+          token_type: data.token_type || 'Bearer',
+          scope: data.scope || this.scopes.join(' '),
+          id_token: data.id_token || undefined
+        };
+      }
     } catch (error) {
       console.error('Error exchanging code for tokens:', error);
       throw new Error('Failed to exchange authorization code for tokens');
@@ -87,41 +214,58 @@ class GoogleAuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * Refresh access token using refresh token (PKCE-compatible)
    */
   async refreshAccessToken(refreshToken: string): Promise<GoogleTokenData> {
     try {
-      this.oauth2Client.setCredentials({
-        refresh_token: refreshToken
-      });
-
-      const { credentials } = await this.oauth2Client.refreshAccessToken();
+      const clientId = process.env.GOOGLE_CLIENT_ID;
       
-      if (!credentials.access_token) {
-        throw new Error('No access token received during refresh');
+      if (!clientId) {
+        throw new Error('Google client ID not configured');
       }
 
+      // Direct call to Google's token endpoint for PKCE refresh
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: clientId,
+          // No client_secret needed for PKCE flows
+        }).toString(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Token refresh failed: ${errorData.error_description || errorData.error}`);
+      }
+
+      const data = await response.json();
+
       return {
-        access_token: credentials.access_token,
-        refresh_token: credentials.refresh_token || refreshToken, // Keep original if new one not provided
-        expires_in: credentials.expiry_date ? Math.floor((credentials.expiry_date - Date.now()) / 1000) : 3600,
-        token_type: 'Bearer',
-        scope: credentials.scope || this.scopes.join(' ')
+        access_token: data.access_token,
+        refresh_token: data.refresh_token || refreshToken, // Keep original if new one not provided
+        expires_in: data.expires_in || 3600,
+        token_type: data.token_type || 'Bearer',
+        scope: data.scope || this.scopes.join(' ')
       };
     } catch (error) {
       console.error('Error refreshing access token:', error);
-      throw new Error('Failed to refresh access token');
+      throw new Error(`Failed to refresh access token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Create OAuth2Client with stored credentials
+   * Create OAuth2Client with stored credentials (supports both public and confidential clients)
    */
   createAuthenticatedClient(accessToken: string, refreshToken?: string): OAuth2Client {
     const client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI_WEB
+      process.env.GOOGLE_CLIENT_SECRET || undefined, // Use client secret if available
+      process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/'
     );
 
     client.setCredentials({

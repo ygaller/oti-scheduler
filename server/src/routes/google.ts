@@ -17,6 +17,31 @@ try {
 }
 
 /**
+ * GET /api/google/desktop-client-id
+ * Get desktop client ID for Electron PKCE flow
+ */
+router.get('/desktop-client-id', async (req, res) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    
+    if (!clientId) {
+      return res.status(500).json({
+        error: 'Google client ID not configured',
+        message: 'GOOGLE_CLIENT_ID environment variable is not set'
+      });
+    }
+
+    res.json({ clientId });
+  } catch (error) {
+    console.error('Error getting client ID:', error);
+    res.status(500).json({
+      error: 'Failed to get client ID',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * GET /api/google/auth/url
  * Generate OAuth authorization URL
  */
@@ -53,7 +78,7 @@ router.post('/auth/callback', async (req, res) => {
       });
     }
 
-    const { code } = req.body;
+    const { code, state } = req.body;
     
     if (!code) {
       return res.status(400).json({ 
@@ -62,8 +87,8 @@ router.post('/auth/callback', async (req, res) => {
       });
     }
 
-    // Exchange code for tokens
-    const tokenData: GoogleTokenData = await googleAuthService.exchangeCodeForTokens(code);
+    // Exchange code for tokens (include state for PKCE)
+    const tokenData: GoogleTokenData = await googleAuthService.exchangeCodeForTokens(code, state);
     
     // Get user information
     const userInfo = await googleAuthService.getUserInfo(tokenData.access_token);
@@ -193,7 +218,7 @@ router.get('/auth/status', async (req, res) => {
     
     res.json({ 
       isConfigured,
-      hasCredentials: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+      hasCredentials: !!process.env.GOOGLE_CLIENT_ID // Client ID is always required. Client secret is optional for Desktop clients.
     });
   } catch (error) {
     console.error('Error checking auth status:', error);

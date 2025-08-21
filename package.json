@@ -83,6 +83,7 @@
       "server/package.json",
       "server/node_modules/",
       "server/prisma/",
+      "server/.env",
       "!server/node_modules/.cache",
       "!server/node_modules/**/*.md",
       "!server/node_modules/**/*.txt",

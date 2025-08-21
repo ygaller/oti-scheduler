@@ -85,10 +85,11 @@
             document.getElementById('error-message').textContent = message;
         }
 
-        // Extract authorization code from URL
+        // Extract authorization code and state from URL
         function getAuthCode() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
+            const state = urlParams.get('state');
             const error = urlParams.get('error');
             
             if (error) {
@@ -96,7 +97,7 @@
             }
             
             if (code) {
-                return { code: code };
+                return { code: code, state: state };
             }
             
             return { error: 'No authorization code received' };
@@ -127,7 +128,8 @@
                 showSuccess();
                 sendMessageToParent({
                     type: 'GOOGLE_AUTH_SUCCESS',
-                    code: result.code
+                    code: result.code,
+                    state: result.state
                 });
                 
                 // Close window after short delay

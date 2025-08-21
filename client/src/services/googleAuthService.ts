@@ -1,8 +1,16 @@
 import { StoredGoogleAuth, GoogleAuthStatus, GoogleAuthResponse, GoogleConfigStatus } from '../types/google';
+import electronAuthService from './electronAuthService';
 
 class GoogleAuthService {
   private readonly STORAGE_KEY = 'google_auth_data';
   private readonly API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/google`;
+
+  /**
+   * Check if we're running in Electron
+   */
+  private isElectron(): boolean {
+    return !!(window as any).electronAPI || navigator.userAgent.toLowerCase().includes('electron');
+  }
 
   /**
    * Check if Google OAuth is configured on the server
@@ -40,14 +48,14 @@ class GoogleAuthService {
   /**
    * Handle OAuth callback with authorization code
    */
-  async handleAuthCallback(code: string): Promise<GoogleAuthResponse> {
+  async handleAuthCallback(code: string, state?: string): Promise<GoogleAuthResponse> {
     try {
       const response = await fetch(`${this.API_BASE}/auth/callback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, state }),
       });
 
       const data = await response.json();
@@ -285,6 +293,25 @@ class GoogleAuthService {
    * Open OAuth popup window for authentication
    */
   async authenticateWithPopup(): Promise<GoogleAuthResponse> {
+    // Use Electron PKCE flow if running in Electron
+    if (this.isElectron()) {
+      const result = await electronAuthService.authenticate();
+      if (result.success && result.auth) {
+        // Convert to expected format
+        return {
+          success: true,
+          auth: result.auth
+        };
+      } else {
+        return {
+          success: false,
+          error: result.error || 'Electron authentication failed',
+          message: result.message
+        };
+      }
+    }
+
+    // Use traditional web OAuth flow
     try {
       const authUrl = await this.startAuthFlow();
       
@@ -311,13 +338,13 @@ class GoogleAuthService {
           }
 
           if (event.data.type === 'GOOGLE_AUTH_SUCCESS' && event.data.code) {
-            console.log('Google auth success, processing code:', event.data.code);
+            console.log('Google auth success, processing code:', event.data.code, 'state:', event.data.state);
             window.removeEventListener('message', messageListener);
             clearInterval(checkClosed); // Clear the popup closed check
             popup.close();
 
             try {
-              const result = await this.handleAuthCallback(event.data.code);
+              const result = await this.handleAuthCallback(event.data.code, event.data.state);
               console.log('Auth callback result:', result);
               resolve(result);
             } catch (error) {
