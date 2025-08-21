@@ -38,6 +38,7 @@ interface ScheduleSelectorProps {
   selectedSchedule: Schedule | null;
   loading: boolean;
   error: string | null;
+  isExportingGoogleSheets?: boolean;
   onScheduleSelect: (scheduleId: string | null) => void;
   onCreateSchedule: (name: string) => Promise<Schedule>;
   onUpdateScheduleName: (scheduleId: string, name: string) => Promise<Schedule>;
@@ -55,6 +56,7 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   selectedSchedule,
   loading,
   error,
+  isExportingGoogleSheets = false,
   onScheduleSelect,
   onCreateSchedule,
   onUpdateScheduleName,
@@ -248,9 +250,9 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
             </Button>
             <Button
               variant="outlined"
-              startIcon={<CloudUploadIcon />}
+              startIcon={isExportingGoogleSheets ? <CircularProgress size={16} sx={{ color: '#4285f4' }} /> : <CloudUploadIcon />}
               onClick={handleGoogleSheetsExport}
-              disabled={loading || !selectedSchedule?.id}
+              disabled={loading || !selectedSchedule?.id || isExportingGoogleSheets}
               size="small"
               sx={{
                 color: '#4285f4',
@@ -261,7 +263,7 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
                 },
               }}
             >
-              ייצא ל-Google Sheets
+              {isExportingGoogleSheets ? 'מייצא ל-Google Sheets...' : 'ייצא ל-Google Sheets'}
             </Button>
             <Button
               variant="outlined"

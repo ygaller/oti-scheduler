@@ -130,6 +130,7 @@ function AppContent() {
   const [rooms, setRooms] = useState<Room[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [isExportingGoogleSheets, setIsExportingGoogleSheets] = useState(false);
   
   // Use the new schedule hook
   const {
@@ -265,6 +266,7 @@ function AppContent() {
       return;
     }
 
+    setIsExportingGoogleSheets(true);
     try {
       // Import the Google Sheets service dynamically
       const { googleSheetsService } = await import('./services');
@@ -295,6 +297,8 @@ function AppContent() {
     } catch (error) {
       console.error('Error exporting to Google Sheets:', error);
       alert('Failed to export to Google Sheets. Please check your connection and try again.');
+    } finally {
+      setIsExportingGoogleSheets(false);
     }
   };
 
@@ -436,6 +440,7 @@ function AppContent() {
                             selectedSchedule={selectedSchedule}
                             loading={scheduleLoading}
                             error={scheduleError}
+                            isExportingGoogleSheets={isExportingGoogleSheets}
                             onScheduleSelect={setSelectedScheduleId}
                             onCreateSchedule={createSchedule}
                             onUpdateScheduleName={updateScheduleName}

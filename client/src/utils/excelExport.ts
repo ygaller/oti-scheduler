@@ -96,32 +96,24 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
     `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
   );
 
-  // Create headers: Time column + Days with employees under each day
-  const mainHeaders: any[] = ['שעה'];
-  const subHeaders: any[] = [''];
-  
-  WEEK_DAYS.forEach((day: WeekDay) => {
-    mainHeaders.push(DAY_LABELS[day]);
-    // Add empty cells for the rest of the employee columns for this day
-    for (let i = 1; i < sortedEmployees.length + 1; i++) { // +1 for activities column
-      mainHeaders.push('');
-    }
-    
-    // Sub-headers for this day
-    subHeaders.push('פעילויות');
-    sortedEmployees.forEach(employee => {
-      subHeaders.push(`${employee.firstName} ${employee.lastName}`);
-    });
+  // Create headers: יום, שעה, פעילויות, then employee columns
+  const headers: any[] = ['יום', 'שעה', 'פעילויות'];
+  sortedEmployees.forEach(employee => {
+    headers.push(`${employee.firstName} ${employee.lastName}`);
   });
   
-  const data: any[][] = [mainHeaders, subHeaders];
+  const data: any[][] = [headers];
   
-  // Create data rows for each time slot
-  timeSlots.forEach(time => {
-    const row: any[] = [time];
+  // Create data rows for each day and time slot
+  WEEK_DAYS.forEach((day: WeekDay) => {
+    const dayLabel = DAY_LABELS[day];
+    const daySessions = sessions.filter(s => s.day === day);
     
-    WEEK_DAYS.forEach((day: WeekDay) => {
-      const daySessions = sessions.filter(s => s.day === day);
+    timeSlots.forEach((time, timeIndex) => {
+      const row: any[] = [
+        timeIndex === 0 ? dayLabel : '', // Show day only for first time slot
+        time,
+      ];
       
       // Check for activities
       const activity = isTimeInActivityPeriod(time, activities, day);
@@ -158,9 +150,9 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
           }
         }
       });
+      
+      data.push(row);
     });
-    
-    data.push(row);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(data);
@@ -168,22 +160,7 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
   // Apply styling
   const range = XLSX.utils.decode_range(ws['!ref']!);
   
-  // Merge cells for day headers
-  let colIndex = 1;
-  WEEK_DAYS.forEach((day: WeekDay) => {
-    const startCol = colIndex;
-    const endCol = colIndex + sortedEmployees.length; // +1 for activities column
-    
-    if (!ws['!merges']) ws['!merges'] = [];
-    ws['!merges'].push({
-      s: { r: 0, c: startCol },
-      e: { r: 0, c: endCol }
-    });
-    
-    colIndex = endCol + 1;
-  });
-  
-  // Style day headers (first row)
+  // Style headers (first row)
   for (let col = range.s.c; col <= range.e.c; col++) {
     const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
     if (!ws[cellRef]) continue;
@@ -198,51 +175,46 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
     };
   }
   
-  // Style sub-headers (second row)
-  for (let col = range.s.c; col <= range.e.c; col++) {
-    const cellRef = XLSX.utils.encode_cell({ r: 1, c: col });
-    if (!ws[cellRef]) continue;
-    
-    ws[cellRef].s = {
-      font: { bold: true, color: { rgb: '000000' } },
-      fill: { 
-        patternType: 'solid',
-        fgColor: { rgb: 'FFE0E0E0' }
-      },
-      alignment: { horizontal: 'center', vertical: 'center' }
-    };
-  }
+  // Merge cells for day labels
+  if (!ws['!merges']) ws['!merges'] = [];
+  let currentRow = 1;
+  WEEK_DAYS.forEach(() => {
+    const startRow = currentRow;
+    const endRow = currentRow + timeSlots.length - 1;
+    ws['!merges']!.push({
+      s: { r: startRow, c: 0 },
+      e: { r: endRow, c: 0 }
+    });
+    currentRow = endRow + 1;
+  });
   
   // Apply employee colors to their columns
-  colIndex = 1;
-  WEEK_DAYS.forEach((day: WeekDay) => {
-    colIndex++; // Skip activities column
+  sortedEmployees.forEach((employee, empIndex) => {
+    const colIndex = 3 + empIndex; // Start after יום, שעה, פעילויות columns
     
-    sortedEmployees.forEach((employee, empIndex) => {
-      for (let row = 2; row <= range.e.r; row++) {
-        const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
-        if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
-          if (!ws[cellRef].s) ws[cellRef].s = {};
-          const textColor = getContrastingTextColor(employee.color);
-          ws[cellRef].s.fill = { 
-            patternType: 'solid',
-            fgColor: { rgb: hexToExcelColor(employee.color) }
-          };
-          ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
-          ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
-        }
+    for (let row = 1; row <= range.e.r; row++) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
+      if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
+        if (!ws[cellRef].s) ws[cellRef].s = {};
+        const textColor = getContrastingTextColor(employee.color);
+        ws[cellRef].s.fill = { 
+          patternType: 'solid',
+          fgColor: { rgb: hexToExcelColor(employee.color) }
+        };
+        ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+        ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
       }
-      colIndex++;
-    });
+    }
   });
 
   // Set column widths
-  const colWidths: any[] = [{ width: 10 }]; // Time column
-  WEEK_DAYS.forEach(() => {
-    colWidths.push({ width: 15 }); // Activities column
-    sortedEmployees.forEach(() => {
-      colWidths.push({ width: 20 }); // Employee columns
-    });
+  const colWidths: any[] = [
+    { width: 12 }, // יום column
+    { width: 10 }, // שעה column
+    { width: 15 }  // פעילויות column
+  ];
+  sortedEmployees.forEach(() => {
+    colWidths.push({ width: 20 }); // Employee columns
   });
   
   ws['!cols'] = colWidths;
@@ -260,32 +232,24 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   const timeSlots = generateTimeSlots().filter(time => time.endsWith(':00')); // Only hourly marks
   const sortedRooms = [...rooms].filter(r => r.isActive).sort((a, b) => a.name.localeCompare(b.name, 'he'));
 
-  // Create headers: Time column + Days with rooms under each day
-  const mainHeaders: any[] = ['שעה'];
-  const subHeaders: any[] = [''];
-  
-  WEEK_DAYS.forEach((day: WeekDay) => {
-    mainHeaders.push(DAY_LABELS[day]);
-    // Add empty cells for the rest of the room columns for this day
-    for (let i = 1; i < sortedRooms.length + 1; i++) { // +1 for activities column
-      mainHeaders.push('');
-    }
-    
-    // Sub-headers for this day
-    subHeaders.push('פעילויות');
-    sortedRooms.forEach(room => {
-      subHeaders.push(room.name);
-    });
+  // Create headers: יום, שעה, פעילויות, then room columns
+  const headers: any[] = ['יום', 'שעה', 'פעילויות'];
+  sortedRooms.forEach(room => {
+    headers.push(room.name);
   });
   
-  const data: any[][] = [mainHeaders, subHeaders];
+  const data: any[][] = [headers];
   
-  // Create data rows for each time slot
-  timeSlots.forEach(time => {
-    const row: any[] = [time];
+  // Create data rows for each day and time slot
+  WEEK_DAYS.forEach((day: WeekDay) => {
+    const dayLabel = DAY_LABELS[day];
+    const daySessions = sessions.filter(s => s.day === day);
     
-    WEEK_DAYS.forEach((day: WeekDay) => {
-      const daySessions = sessions.filter(s => s.day === day);
+    timeSlots.forEach((time, timeIndex) => {
+      const row: any[] = [
+        timeIndex === 0 ? dayLabel : '', // Show day only for first time slot
+        time,
+      ];
       
       // Check for activities
       const activity = isTimeInActivityPeriod(time, activities, day);
@@ -311,9 +275,9 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
           row.push('');
         }
       });
+      
+      data.push(row);
     });
-    
-    data.push(row);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(data);
@@ -321,22 +285,7 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   // Apply styling
   const range = XLSX.utils.decode_range(ws['!ref']!);
   
-  // Merge cells for day headers
-  let colIndex = 1;
-  WEEK_DAYS.forEach((day: WeekDay) => {
-    const startCol = colIndex;
-    const endCol = colIndex + sortedRooms.length; // +1 for activities column
-    
-    if (!ws['!merges']) ws['!merges'] = [];
-    ws['!merges'].push({
-      s: { r: 0, c: startCol },
-      e: { r: 0, c: endCol }
-    });
-    
-    colIndex = endCol + 1;
-  });
-  
-  // Style day headers (first row)
+  // Style headers (first row)
   for (let col = range.s.c; col <= range.e.c; col++) {
     const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
     if (!ws[cellRef]) continue;
@@ -351,51 +300,46 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
     };
   }
   
-  // Style sub-headers (second row)
-  for (let col = range.s.c; col <= range.e.c; col++) {
-    const cellRef = XLSX.utils.encode_cell({ r: 1, c: col });
-    if (!ws[cellRef]) continue;
-    
-    ws[cellRef].s = {
-      font: { bold: true, color: { rgb: '000000' } },
-      fill: { 
-        patternType: 'solid',
-        fgColor: { rgb: 'FFE0E0E0' }
-      },
-      alignment: { horizontal: 'center', vertical: 'center' }
-    };
-  }
+  // Merge cells for day labels
+  if (!ws['!merges']) ws['!merges'] = [];
+  let currentRow = 1;
+  WEEK_DAYS.forEach(() => {
+    const startRow = currentRow;
+    const endRow = currentRow + timeSlots.length - 1;
+    ws['!merges']!.push({
+      s: { r: startRow, c: 0 },
+      e: { r: endRow, c: 0 }
+    });
+    currentRow = endRow + 1;
+  });
   
   // Apply room colors to their columns
-  colIndex = 1;
-  WEEK_DAYS.forEach((day: WeekDay) => {
-    colIndex++; // Skip activities column
+  sortedRooms.forEach((room, roomIndex) => {
+    const colIndex = 3 + roomIndex; // Start after יום, שעה, פעילויות columns
     
-    sortedRooms.forEach((room, roomIndex) => {
-      for (let row = 2; row <= range.e.r; row++) {
-        const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
-        if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
-          if (!ws[cellRef].s) ws[cellRef].s = {};
-          const textColor = getContrastingTextColor(room.color);
-          ws[cellRef].s.fill = { 
-            patternType: 'solid',
-            fgColor: { rgb: hexToExcelColor(room.color) }
-          };
-          ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
-          ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
-        }
+    for (let row = 1; row <= range.e.r; row++) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
+      if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
+        if (!ws[cellRef].s) ws[cellRef].s = {};
+        const textColor = getContrastingTextColor(room.color);
+        ws[cellRef].s.fill = { 
+          patternType: 'solid',
+          fgColor: { rgb: hexToExcelColor(room.color) }
+        };
+        ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+        ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
       }
-      colIndex++;
-    });
+    }
   });
 
   // Set column widths
-  const colWidths: any[] = [{ width: 10 }]; // Time column
-  WEEK_DAYS.forEach(() => {
-    colWidths.push({ width: 15 }); // Activities column
-    sortedRooms.forEach(() => {
-      colWidths.push({ width: 20 }); // Room columns
-    });
+  const colWidths: any[] = [
+    { width: 12 }, // יום column
+    { width: 10 }, // שעה column
+    { width: 15 }  // פעילויות column
+  ];
+  sortedRooms.forEach(() => {
+    colWidths.push({ width: 20 }); // Room columns
   });
   
   ws['!cols'] = colWidths;

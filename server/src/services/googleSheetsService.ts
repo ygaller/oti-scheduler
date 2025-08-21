@@ -165,6 +165,28 @@ class GoogleSheetsService {
   }
 
   /**
+   * Clean schedule name by converting non-Hebrew/English letters and non-numbers to underscores
+   */
+  private cleanScheduleName(name: string): string {
+    // Replace any character that is not Hebrew letter, English letter, or number with underscore
+    return name.replace(/[^\u0590-\u05FFa-zA-Z0-9]/g, '_');
+  }
+
+  /**
+   * Generate timestamp in yyyymmdd_hhmm format
+   */
+  private generateTimestamp(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    
+    return `${year}${month}${day}_${hours}${minutes}`;
+  }
+
+  /**
    * Create employee schedule worksheet data
    */
   private createEmployeeScheduleData(options: ExportOptions): any[][] {
@@ -174,36 +196,28 @@ class GoogleSheetsService {
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
     );
 
-    // Create headers
-    const mainHeaders: any[] = ['שעה'];
-    const subHeaders: any[] = [''];
-    
-    WEEK_DAYS.forEach((day: WeekDay) => {
-      mainHeaders.push(DAY_LABELS[day]);
-      // Add empty cells for the rest of the employee columns for this day
-      for (let i = 1; i < sortedEmployees.length + 1; i++) { // +1 for activities column
-        mainHeaders.push('');
-      }
-      
-      // Sub-headers for this day
-      subHeaders.push('פעילויות');
-      sortedEmployees.forEach((employee: Employee) => {
-        subHeaders.push(`${employee.firstName} ${employee.lastName}`);
-      });
+    // Create headers: יום, שעה, פעילויות, then employee columns
+    const headers: any[] = ['יום', 'שעה', 'פעילויות'];
+    sortedEmployees.forEach((employee: Employee) => {
+      headers.push(String(`${String(employee.firstName || '')} ${String(employee.lastName || '')}`));
     });
     
-    const data: any[][] = [mainHeaders, subHeaders];
+    const data: any[][] = [headers];
     
-    // Create data rows for each time slot
-    timeSlots.forEach(time => {
-      const row: any[] = [time];
+    // Create data rows for each day and time slot
+    WEEK_DAYS.forEach((day: WeekDay) => {
+      const dayLabel = DAY_LABELS[day];
+      const daySessions = sessions.filter((s: Session) => s.day === day);
       
-      WEEK_DAYS.forEach((day: WeekDay) => {
-        const daySessions = sessions.filter((s: Session) => s.day === day);
+      timeSlots.forEach((time, timeIndex) => {
+        const row: any[] = [
+          timeIndex === 0 ? String(dayLabel) : '', // Show day only for first time slot
+          String(time),
+        ];
         
         // Check for activities
         const activity = this.isTimeInActivityPeriod(time, activities, day);
-        row.push(activity ? activity.name : '');
+        row.push(activity ? String(activity.name || '') : '');
         
         // Check for sessions for each employee
         sortedEmployees.forEach((employee: Employee) => {
@@ -215,17 +229,17 @@ class GoogleSheetsService {
           
           if (session) {
             const room = options.rooms.find((r: Room) => r.id === session.roomId);
-            const patientNames = session.patients?.map((p: Patient) => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+            const patientNames = session.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
             const employeeNames = session.employeeIds?.map((id: string) => {
               const emp = options.employees.find((e: Employee) => e.id === id);
-              return emp ? `${emp.firstName} ${emp.lastName}` : '';
+              return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
             }).filter(Boolean).join(', ') || 'לא ידוע';
             
-            let cellContent = `${session.startTime}-${session.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
-            if (session.notes && session.notes.trim()) {
-              cellContent += `\nהערות: ${session.notes}`;
+            let cellContent = `${String(session.startTime || '')}-${String(session.endTime || '')}\n${String(room?.name || 'לא ידוע')}\n${employeeNames}\n${patientNames}`;
+            if (session.notes && String(session.notes).trim()) {
+              cellContent += `\nהערות: ${String(session.notes)}`;
             }
-            row.push(cellContent);
+            row.push(String(cellContent));
           } else {
             // Check for reserved hours if no session
             const reservedHour = employee.reservedHours?.find((rh: any) => 
@@ -234,15 +248,15 @@ class GoogleSheetsService {
               rh.startTime < this.getNextHour(time)
             );
             if (reservedHour) {
-              row.push(`${reservedHour.startTime}-${reservedHour.endTime}\nשעות שמורות\n${reservedHour.notes || 'ללא הערות'}`);
+              row.push(String(`${String(reservedHour.startTime || '')}-${String(reservedHour.endTime || '')}\nשעות שמורות\n${String(reservedHour.notes || 'ללא הערות')}`));
             } else {
               row.push('');
             }
           }
         });
+        
+        data.push(row);
       });
-      
-      data.push(row);
     });
 
     return data;
@@ -256,34 +270,28 @@ class GoogleSheetsService {
     const timeSlots = this.generateTimeSlots();
     const sortedRooms = [...rooms].filter((r: Room) => r.isActive).sort((a: Room, b: Room) => a.name.localeCompare(b.name, 'he'));
 
-    // Create headers
-    const mainHeaders: any[] = ['שעה'];
-    const subHeaders: any[] = [''];
-    
-    WEEK_DAYS.forEach((day: WeekDay) => {
-      mainHeaders.push(DAY_LABELS[day]);
-      for (let i = 1; i < sortedRooms.length + 1; i++) { // +1 for activities column
-        mainHeaders.push('');
-      }
-      
-      subHeaders.push('פעילויות');
-      sortedRooms.forEach((room: Room) => {
-        subHeaders.push(room.name);
-      });
+    // Create headers: יום, שעה, פעילויות, then room columns
+    const headers: any[] = ['יום', 'שעה', 'פעילויות'];
+    sortedRooms.forEach((room: Room) => {
+      headers.push(String(room.name || ''));
     });
     
-    const data: any[][] = [mainHeaders, subHeaders];
+    const data: any[][] = [headers];
     
-    // Create data rows for each time slot
-    timeSlots.forEach(time => {
-      const row: any[] = [time];
+    // Create data rows for each day and time slot
+    WEEK_DAYS.forEach((day: WeekDay) => {
+      const dayLabel = DAY_LABELS[day];
+      const daySessions = sessions.filter((s: Session) => s.day === day);
       
-      WEEK_DAYS.forEach((day: WeekDay) => {
-        const daySessions = sessions.filter((s: Session) => s.day === day);
+      timeSlots.forEach((time, timeIndex) => {
+        const row: any[] = [
+          timeIndex === 0 ? String(dayLabel) : '', // Show day only for first time slot
+          String(time),
+        ];
         
         // Check for activities
         const activity = this.isTimeInActivityPeriod(time, activities, day);
-        row.push(activity ? activity.name : '');
+        row.push(activity ? String(activity.name || '') : '');
         
         // Check for sessions for each room
         sortedRooms.forEach((room: Room) => {
@@ -294,24 +302,24 @@ class GoogleSheetsService {
           );
           
           if (session) {
-            const patientNames = session.patients?.map((p: Patient) => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+            const patientNames = session.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
             const employeeNames = session.employeeIds?.map((id: string) => {
               const emp = employees.find((e: Employee) => e.id === id);
-              return emp ? `${emp.firstName} ${emp.lastName}` : '';
+              return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
             }).filter(Boolean).join(', ') || 'לא ידוע';
             
-            let cellContent = `${session.startTime}-${session.endTime}\n${employeeNames}\n${patientNames}`;
-            if (session.notes && session.notes.trim()) {
-              cellContent += `\nהערות: ${session.notes}`;
+            let cellContent = `${String(session.startTime || '')}-${String(session.endTime || '')}\n${employeeNames}\n${patientNames}`;
+            if (session.notes && String(session.notes).trim()) {
+              cellContent += `\nהערות: ${String(session.notes)}`;
             }
-            row.push(cellContent);
+            row.push(String(cellContent));
           } else {
             row.push('');
           }
         });
+        
+        data.push(row);
       });
-      
-      data.push(row);
     });
 
     return data;
@@ -340,26 +348,31 @@ class GoogleSheetsService {
       const daySessions = patientSessions.filter((s: Session) => s.day === day).sort((a: Session, b: Session) => a.startTime.localeCompare(b.startTime));
       
       if (daySessions.length === 0) {
-        data.push([dayLabel, 'אין טיפולים', '', '', '', '']);
+        data.push([String(dayLabel), 'אין טיפולים', '', '', '', '']);
       } else {
         daySessions.forEach((session: Session, index: number) => {
           const room = rooms.find((r: Room) => r.id === session.roomId);
           
-          // For multi-employee sessions, get all employee names
-          const employeeNames = session.employeeIds?.map((id: string) => {
-            const emp = employees.find((e: Employee) => e.id === id);
-            return emp ? `${emp.firstName} ${emp.lastName}` : '';
-          }).filter(Boolean).join(', ') || 'לא ידוע';
+                  // For multi-employee sessions, get all employee names
+        const employeeNames = session.employeeIds?.map((id: string) => {
+          const emp = employees.find((e: Employee) => e.id === id);
+          return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+        }).filter(Boolean).join(', ') || 'לא ידוע';
 
-          data.push([
-            index === 0 ? dayLabel : '', // Show day only for first session
-            session.startTime,
-            session.endTime,
-            employeeNames,
-            session.employeeIds?.length && employees.find((e: Employee) => e.id === session.employeeIds[0]) ? 
-              this.getRoleName(employees.find((e: Employee) => e.id === session.employeeIds[0])?.role || '', employees.find((e: Employee) => e.id === session.employeeIds[0])?.roleId || '') : 'לא ידוע',
-            room ? room.name : 'לא ידוע'
-          ]);
+        data.push([
+          index === 0 ? String(dayLabel) : '', // Show day only for first session
+          String(session.startTime || ''),
+          String(session.endTime || ''),
+          String(employeeNames),
+          session.employeeIds?.length ? (() => {
+            const firstEmployee = employees.find((e: Employee) => e.id === session.employeeIds[0]);
+            if (firstEmployee?.role) {
+              return String(firstEmployee.role.name || 'לא ידוע');
+            }
+            return 'לא ידוע';
+          })() : 'לא ידוע',
+          room ? String(room.name || '') : 'לא ידוע'
+        ]);
         });
       }
       
@@ -374,7 +387,7 @@ class GoogleSheetsService {
         dayActivities.forEach((activity: Activity) => {
           const timeRange = this.getActivityTimeForDay(activity, day);
           if (timeRange) {
-            data.push(['', activity.name, `${timeRange.startTime}-${timeRange.endTime}`, '', '', '']);
+            data.push(['', String(activity.name || ''), String(`${String(timeRange.startTime || '')}-${String(timeRange.endTime || '')}`), '', '', '']);
           }
         });
       }
@@ -492,7 +505,8 @@ class GoogleSheetsService {
       const patientColor = this.hexToRgb(patient.color);
       const textColor = this.getContrastingTextColor(patient.color);
 
-      // Style patient name (first row)
+      // Style patient name (first row) - use header row length for proper column span
+      const headerRowLength = data[2]?.length || 6; // Use headers row length (row index 2)
       requests.push({
         repeatCell: {
           range: {
@@ -500,7 +514,7 @@ class GoogleSheetsService {
             startRowIndex: 0,
             endRowIndex: 1,
             startColumnIndex: 0,
-            endColumnIndex: data[0]?.length || 1
+            endColumnIndex: headerRowLength
           },
           cell: {
             userEnteredFormat: {
@@ -551,7 +565,7 @@ class GoogleSheetsService {
             startRowIndex: 0,
             endRowIndex: 1,
             startColumnIndex: 0,
-            endColumnIndex: data[0]?.length || 1
+            endColumnIndex: headerRowLength
           },
           mergeType: 'MERGE_ALL'
         }
@@ -560,9 +574,8 @@ class GoogleSheetsService {
     } else {
       // General styling for employee and room sheets
       const headerColor = this.hexToRgb('#4A90E2'); // Blue header
-      const subHeaderColor = this.hexToRgb('#E0E0E0'); // Gray sub-header
 
-      // Style day headers (first row)
+      // Style headers (first row)
       requests.push({
         repeatCell: {
           range: {
@@ -586,34 +599,31 @@ class GoogleSheetsService {
         }
       });
 
-      // Style sub-headers (second row) if exists
-      if (data.length > 1) {
+      // Merge cells for day labels in the first column
+      const timeSlots = this.generateTimeSlots();
+      let currentRow = 1;
+      WEEK_DAYS.forEach(() => {
+        const startRow = currentRow;
+        const endRow = currentRow + timeSlots.length - 1;
         requests.push({
-          repeatCell: {
+          mergeCells: {
             range: {
               sheetId: sheetId,
-              startRowIndex: 1,
-              endRowIndex: 2,
+              startRowIndex: startRow,
+              endRowIndex: endRow + 1,
               startColumnIndex: 0,
-              endColumnIndex: data[1]?.length || 1
+              endColumnIndex: 1
             },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: subHeaderColor,
-                textFormat: {
-                  foregroundColor: { red: 0, green: 0, blue: 0 },
-                  bold: true
-                },
-                horizontalAlignment: 'CENTER'
-              }
-            },
-            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
+            mergeType: 'MERGE_ALL'
           }
         });
-      }
+        currentRow = endRow + 1;
+      });
 
-      // Special handling for room sheets - apply room colors to data cells
-      if (sheetType === 'room' && scheduleData) {
+      // Special handling for employee and room sheets - apply colors to data cells
+      if (sheetType === 'employee' && scheduleData) {
+        await this.applyEmployeeColors(sheetsClient, spreadsheetId, sheetId, data, scheduleData, requests);
+      } else if (sheetType === 'room' && scheduleData) {
         await this.applyRoomColors(sheetsClient, spreadsheetId, sheetId, data, scheduleData, requests);
       }
     }
@@ -625,6 +635,61 @@ class GoogleSheetsService {
         requestBody: { requests }
       });
     }
+  }
+
+  /**
+   * Apply employee-specific colors to employee schedule data cells
+   */
+  private async applyEmployeeColors(
+    sheetsClient: sheets_v4.Sheets,
+    spreadsheetId: string,
+    sheetId: number,
+    data: any[][],
+    scheduleData: ExportOptions,
+    requests: any[]
+  ): Promise<void> {
+    const { employees } = scheduleData;
+    const sortedEmployees = [...employees].filter((e: Employee) => e.isActive).sort((a: Employee, b: Employee) => 
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
+    );
+    
+    // Employee schedule structure: יום, שעה, פעילויות, then employee columns
+    sortedEmployees.forEach((employee: Employee, empIndex: number) => {
+      const colIndex = 3 + empIndex; // Start after יום, שעה, פעילויות columns
+      const employeeColor = this.hexToRgb(employee.color);
+      const textColor = this.getContrastingTextColor(employee.color);
+      
+      // Apply employee color to all data cells in this employee's column (starting from row 1)
+      for (let row = 1; row < data.length; row++) {
+        const cellValue = data[row][colIndex];
+        // Only color cells that have content (not empty)
+        if (cellValue && cellValue !== '') {
+          requests.push({
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: row,
+                endRowIndex: row + 1,
+                startColumnIndex: colIndex,
+                endColumnIndex: colIndex + 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: employeeColor,
+                  textFormat: {
+                    foregroundColor: textColor
+                  },
+                  wrapStrategy: 'WRAP',
+                  verticalAlignment: 'TOP',
+                  horizontalAlignment: 'RIGHT'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,wrapStrategy,verticalAlignment,horizontalAlignment)'
+            }
+          });
+        }
+      }
+    });
   }
 
   /**
@@ -641,49 +706,42 @@ class GoogleSheetsService {
     const { rooms } = scheduleData;
     const sortedRooms = [...rooms].filter((r: Room) => r.isActive).sort((a: Room, b: Room) => a.name.localeCompare(b.name, 'he'));
     
-    // Room schedule structure: Time column + 5 days * (Activities column + Room columns)
-    let colIndex = 1; // Start after time column
-    
-    WEEK_DAYS.forEach(() => {
-      colIndex++; // Skip activities column
+    // Room schedule structure: יום, שעה, פעילויות, then room columns
+    sortedRooms.forEach((room: Room, roomIndex: number) => {
+      const colIndex = 3 + roomIndex; // Start after יום, שעה, פעילויות columns
+      const roomColor = this.hexToRgb(room.color);
+      const textColor = this.getContrastingTextColor(room.color);
       
-      sortedRooms.forEach((room: Room, roomIndex: number) => {
-        const roomColor = this.hexToRgb(room.color);
-        const textColor = this.getContrastingTextColor(room.color);
-        
-        // Apply room color to all data cells in this room's column (starting from row 2)
-        for (let row = 2; row < data.length; row++) {
-          const cellValue = data[row][colIndex];
-          // Only color cells that have content (not empty)
-          if (cellValue && cellValue !== '') {
-            requests.push({
-              repeatCell: {
-                range: {
-                  sheetId: sheetId,
-                  startRowIndex: row,
-                  endRowIndex: row + 1,
-                  startColumnIndex: colIndex,
-                  endColumnIndex: colIndex + 1
-                },
-                cell: {
-                  userEnteredFormat: {
-                    backgroundColor: roomColor,
-                    textFormat: {
-                      foregroundColor: textColor
-                    },
-                    wrapStrategy: 'WRAP',
-                    verticalAlignment: 'TOP',
-                    horizontalAlignment: 'RIGHT'
-                  }
-                },
-                fields: 'userEnteredFormat(backgroundColor,textFormat,wrapStrategy,verticalAlignment,horizontalAlignment)'
-              }
-            });
-          }
+      // Apply room color to all data cells in this room's column (starting from row 1)
+      for (let row = 1; row < data.length; row++) {
+        const cellValue = data[row][colIndex];
+        // Only color cells that have content (not empty)
+        if (cellValue && cellValue !== '') {
+          requests.push({
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: row,
+                endRowIndex: row + 1,
+                startColumnIndex: colIndex,
+                endColumnIndex: colIndex + 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: roomColor,
+                  textFormat: {
+                    foregroundColor: textColor
+                  },
+                  wrapStrategy: 'WRAP',
+                  verticalAlignment: 'TOP',
+                  horizontalAlignment: 'RIGHT'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,wrapStrategy,verticalAlignment,horizontalAlignment)'
+            }
+          });
         }
-        
-        colIndex++;
-      });
+      }
     });
   }
 
@@ -695,16 +753,9 @@ class GoogleSheetsService {
       const sheetsClient = await this.createSheetsClient(auth);
       const { scheduleData, scheduleName, exportType, patientId } = exportRequest;
       
-      // Generate spreadsheet name with timestamp
-      const now = new Date();
-      const timestamp = now.toLocaleString('he-IL', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Jerusalem'
-      }).replace(/[\/,]/g, '-');
+      // Generate spreadsheet name with new format: לוח_זמנים_<schedule_name>_yyyymmdd_hhmm
+      const timestamp = this.generateTimestamp();
+      const cleanedScheduleName = this.cleanScheduleName(scheduleName);
       
       let spreadsheetTitle: string;
       let spreadsheetId: string;
@@ -716,7 +767,8 @@ class GoogleSheetsService {
           return { success: false, error: 'Patient not found' };
         }
         
-        spreadsheetTitle = `${scheduleName} - ${patient.firstName} ${patient.lastName} - ${timestamp}`;
+        const cleanedPatientName = this.cleanScheduleName(`${patient.firstName}_${patient.lastName}`);
+        spreadsheetTitle = `לוח_זמנים_${cleanedScheduleName}_${cleanedPatientName}_${timestamp}`;
         spreadsheetId = await this.createSpreadsheet(sheetsClient, spreadsheetTitle);
         
         // Remove default sheet and add patient schedule
@@ -736,7 +788,7 @@ class GoogleSheetsService {
         
       } else {
         // Create main spreadsheet with all schedules
-        spreadsheetTitle = `${scheduleName} - ייצוא מלא - ${timestamp}`;
+        spreadsheetTitle = `לוח_זמנים_${cleanedScheduleName}_${timestamp}`;
         spreadsheetId = await this.createSpreadsheet(sheetsClient, spreadsheetTitle);
         
         let firstSheetAdded = false;
