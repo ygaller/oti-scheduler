@@ -284,12 +284,13 @@ export class PrismaSessionRepository implements SessionRepository {
 
     // Check for patient time conflicts
     const { validatePatientTimeConflict } = await import('../utils/scheduler');
+    const { PRISMA_TO_API_WEEKDAY } = await import('../mappers');
     const scheduleId = sessionToUpdate.scheduleId;
     const validation = await validatePatientTimeConflict(
       patientId,
       {
         id: sessionId,
-        day: sessionToUpdate.day,
+        day: PRISMA_TO_API_WEEKDAY[sessionToUpdate.day],
         startTime: sessionToUpdate.startTime,
         endTime: sessionToUpdate.endTime
       },

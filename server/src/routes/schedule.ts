@@ -232,6 +232,35 @@ export const createScheduleRouter = (
       const sessionData: CreateSessionDto & { forceCreate?: boolean } = req.body;
       const { forceCreate = false, ...sessionCreateData } = sessionData;
 
+      // Validate required fields
+      if (!sessionCreateData.employeeIds || sessionCreateData.employeeIds.length === 0) {
+        return res.status(400).json({ error: 'At least one employee must be assigned to the session' });
+      }
+      if (!sessionCreateData.roomId) {
+        return res.status(400).json({ error: 'Room ID is required' });
+      }
+      if (!sessionCreateData.day) {
+        return res.status(400).json({ error: 'Day is required' });
+      }
+      if (!sessionCreateData.startTime) {
+        return res.status(400).json({ error: 'Start time is required' });
+      }
+      if (!sessionCreateData.endTime) {
+        return res.status(400).json({ error: 'End time is required' });
+      }
+
+      // Validate day format
+      const validDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+      if (!validDays.includes(sessionCreateData.day)) {
+        return res.status(400).json({ error: 'Invalid day format' });
+      }
+
+      // Validate time format (basic check for HH:MM format)
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(sessionCreateData.startTime) || !timeRegex.test(sessionCreateData.endTime)) {
+        return res.status(400).json({ error: 'Invalid time format. Use HH:MM format' });
+      }
+
       // First verify the schedule exists
       const schedule = await scheduleRepo.findById(scheduleId);
       if (!schedule) {

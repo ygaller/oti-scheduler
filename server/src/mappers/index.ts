@@ -14,7 +14,7 @@ import { Employee, Room, Session, Schedule, Role, WeekDay, Patient } from '../ty
 
 // WeekDay mapping
 // WeekDay mapping for SQLite (now using strings instead of enums)
-const PRISMA_TO_API_WEEKDAY: Record<string, WeekDay> = {
+export const PRISMA_TO_API_WEEKDAY: Record<string, WeekDay> = {
   SUNDAY: 'sunday',
   MONDAY: 'monday',
   TUESDAY: 'tuesday',
