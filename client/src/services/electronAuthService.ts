@@ -242,4 +242,5 @@ class ElectronAuthService {
   }
 }
 
-export default new ElectronAuthService();
+const electronAuthService = new ElectronAuthService();
+export default electronAuthService;

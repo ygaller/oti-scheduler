@@ -144,7 +144,6 @@ function AppContent() {
     createSchedule,
     updateScheduleName,
     deleteSchedule,
-    refetchSchedules,
     refetchSessions,
   } = useSchedule();
 
