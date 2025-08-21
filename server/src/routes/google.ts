@@ -5,15 +5,26 @@ import { GoogleTokenData, StoredGoogleAuth, GoogleAuthStatus, GoogleSheetsExport
 
 const router = express.Router();
 
-// Initialize Google Services
-let googleAuthService: GoogleAuthService;
-let googleSheetsService: GoogleSheetsService;
+// Initialize Google Services - defer initialization to avoid test failures
+let googleAuthService: GoogleAuthService | undefined;
+let googleSheetsService: GoogleSheetsService | undefined;
 
-try {
-  googleAuthService = new GoogleAuthService();
-  googleSheetsService = new GoogleSheetsService();
-} catch (error) {
-  console.error('Failed to initialize Google services:', error);
+// Initialize services only if configuration is available
+function initializeGoogleServices() {
+  if (googleAuthService && googleSheetsService) {
+    return; // Already initialized
+  }
+  
+  try {
+    if (process.env.GOOGLE_CLIENT_ID) {
+      googleAuthService = new GoogleAuthService();
+      googleSheetsService = new GoogleSheetsService();
+    } else {
+      console.log('Google OAuth client ID not configured, Google services will be unavailable');
+    }
+  } catch (error) {
+    console.error('Failed to initialize Google services:', error);
+  }
 }
 
 /**
@@ -22,6 +33,8 @@ try {
  */
 router.get('/desktop-client-id', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     const clientId = process.env.GOOGLE_CLIENT_ID;
     
     if (!clientId) {
@@ -47,6 +60,8 @@ router.get('/desktop-client-id', async (req, res) => {
  */
 router.get('/auth/url', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     if (!googleAuthService) {
       return res.status(500).json({ 
         error: 'Google authentication not configured',
@@ -71,6 +86,8 @@ router.get('/auth/url', async (req, res) => {
  */
 router.post('/auth/callback', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     if (!googleAuthService) {
       return res.status(500).json({ 
         error: 'Google authentication not configured',
@@ -120,6 +137,8 @@ router.post('/auth/callback', async (req, res) => {
  */
 router.post('/auth/refresh', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     if (!googleAuthService) {
       return res.status(500).json({ 
         error: 'Google authentication not configured',
@@ -166,6 +185,8 @@ router.post('/auth/refresh', async (req, res) => {
  */
 router.post('/auth/validate', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     if (!googleAuthService) {
       return res.status(500).json({ 
         error: 'Google authentication not configured',
@@ -212,6 +233,8 @@ router.delete('/auth/logout', async (req, res) => {
  */
 router.get('/auth/status', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     // This endpoint expects the client to provide auth data
     // It's mainly for checking if Google Auth is configured
     const isConfigured = !!googleAuthService;
@@ -235,6 +258,8 @@ router.get('/auth/status', async (req, res) => {
  */
 router.post('/sheets/export', async (req, res) => {
   try {
+    initializeGoogleServices();
+    
     if (!googleSheetsService) {
       return res.status(500).json({ 
         error: 'Google Sheets service not configured',

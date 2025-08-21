@@ -27,10 +27,13 @@ jobs:
 
       - name: Setup test environment variables
         working-directory: ./server
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |
           echo "DATABASE_URL=file:./dev.db" > .env.test
           echo "TEST_DATABASE_URL=file:./dev.db" >> .env.test
           echo "NODE_ENV=test" >> .env.test
+          echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> .env.test
 
       - name: Generate Prisma client
         working-directory: ./server
