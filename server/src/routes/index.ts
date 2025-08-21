@@ -16,6 +16,7 @@ import { createScheduleRouter } from './schedule';
 import { createSystemRouter } from './system';
 import { createActivityRouter } from './activities';
 import { createRoleRouter } from './roles';
+import googleRouter from './google';
 
 export const createApiRouter = (
   employeeRepo: EmployeeRepository,
@@ -37,6 +38,7 @@ export const createApiRouter = (
   router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, prisma));
   router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, patientRepo, activityRepo));
   router.use('/activities', createActivityRouter(activityRepo));
+  router.use('/google', googleRouter);
 
   // Health check endpoint
   router.get('/health', (req, res) => {

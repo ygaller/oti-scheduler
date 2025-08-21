@@ -24,9 +24,13 @@ import {
   Warning as WarningIcon,
   Download,
   Print,
-  HelpOutline
+  HelpOutline,
+  Google as GoogleIcon,
+  CloudUpload as CloudUploadIcon
 } from '@mui/icons-material';
 import { Schedule } from '../types';
+import GoogleSettings from './GoogleSettings';
+import { googleAuthService } from '../services';
 
 interface ScheduleSelectorProps {
   schedules: Schedule[];
@@ -39,6 +43,8 @@ interface ScheduleSelectorProps {
   onUpdateScheduleName: (scheduleId: string, name: string) => Promise<Schedule>;
   onDeleteSchedule: (scheduleId: string) => Promise<void>;
   onExportExcel: () => void;
+  onExportGoogleSheets: () => void;
+  onOpenGoogleSettings?: () => void;
   onPrint: () => void;
   onShowHelp: () => void;
 }
@@ -54,6 +60,8 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   onUpdateScheduleName,
   onDeleteSchedule,
   onExportExcel,
+  onExportGoogleSheets,
+  onOpenGoogleSettings,
   onPrint,
   onShowHelp,
 }) => {
@@ -64,6 +72,37 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [schedulesToDelete, setSchedulesToDelete] = useState<Schedule | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [googleSettingsOpen, setGoogleSettingsOpen] = useState(false);
+
+  // Handle Google Sheets export with authentication check
+  const handleGoogleSheetsExport = async () => {
+    try {
+      // Check if user is authenticated
+      const authStatus = await googleAuthService.getAuthStatus();
+      
+      if (!authStatus.isAuthenticated) {
+        // User not connected - open Google Settings dialog
+        if (onOpenGoogleSettings) {
+          onOpenGoogleSettings();
+        } else {
+          // Fallback: open the settings dialog directly
+          setGoogleSettingsOpen(true);
+        }
+        return;
+      }
+
+      // User is authenticated, proceed with export
+      onExportGoogleSheets();
+    } catch (error) {
+      console.error('Error checking Google authentication:', error);
+      // On error, open settings dialog to let user reconnect
+      if (onOpenGoogleSettings) {
+        onOpenGoogleSettings();
+      } else {
+        setGoogleSettingsOpen(true);
+      }
+    }
+  };
 
   // Generate suggested name (current year - next year)
   const getSuggestedName = () => {
@@ -209,6 +248,23 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
             </Button>
             <Button
               variant="outlined"
+              startIcon={<CloudUploadIcon />}
+              onClick={handleGoogleSheetsExport}
+              disabled={loading || !selectedSchedule?.id}
+              size="small"
+              sx={{
+                color: '#4285f4',
+                borderColor: '#4285f4',
+                '&:hover': {
+                  borderColor: '#3367d6',
+                  backgroundColor: 'rgba(66, 133, 244, 0.04)',
+                },
+              }}
+            >
+              ייצא ל-Google Sheets
+            </Button>
+            <Button
+              variant="outlined"
               startIcon={<Print />}
               onClick={onPrint}
               disabled={loading || !selectedSchedule?.id}
@@ -218,6 +274,21 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
             </Button>
           </>
         )}
+
+        {/* Google Settings Button */}
+        <IconButton
+          onClick={() => setGoogleSettingsOpen(true)}
+          size="small"
+          title="הגדרות Google Sheets"
+          sx={{ 
+            color: '#4285f4',
+            '&:hover': {
+              backgroundColor: 'rgba(66, 133, 244, 0.04)',
+            },
+          }}
+        >
+          <GoogleIcon sx={{ fontSize: 20 }} />
+        </IconButton>
 
         {/* Help Button */}
         <IconButton
@@ -329,6 +400,12 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Google Settings Dialog */}
+      <GoogleSettings
+        open={googleSettingsOpen}
+        onClose={() => setGoogleSettingsOpen(false)}
+      />
     </Box>
   );
 };

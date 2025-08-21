@@ -6,4 +6,6 @@ export { roleService } from './roleService';
 export { scheduleService } from './scheduleService';
 export { systemService, type SystemStatus } from './systemService';
 export { activityService } from './activityService';
+export { default as googleAuthService } from './googleAuthService';
+export { default as googleSheetsService } from './googleSheetsService';
 

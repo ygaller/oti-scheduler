@@ -17,6 +17,7 @@ import RoomManagement from './components/RoomManagement';
 import ScheduleConfiguration from './components/ScheduleConfiguration';
 import ScheduleViewWrapper from './components/ScheduleViewWrapper';
 import HelpModal from './components/HelpModal'; // Import the new HelpModal component
+import GoogleSettings from './components/GoogleSettings';
 
 import { employeeService, patientService, roomService } from './services';
 import { useSchedule } from './hooks';
@@ -114,7 +115,8 @@ const theme = createTheme({
 
 // Main App Content Component (everything except routing)
 function AppContent() {
-  const [showHelpModal, setShowHelpModal] = useState(false); // State for help modal visibility
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showGoogleSettings, setShowGoogleSettings] = useState(false);
 
   // Load saved tab from localStorage or default to 0
   const [activeTab, setActiveTab] = useState(() => {
@@ -254,6 +256,45 @@ function AppContent() {
       });
     } catch (error) {
       console.error('Error exporting to Excel:', error);
+    }
+  };
+
+  const handleExportGoogleSheets = async () => {
+    if (!selectedSchedule || selectedSchedule.sessions.length === 0) {
+      console.warn('No schedule data to export');
+      return;
+    }
+
+    try {
+      // Import the Google Sheets service dynamically
+      const { googleSheetsService } = await import('./services');
+      
+      // Prepare schedule data for export
+      const scheduleData = {
+        sessions: selectedSchedule.sessions,
+        employees,
+        rooms,
+        patients,
+        activities
+      };
+
+      // Export to Google Sheets (authentication already verified by ScheduleSelector)
+      const result = await googleSheetsService.exportScheduleToSheets(
+        scheduleData,
+        selectedSchedule.name
+      );
+
+      if (result.success && result.spreadsheetUrl) {
+        // Open the created spreadsheet in a new tab
+        window.open(result.spreadsheetUrl, '_blank');
+        console.log('Successfully exported to Google Sheets:', result.spreadsheetUrl);
+      } else {
+        console.error('Google Sheets export failed:', result);
+        alert(`Google Sheets export failed: ${result.error || result.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error exporting to Google Sheets:', error);
+      alert('Failed to export to Google Sheets. Please check your connection and try again.');
     }
   };
 
@@ -400,6 +441,8 @@ function AppContent() {
                             onUpdateScheduleName={updateScheduleName}
                             onDeleteSchedule={deleteSchedule}
                             onExportExcel={handleExportExcel}
+                            onExportGoogleSheets={handleExportGoogleSheets}
+                            onOpenGoogleSettings={() => setShowGoogleSettings(true)}
                             onPrint={handlePrint}
                             onShowHelp={() => setShowHelpModal(true)}
                           />
@@ -419,6 +462,7 @@ function AppContent() {
                   )}
             </Container>
             <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} activeTab={activeTab} />
+            <GoogleSettings open={showGoogleSettings} onClose={() => setShowGoogleSettings(false)} />
           </Box>
         </ThemeProvider>
       </LocalizationProvider>

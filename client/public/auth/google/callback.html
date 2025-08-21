@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Authentication</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+        }
+        .loading {
+            font-size: 16px;
+            color: #666;
+        }
+        .success {
+            color: #4caf50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4caf50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>מעבד אימות Google...</p>
+        </div>
+        <div id="success" class="success" style="display: none;">
+            <p>✓ אימות הושלם בהצלחה!</p>
+            <p>ניתן לסגור חלון זה.</p>
+        </div>
+        <div id="error" class="error" style="display: none;">
+            <p>✗ אימות נכשל</p>
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showSuccess() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        // Extract authorization code from URL
+        function getAuthCode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                return { error: error };
+            }
+            
+            if (code) {
+                return { code: code };
+            }
+            
+            return { error: 'No authorization code received' };
+        }
+
+        // Send message to parent window
+        function sendMessageToParent(data) {
+            if (window.opener) {
+                window.opener.postMessage(data, window.location.origin);
+            } else {
+                console.error('No opener window found');
+            }
+        }
+
+        // Main execution
+        try {
+            showLoading();
+            
+            const result = getAuthCode();
+            
+            if (result.error) {
+                showError(`Authentication error: ${result.error}`);
+                sendMessageToParent({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: result.error
+                });
+            } else if (result.code) {
+                showSuccess();
+                sendMessageToParent({
+                    type: 'GOOGLE_AUTH_SUCCESS',
+                    code: result.code
+                });
+                
+                // Close window after short delay
+                setTimeout(() => {
+                    window.close();
+                }, 2000);
+            } else {
+                showError('Unexpected authentication result');
+                sendMessageToParent({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: 'Unexpected authentication result'
+                });
+            }
+        } catch (error) {
+            console.error('Error processing authentication callback:', error);
+            showError('Failed to process authentication result');
+            sendMessageToParent({
+                type: 'GOOGLE_AUTH_ERROR',
+                error: 'Failed to process authentication result'
+            });
+        }
+    </script>
+</body>
+</html>

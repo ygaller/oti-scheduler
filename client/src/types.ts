@@ -213,6 +213,11 @@ declare global {
       print: {
         schedule: (htmlContent: string) => Promise<{ success: boolean; error?: string }>;
       };
+      secureStorage: {
+        set: (key: string, value: string) => Promise<boolean>;
+        get: (key: string) => Promise<string | null>;
+        remove: (key: string) => Promise<boolean>;
+      };
     };
     appContext?: {
       isElectron: boolean;
