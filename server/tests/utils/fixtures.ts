@@ -191,10 +191,10 @@ export const createMockActivities = (): Activity[] => [
     isBlocking: true
   }),
   createActivityFixture({
-    name: 'Optional Training',
+    name: 'Lunch Break',
     defaultStartTime: '12:00',
     defaultEndTime: '13:00',
-    isBlocking: false
+    isBlocking: true
   }),
   createActivityFixture({
     name: 'Staff Break',

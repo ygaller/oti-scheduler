@@ -90,7 +90,18 @@ export function validateScheduleConstraints(
     return { valid: false, error: 'החדר תפוס בזמן זה' };
   }
 
-  // Skip blocking activity validation - sessions are allowed to overlap with activities
+  // Check for blocking activities
+  for (const activity of activities) {
+    if (!activity.isBlocking) continue; // Skip non-blocking activities
+
+    const activityTime = getActivityTimeForDay(activity, session.day);
+    if (!activityTime) continue; // No activity on this day
+
+    // Check if session overlaps with blocking activity
+    if (timesOverlap(session.startTime, session.endTime, activityTime.startTime, activityTime.endTime)) {
+      return { valid: false, error: 'לא ניתן לתזמן טיפול בזמן חסום' };
+    }
+  }
 
   return { valid: true };
 }
