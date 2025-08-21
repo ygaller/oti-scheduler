@@ -115,7 +115,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, '-release')
     permissions:
       contents: write
 
@@ -156,7 +156,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           name: OTI Scheduler ${{ steps.version.outputs.version }}
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
           make_latest: true
           body: |
             ## OTI Scheduler ${{ steps.version.outputs.version }}
