@@ -651,7 +651,40 @@ FRONTEND_URL=http://localhost:3000
 # הגדרות Electron (מוגדרות אוטומטית על ידי האפליקציה)
 ELECTRON=false
 USER_DATA_PATH=
+
+# הגדרות Google OAuth (אופציונלי - לייצוא Google Sheets)
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here  # רק לאפליקציות Web
+GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback/
+GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:8080/callback
 ```
+
+### הגדרת Google OAuth
+
+לשימוש בתכונת ייצוא ל-Google Sheets, יש להגדיר OAuth עם Google:
+
+#### באפליקצית Electron (Desktop)
+במהלך הבנייה, המערכת תיצור קובץ `electron/config.json` עם הגדרות Google OAuth:
+
+```json
+{
+  "googleClientId": "your_google_client_id_here",
+  "apiUrl": "http://localhost:3001/api",
+  "redirectUri": "http://localhost:8080/callback",
+  "isDevelopment": false
+}
+```
+
+#### באפליקצית Web
+יש להוסיף את המשתנים הבאים לקובץ `server/.env`:
+
+```env
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback/
+```
+
+**הערה**: עבור אפליקציות Desktop (Electron) משתמשים ב-PKCE ולא נדרש Client Secret.
 
 ## 📋 רישיון
 

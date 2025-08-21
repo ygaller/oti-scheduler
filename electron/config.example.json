@@ -1,4 +1,6 @@
 {
+  "googleClientId": "your_google_client_id_here",
   "apiUrl": "http://localhost:3001/api",
+  "redirectUri": "http://localhost:8080/callback",
   "isDevelopment": true
 }
