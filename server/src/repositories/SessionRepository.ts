@@ -257,6 +257,50 @@ export class PrismaSessionRepository implements SessionRepository {
   }
 
   async assignPatient(sessionId: string, patientId: string): Promise<Session> {
+    // First get the session to check for conflicts
+    const sessionToUpdate = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        sessionEmployees: {
+          include: {
+            employee: {
+              include: {
+                role: true
+              }
+            }
+          }
+        },
+        sessionPatients: {
+          include: {
+            patient: true
+          }
+        }
+      }
+    });
+
+    if (!sessionToUpdate) {
+      throw new Error('Session not found');
+    }
+
+    // Check for patient time conflicts
+    const { validatePatientTimeConflict } = await import('../utils/scheduler');
+    const scheduleId = sessionToUpdate.scheduleId;
+    const validation = await validatePatientTimeConflict(
+      patientId,
+      {
+        id: sessionId,
+        day: sessionToUpdate.day,
+        startTime: sessionToUpdate.startTime,
+        endTime: sessionToUpdate.endTime
+      },
+      this,
+      scheduleId
+    );
+
+    if (!validation.isValid) {
+      throw new Error(validation.error || 'Patient time conflict');
+    }
+
     // Create the session-patient relationship
     await this.prisma.sessionPatient.create({
       data: {

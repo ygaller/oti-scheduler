@@ -99,6 +99,68 @@ export const createScheduleRouter = (
     }
   });
 
+
+
+  // POST /api/schedule/generate-empty - Generate an empty schedule (becomes active)
+  router.post('/generate-empty', async (req, res) => {
+    try {
+      // Create an empty schedule with a unique name
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const scheduleName = `Schedule ${timestamp}`;
+      const schedule = await scheduleRepo.createWithName(scheduleName);
+      
+      // Return the created schedule (it becomes active as the most recent one)
+      res.status(201).json(schedule);
+    } catch (error) {
+      console.error('Error generating empty schedule:', error);
+      res.status(500).json({ error: 'Failed to generate empty schedule' });
+    }
+  });
+
+
+
+
+
+  // POST /api/schedule/sessions/:sessionId/patients - Assign patient to session
+  router.post('/sessions/:sessionId/patients', validateUUID('sessionId'), async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { patientId } = req.body;
+
+      if (!patientId) {
+        return res.status(400).json({ error: 'Patient ID is required' });
+      }
+
+      const session = await sessionRepo.assignPatient(sessionId, patientId);
+      res.json(session);
+    } catch (error) {
+      console.error('Error assigning patient to session:', error);
+      if (error instanceof Error && error.message.includes('המטופל כבר משויך לטיפול אחר באותו זמן')) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to assign patient to session' });
+      }
+    }
+  });
+
+  // PUT /api/schedule/sessions/:sessionId/patients - Update session patients
+  router.put('/sessions/:sessionId/patients', validateUUID('sessionId'), async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { patientIds } = req.body;
+
+      if (!Array.isArray(patientIds)) {
+        return res.status(400).json({ error: 'Patient IDs array is required' });
+      }
+
+      const session = await sessionRepo.updatePatients(sessionId, patientIds);
+      res.json(session);
+    } catch (error) {
+      console.error('Error updating session patients:', error);
+      res.status(500).json({ error: 'Failed to update session patients' });
+    }
+  });
+
   // PUT /api/schedule/:scheduleId/name - Update schedule name
   router.put('/:scheduleId/name', validateUUID('scheduleId'), async (req, res) => {
     try {

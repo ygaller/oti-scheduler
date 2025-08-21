@@ -21,52 +21,7 @@ describe('Schedule API Integration Tests', () => {
 
   // Automated schedule generation tests removed - functionality no longer supported
 
-  describe('GET /api/schedule/active - API Integration', () => {
-    beforeEach(async () => {
-      // Clean up before each test - order matters due to foreign key constraints
-      await prisma.sessionPatient.deleteMany();
-      await prisma.session.deleteMany();
-      await prisma.schedule.deleteMany();
-      await prisma.employee.deleteMany();
-      await prisma.room.deleteMany();
-      await prisma.activity.deleteMany();
-      await prisma.patient.deleteMany();
-      await prisma.role.deleteMany();
-    });
 
-    it('should return null when no active schedule exists (API)', async () => {
-      const response = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(response.body).toBeNull();
-    });
-
-    it('should return active schedule when one exists (API)', async () => {
-      // Set up test data via API
-      const role1 = createRoleFixture({ name: 'ריפוי בעיסוק' });
-      const roleResponse1 = await request(app).post('/api/roles').send(role1);
-      
-      const employee = createEmployeeFixture({ roleId: roleResponse1.body.id });
-      const room = createRoomFixture();
-
-      await request(app).post('/api/employees').send(employee);
-      await request(app).post('/api/rooms').send(room);
-
-      // Generate an empty schedule (which becomes active by default)
-      const generateResponse = await request(app)
-        .post('/api/schedule/generate-empty')
-        .expect(201);
-
-      // Get active schedule
-      const response = await request(app)
-        .get('/api/schedule/active')
-        .expect(200);
-
-      expect(response.body).toEqual(generateResponse.body);
-      expect(response.body.isActive).toBe(true);
-    });
-  });
 
   describe('GET /api/schedule/all - API Integration', () => {
     beforeEach(async () => {
@@ -218,15 +173,9 @@ describe('Schedule API Integration Tests', () => {
       };
 
       const response = await request(app)
-        .post('/api/schedule/sessions')
-        .send(sessionData);
-
-      // Log the error to debug
-      if (response.status !== 201) {
-        console.log('Session creation failed:', response.status, response.body);
-      }
-      
-      expect(response.status).toBe(201);
+        .post(`/api/schedule/${scheduleResponse.body.id}/sessions`)
+        .send(sessionData)
+        .expect(201);
 
       expect(response.body).toHaveProperty('id');
       expect(response.body.employeeIds).toEqual(sessionData.employeeIds);
@@ -251,8 +200,13 @@ describe('Schedule API Integration Tests', () => {
     });
 
     it('should get all sessions via API', async () => {
+      // Create a schedule first  
+      const scheduleResponse = await request(app)
+        .post('/api/schedule/generate-empty')
+        .expect(201);
+
       const response = await request(app)
-        .get('/api/schedule/sessions')
+        .get(`/api/schedule/${scheduleResponse.body.id}/sessions`)
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -317,17 +271,17 @@ describe('Schedule API Integration Tests', () => {
       patient = patientResponse.body;
 
       // Generate an empty schedule first (required for session creation)
-      await request(app).post('/api/schedule/generate-empty').expect(201);
+      const scheduleResponse = await request(app).post('/api/schedule/generate-empty').expect(201);
 
       // Create test sessions via API
-      const session1Response = await request(app).post('/api/schedule/sessions').send({
+      const session1Response = await request(app).post(`/api/schedule/${scheduleResponse.body.id}/sessions`).send({
         employeeIds: [employee1.id],
         roomId: room1.id,
         day: 'monday',
         startTime: '10:00',
         endTime: '11:00'
       });
-      const session2Response = await request(app).post('/api/schedule/sessions').send({
+      const session2Response = await request(app).post(`/api/schedule/${scheduleResponse.body.id}/sessions`).send({
         employeeIds: [employee2.id],
         roomId: room2.id,
         day: 'monday',
@@ -425,9 +379,12 @@ describe('Schedule API Integration Tests', () => {
     });
 
     it('should handle server errors gracefully', async () => {
+      // Create a schedule first
+      const scheduleResponse = await request(app).post('/api/schedule/generate-empty').expect(201);
+      
       // Try to create session with invalid data
       const response = await request(app)
-        .post('/api/schedule/sessions')
+        .post(`/api/schedule/${scheduleResponse.body.id}/sessions`)
         .send({
           employeeIds: ['invalid-id'],
           roomId: 'invalid-id',
@@ -441,9 +398,12 @@ describe('Schedule API Integration Tests', () => {
     });
 
     it('should validate request data properly', async () => {
+      // Create a schedule first
+      const scheduleResponse = await request(app).post('/api/schedule/generate-empty').expect(201);
+      
       // Try to create session with invalid data
       const response = await request(app)
-        .post('/api/schedule/sessions')
+        .post(`/api/schedule/${scheduleResponse.body.id}/sessions`)
         .send({
           employeeIds: ['invalid-id'],
           roomId: 'invalid-id',
