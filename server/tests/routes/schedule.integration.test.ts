@@ -416,6 +416,199 @@ describe('Schedule API Integration Tests', () => {
       expect(response.body).toHaveProperty('error');
     });
   });
+
+  describe('Room Conflict Validation API Integration', () => {
+    let role: any, employee1: any, employee2: any, room: any, schedule: any;
+    
+    beforeEach(async () => {
+      // Clean up before each test
+      await prisma.sessionPatient.deleteMany();
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.role.deleteMany();
+
+      // Create test data
+      role = await prisma.role.create({
+        data: { name: 'Test Role', roleStringKey: 'role_test', isActive: true }
+      });
+
+      const workingHoursJson = JSON.stringify({
+        sunday: { startTime: '08:00', endTime: '18:00' },
+        monday: { startTime: '08:00', endTime: '18:00' },
+        tuesday: { startTime: '08:00', endTime: '18:00' },
+        wednesday: { startTime: '08:00', endTime: '18:00' },
+        thursday: { startTime: '08:00', endTime: '18:00' },
+        friday: { startTime: '08:00', endTime: '15:00' }
+      });
+
+      employee1 = await prisma.employee.create({
+        data: {
+          firstName: 'Employee',
+          lastName: 'One',
+          roleId: role.id,
+          weeklySessionsCount: 5,
+          isActive: true,
+          workingHours: workingHoursJson,
+          reservedHours: '[]'
+        }
+      });
+
+      employee2 = await prisma.employee.create({
+        data: {
+          firstName: 'Employee',
+          lastName: 'Two',
+          roleId: role.id,
+          weeklySessionsCount: 5,
+          isActive: true,
+          workingHours: workingHoursJson,
+          reservedHours: '[]'
+        }
+      });
+
+      room = await prisma.room.create({
+        data: {
+          name: 'Test Room',
+          color: '#FF5733',
+          isActive: true
+        }
+      });
+
+      schedule = await prisma.schedule.create({
+        data: {
+          name: 'Test Schedule'
+        }
+      });
+    });
+
+    it('should prevent creating overlapping sessions in the same room via API', async () => {
+      // Create first session (10:00-11:00)
+      const session1Data = {
+        employeeIds: [employee1.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00'
+      };
+
+      const session1Response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(session1Data)
+        .expect(201);
+
+      expect(session1Response.body).toHaveProperty('id');
+
+      // Try to create second session in same room with overlapping time (10:30-11:30)
+      const session2Data = {
+        employeeIds: [employee2.id], // Different employee
+        roomId: room.id, // Same room
+        day: 'monday', // Same day
+        startTime: '10:30',
+        endTime: '11:30'
+      };
+
+      const session2Response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(session2Data)
+        .expect(409);
+
+      expect(session2Response.body.error).toBe('החדר תפוס בזמן זה');
+      expect(session2Response.body.code).toBe('SCHEDULE_CONSTRAINT_VIOLATION');
+
+      // Verify only one session exists in the database
+      const sessions = await prisma.session.findMany({
+        where: { scheduleId: schedule.id }
+      });
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].id).toBe(session1Response.body.id);
+    });
+
+    it('should allow creating non-overlapping sessions in the same room via API', async () => {
+      // Create first session (10:00-11:00)
+      const session1Data = {
+        employeeIds: [employee1.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00'
+      };
+
+      const session1Response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(session1Data)
+        .expect(201);
+
+      // Create second session in same room but non-overlapping time (11:00-12:00)
+      const session2Data = {
+        employeeIds: [employee2.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '11:00',
+        endTime: '12:00'
+      };
+
+      const session2Response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(session2Data)
+        .expect(201);
+
+      expect(session2Response.body).toHaveProperty('id');
+
+      // Verify both sessions exist in the database
+      const sessions = await prisma.session.findMany({
+        where: { scheduleId: schedule.id }
+      });
+      expect(sessions).toHaveLength(2);
+    });
+
+    it('should allow creating overlapping sessions in different rooms via API', async () => {
+      // Create another room
+      const room2 = await prisma.room.create({
+        data: {
+          name: 'Test Room 2',
+          color: '#33FF57',
+          isActive: true
+        }
+      });
+
+      // Create first session in room 1 (10:00-11:00)
+      const session1Data = {
+        employeeIds: [employee1.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00'
+      };
+
+      const session1Response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(session1Data)
+        .expect(201);
+
+      // Create overlapping session in room 2 (10:30-11:30)
+      const session2Data = {
+        employeeIds: [employee2.id],
+        roomId: room2.id, // Different room
+        day: 'monday',
+        startTime: '10:30',
+        endTime: '11:30'
+      };
+
+      const session2Response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(session2Data)
+        .expect(201);
+
+      expect(session2Response.body).toHaveProperty('id');
+
+      // Verify both sessions exist in the database
+      const sessions = await prisma.session.findMany({
+        where: { scheduleId: schedule.id }
+      });
+      expect(sessions).toHaveLength(2);
+    });
+  });
 });
 
 // Helper function to convert time string to minutes for comparison

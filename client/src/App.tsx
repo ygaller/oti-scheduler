@@ -23,6 +23,8 @@ import { employeeService, patientService, roomService } from './services';
 import { useSchedule } from './hooks';
 import ScheduleSelector from './components/ScheduleSelector';
 import { useActivities } from './hooks';
+import { createPrintExportService } from './components/SchedulePrintExport';
+import ErrorModal from './components/ErrorModal';
 
 import { Employee, Patient, Room } from './types';
 
@@ -132,6 +134,14 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [isExportingGoogleSheets, setIsExportingGoogleSheets] = useState(false);
   
+  // Error modal states
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{
+    title: string;
+    message: string;
+    details?: string;
+  } | null>(null);
+  
   // Use the new schedule hook
   const {
     allSchedules,
@@ -237,26 +247,16 @@ function AppContent() {
 
   // Export and Print handlers
   const handleExportExcel = () => {
-    if (!selectedSchedule || selectedSchedule.sessions.length === 0) {
-      // Could add error modal here if needed
-      console.warn('No schedule data to export');
+    if (!printExportService) {
+      setErrorInfo({
+        title: 'שגיאה בייצוא',
+        message: 'אין לוח זמנים נבחר לייצוא'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
-    try {
-      // Import the Excel export function dynamically
-      import('./utils/excelExport').then(({ exportScheduleToExcel }) => {
-        exportScheduleToExcel({
-          sessions: selectedSchedule.sessions,
-          employees,
-          rooms,
-          patients,
-          activities
-        }, selectedSchedule.name);
-      });
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-    }
+    printExportService.handleExportExcel();
   };
 
   const handleExportGoogleSheets = async () => {
@@ -301,16 +301,28 @@ function AppContent() {
     }
   };
 
+  // Create the print/export service
+  const printExportService = selectedSchedule ? createPrintExportService(
+    selectedSchedule,
+    patients,
+    employees,
+    rooms,
+    activities,
+    setErrorInfo,
+    setErrorModalOpen
+  ) : null;
+
   const handlePrint = async () => {
-    if (!selectedSchedule || selectedSchedule.sessions.length === 0) {
-      console.warn('No schedule data to print');
+    if (!printExportService) {
+      setErrorInfo({
+        title: 'שגיאה בהדפסה',
+        message: 'אין לוח זמנים נבחר להדפסה'
+      });
+      setErrorModalOpen(true);
       return;
     }
 
-    // For now, just log that print was called - the actual print logic is complex
-    // and would need to be extracted from ScheduleView component
-    console.log('Print functionality called for schedule:', selectedSchedule.name);
-    // TODO: Implement print functionality by extracting it from ScheduleView
+    await printExportService.handlePrint();
   };
 
   const refreshSchedule = async () => {
@@ -467,6 +479,15 @@ function AppContent() {
             </Container>
             <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} activeTab={activeTab} />
             <GoogleSettings open={showGoogleSettings} onClose={() => setShowGoogleSettings(false)} />
+            
+            {/* Error Modal */}
+            <ErrorModal
+              open={errorModalOpen}
+              title={errorInfo?.title || 'שגיאה'}
+              message={errorInfo?.message || 'שגיאה לא ידועה'}
+              details={errorInfo?.details}
+              onClose={() => setErrorModalOpen(false)}
+            />
           </Box>
         </ThemeProvider>
       </LocalizationProvider>

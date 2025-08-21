@@ -117,9 +117,60 @@ export async function validateScheduleConstraintsAsync(
     return { isValid: false, error: 'לפחות עובד אחד חייב להיות משויך לטיפול' };
   }
 
-  // For now, just check basic constraints
-  // TODO: Implement full constraint checking using repositories
-  return { isValid: true };
+  try {
+    // Get all sessions in the schedule for conflict checking
+    const allSessions = await sessionRepo.findByScheduleId(scheduleId);
+    
+    // Get all employees to validate working hours and conflicts
+    const allEmployees = await employeeRepo.findAll();
+    
+    // Validate each assigned employee
+    for (const employeeId of session.employeeIds) {
+      const employee = allEmployees.find((e: any) => e.id === employeeId);
+      if (!employee) {
+        return { isValid: false, error: `עובד לא נמצא: ${employeeId}` };
+      }
+
+      // Check working hours for this employee
+      const workingHours = employee.workingHours[session.day];
+      if (!workingHours) {
+        return { isValid: false, error: `העובד ${employee.firstName} ${employee.lastName} לא עובד ביום זה` };
+      }
+
+      if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
+        return { isValid: false, error: `הטיפול מחוץ לשעות העבודה של העובד ${employee.firstName} ${employee.lastName}` };
+      }
+
+      // Check employee conflicts for this specific employee
+      const employeeConflicts = allSessions.filter((s: any) =>
+        s.id !== session.id &&
+        s.employeeIds && s.employeeIds.includes(employeeId) &&
+        s.day === session.day &&
+        timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
+      );
+
+      if (employeeConflicts.length > 0) {
+        return { isValid: false, error: `העובד ${employee.firstName} ${employee.lastName} תפוס בזמן זה` };
+      }
+    }
+
+    // Check room conflicts
+    const roomConflicts = allSessions.filter((s: any) =>
+      s.id !== session.id &&
+      s.roomId === session.roomId &&
+      s.day === session.day &&
+      timesOverlap(s.startTime, s.endTime, session.startTime, session.endTime)
+    );
+
+    if (roomConflicts.length > 0) {
+      return { isValid: false, error: 'החדר תפוס בזמן זה' };
+    }
+
+    return { isValid: true };
+  } catch (error) {
+    console.error('Error in validateScheduleConstraintsAsync:', error);
+    return { isValid: false, error: 'שגיאה בבדיקת אילוצי התזמון' };
+  }
 }
 
 // Export timesOverlap function for reuse
