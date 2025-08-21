@@ -28,41 +28,7 @@ export const createPrintExportService = (
     return schedule.sessions.length;
   };
 
-  const getEmployeeName = (employeeId: string) => {
-    const employee = employees.find(emp => emp.id === employeeId);
-    return employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע';
-  };
 
-  const getRoomName = (roomId: string) => {
-    const room = rooms.find(r => r.id === roomId);
-    return room ? room.name : 'לא ידוע';
-  };
-
-  // Helper function to get the effective time range for a blocked period on a specific day
-  const getActivityTimeForDay = (activity: Activity, day: WeekDay): { startTime: string; endTime: string } | null => {
-    if (!activity.isBlocking) return null;
-    
-    // Check if this activity applies to the specific day
-    const dayKey = day.toLowerCase() as keyof typeof activity.dayOverrides;
-    const dayOverride = activity.dayOverrides[dayKey];
-    
-    if (dayOverride && dayOverride.startTime && dayOverride.endTime) {
-      return {
-        startTime: dayOverride.startTime,
-        endTime: dayOverride.endTime
-      };
-    }
-    
-    // Fall back to default times if no day-specific override
-    if (activity.defaultStartTime && activity.defaultEndTime) {
-      return {
-        startTime: activity.defaultStartTime,
-        endTime: activity.defaultEndTime
-      };
-    }
-    
-    return null;
-  };
 
   const getPrintStyles = (): string => {
     return `
