@@ -260,7 +260,7 @@ function AppContent() {
   };
 
   const handleExportGoogleSheets = async () => {
-    if (!selectedSchedule || selectedSchedule.sessions.length === 0) {
+    if (!selectedSchedule || sessions.length === 0) {
       console.warn('No schedule data to export');
       return;
     }
@@ -272,7 +272,7 @@ function AppContent() {
       
       // Prepare schedule data for export
       const scheduleData = {
-        sessions: selectedSchedule.sessions,
+        sessions: sessions,
         employees,
         rooms,
         patients,
