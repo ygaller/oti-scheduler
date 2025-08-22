@@ -609,6 +609,121 @@ describe('Schedule API Integration Tests', () => {
       expect(sessions).toHaveLength(2);
     });
   });
+
+  describe('Session everyTwoWeeks field', () => {
+    let role: any, employee: any, room: any, schedule: any;
+
+    beforeEach(async () => {
+      // Clean up before each test
+      await prisma.sessionPatient.deleteMany();
+      await prisma.session.deleteMany();
+      await prisma.schedule.deleteMany();
+      await prisma.employee.deleteMany();
+      await prisma.room.deleteMany();
+      await prisma.role.deleteMany();
+
+      // Create test data
+      const roleData = createRoleFixture({ name: 'ריפוי בעיסוק' });
+      const roleResponse = await request(app).post('/api/roles').send(roleData);
+      role = roleResponse.body;
+
+      const employeeData = createEmployeeFixture({ roleId: role.id });
+      const employeeResponse = await request(app).post('/api/employees').send(employeeData);
+      employee = employeeResponse.body;
+
+      const roomData = createRoomFixture();
+      const roomResponse = await request(app).post('/api/rooms').send(roomData);
+      room = roomResponse.body;
+
+      // Create schedule
+      const scheduleResponse = await request(app).post('/api/schedule/generate-empty').expect(201);
+      schedule = scheduleResponse.body;
+    });
+
+    it('should create session with everyTwoWeeks set to true', async () => {
+      const sessionData = {
+        employeeIds: [employee.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00',
+        everyTwoWeeks: true
+      };
+
+      const response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(sessionData)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.everyTwoWeeks).toBe(true);
+
+      // Verify database persistence
+      const sessionInDb = await prisma.session.findUnique({
+        where: { id: response.body.id }
+      });
+      expect(sessionInDb?.everyTwoWeeks).toBe(true);
+    });
+
+    it('should create session with everyTwoWeeks set to false by default', async () => {
+      const sessionData = {
+        employeeIds: [employee.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00'
+      };
+
+      const response = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(sessionData)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.everyTwoWeeks).toBe(false);
+
+      // Verify database persistence
+      const sessionInDb = await prisma.session.findUnique({
+        where: { id: response.body.id }
+      });
+      expect(sessionInDb?.everyTwoWeeks).toBe(false);
+    });
+
+    it('should update session everyTwoWeeks field', async () => {
+      // Create session first
+      const sessionData = {
+        employeeIds: [employee.id],
+        roomId: room.id,
+        day: 'monday',
+        startTime: '10:00',
+        endTime: '11:00',
+        everyTwoWeeks: false
+      };
+
+      const createResponse = await request(app)
+        .post(`/api/schedule/${schedule.id}/sessions`)
+        .send(sessionData)
+        .expect(201);
+
+      // Update the session
+      const updateData = {
+        everyTwoWeeks: true
+      };
+
+      const updateResponse = await request(app)
+        .put(`/api/schedule/${schedule.id}/sessions/${createResponse.body.id}`)
+        .send(updateData)
+        .expect(200);
+
+      expect(updateResponse.body.everyTwoWeeks).toBe(true);
+
+      // Verify database persistence
+      const sessionInDb = await prisma.session.findUnique({
+        where: { id: createResponse.body.id }
+      });
+      expect(sessionInDb?.everyTwoWeeks).toBe(true);
+    });
+  });
 });
 
 // Helper function to convert time string to minutes for comparison

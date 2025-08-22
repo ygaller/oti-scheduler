@@ -10,12 +10,14 @@ import {
   DialogContent,
   DialogActions,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Select,
   MenuItem,
   Card,
   CardContent,
   Chip,
+  Switch,
   Tabs,
   Tab,
   Table,
@@ -206,7 +208,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       employeeIds: employeeId ? [employeeId] : (employees[0]?.id ? [employees[0].id] : []),
       roomId: rooms[0]?.id || '',
       patientIds: [], // Initialize patientIds
-      notes: '' // Initialize notes
+      notes: '', // Initialize notes
+      everyTwoWeeks: false // Initialize everyTwoWeeks
     };
     
     setSessionForm(sessionData);
@@ -258,6 +261,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       startTime: sessionForm.startTime!,
       endTime: sessionForm.endTime!,
       notes: sessionForm.notes,
+      everyTwoWeeks: sessionForm.everyTwoWeeks,
       forceCreate: forceCreateSession, // Use force create if user already confirmed through warning
     };
 
@@ -506,15 +510,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           employeeIds: selectedEmployees,
           roomId: selectedRoomId,
           scheduleId: editingSessionForAssignment.scheduleId,
-          notes: editingSessionForAssignment.notes
+          notes: editingSessionForAssignment.notes,
+          everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks
         });
         
         // Then update patients separately
         await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       } else {
-        // Only patients changed (and possibly notes) - update both patient assignments and notes
+        // Only patients changed (and possibly notes/everyTwoWeeks) - update both patient assignments and session data
         await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
-          notes: editingSessionForAssignment.notes
+          notes: editingSessionForAssignment.notes,
+          everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks
         });
         await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       }
@@ -546,12 +552,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               roomId: selectedRoomId,
               scheduleId: editingSessionForAssignment.scheduleId,
               notes: editingSessionForAssignment.notes,
+              everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
               forceCreate: true
             });
           } else {
-            // Only update notes if no other changes
+            // Only update notes/everyTwoWeeks if no other changes
             await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
               notes: editingSessionForAssignment.notes,
+              everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
               forceCreate: true
             });
           }
@@ -855,7 +863,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <li class="session-item">
                   <div class="session-time">${session.startTime} - ${session.endTime}</div>
                   <div class="session-details">
-                    חדר: ${room ? room.name : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map((p: Patient) => `${p.firstName} ${p.lastName}`).join(', ') : '<br>ללא מטופל'}${session.notes && session.notes.trim() ? '<br>הערות: ' + session.notes : ''}
+                    חדר: ${room ? room.name : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map((p: Patient) => `${p.firstName} ${p.lastName}`).join(', ') : '<br>ללא מטופל'}${session.notes && session.notes.trim() ? '<br>הערות: ' + session.notes : ''}${session.everyTwoWeeks ? '<br><span style="background-color: #1976d2; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.75rem;">אחת לשבועיים</span>' : ''}
                   </div>
                 </li>
               `;
@@ -1117,7 +1125,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <div class="session-details">
                   מטפל: ${employee ? `${employee.firstName} ${employee.lastName}` : 'לא ידוע'}<br>
                   טיפול: ${employee ? getRoleName(employee.role, employee.roleId) : 'לא ידוע'}<br>
-                  חדר: ${room ? room.name : 'לא ידוע'}${session.notes && session.notes.trim() ? '<br>הערות: ' + session.notes : ''}
+                  חדר: ${room ? room.name : 'לא ידוע'}${session.notes && session.notes.trim() ? '<br>הערות: ' + session.notes : ''}${session.everyTwoWeeks ? '<br><span style="background-color: #1976d2; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.75rem;">אחת לשבועיים</span>' : ''}
                 </div>
               </li>
             `;
@@ -1242,6 +1250,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     <Typography variant="body2" sx={{ color: textColor, fontStyle: 'italic' }}>
                       הערות: {session.notes}
                     </Typography>
+                  )}
+                  {session.everyTwoWeeks && (
+                    <Box sx={{ mt: 1 }}>
+                      <Chip
+                        label="אחת לשבועיים"
+                        size="small"
+                        sx={{
+                          backgroundColor: '#1976d2',
+                          color: 'white',
+                          '& .MuiChip-label': { color: 'white' }
+                        }}
+                      />
+                    </Box>
                   )}
                 </CardContent>
               </Card>
@@ -1414,6 +1435,21 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                               <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', fontStyle: 'italic', mt: 0.5 }}>
                                 הערות: {session.notes}
                               </Typography>
+                            )}
+                            {session.everyTwoWeeks && (
+                              <Box sx={{ mt: 0.5 }}>
+                                <Chip
+                                  label="אחת לשבועיים"
+                                  size="small"
+                                  sx={{
+                                    fontSize: '0.6rem',
+                                    height: '16px',
+                                    backgroundColor: '#1976d2',
+                                    color: 'white',
+                                    '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
+                                  }}
+                                />
+                              </Box>
                             )}
                           </Box>
                         </TableCell>
@@ -1809,6 +1845,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     <strong>הערות:</strong> {editingSession.notes}
                   </Typography>
                 )}
+                {editingSession.everyTwoWeeks && (
+                  <Box sx={{ mt: 1 }}>
+                    <Chip
+                      label="אחת לשבועיים"
+                      size="small"
+                      sx={{
+                        backgroundColor: '#1976d2',
+                        color: 'white',
+                        '& .MuiChip-label': { color: 'white' }
+                      }}
+                    />
+                  </Box>
+                )}
               </Box>
               
               <Typography variant="body2" color="error" sx={{ mt: 2 }}>
@@ -1962,6 +2011,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 onChange={(e) => setSessionForm(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="הערות נוספות לטיפול (אופציונלי)"
               />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={sessionForm.everyTwoWeeks || false}
+                    onChange={(e) => setSessionForm(prev => ({ ...prev, everyTwoWeeks: e.target.checked }))}
+                    color="primary"
+                  />
+                }
+                label="אחת לשבועיים"
+              />
             </Box>
           )}
         </DialogContent>
@@ -2003,6 +2063,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <Typography variant="body2" gutterBottom>
                   <strong>שעות:</strong> {editingSessionForAssignment.startTime} - {editingSessionForAssignment.endTime}
                 </Typography>
+                {editingSessionForAssignment.everyTwoWeeks && (
+                  <Box sx={{ mt: 1 }}>
+                    <Chip
+                      label="אחת לשבועיים"
+                      size="small"
+                      sx={{
+                        backgroundColor: '#1976d2',
+                        color: 'white',
+                        '& .MuiChip-label': { color: 'white' }
+                      }}
+                    />
+                  </Box>
+                )}
               </Box>
 
               <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
@@ -2098,6 +2171,25 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 }}
                 placeholder="הערות נוספות לטיפול (אופציונלי)"
                 sx={{ mt: 2 }}
+              />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={editingSessionForAssignment.everyTwoWeeks || false}
+                    onChange={(e) => {
+                      if (editingSessionForAssignment) {
+                        setEditingSessionForAssignment({
+                          ...editingSessionForAssignment,
+                          everyTwoWeeks: e.target.checked
+                        });
+                      }
+                    }}
+                    color="primary"
+                  />
+                }
+                label="אחת לשבועיים"
+                sx={{ mt: 1 }}
               />
               
               <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>

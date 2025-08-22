@@ -93,6 +93,7 @@ export const mapPrismaSessionToAPI = (prismaSession: PrismaSession): Session => 
     startTime: prismaSession.startTime,
     endTime: prismaSession.endTime,
     notes: prismaSession.notes,
+    everyTwoWeeks: prismaSession.everyTwoWeeks,
     employees: [],
     patients: []
   };
@@ -100,9 +101,9 @@ export const mapPrismaSessionToAPI = (prismaSession: PrismaSession): Session => 
 
 // Session mapper with employees and patients
 export const mapPrismaSessionWithPatientsToAPI = (
-  prismaSession: PrismaSession & { 
+  prismaSession: PrismaSession & {
     sessionEmployees?: (PrismaSessionEmployee & { employee: PrismaEmployee & { role?: PrismaRole } })[];
-    sessionPatients: (PrismaSessionPatient & { patient: PrismaPatient })[] 
+    sessionPatients: (PrismaSessionPatient & { patient: PrismaPatient })[]
   }
 ): Session => {
   return {
@@ -114,6 +115,7 @@ export const mapPrismaSessionWithPatientsToAPI = (
     startTime: prismaSession.startTime,
     endTime: prismaSession.endTime,
     notes: prismaSession.notes,
+    everyTwoWeeks: prismaSession.everyTwoWeeks,
     employees: prismaSession.sessionEmployees?.map(se => mapPrismaEmployeeToAPI(se.employee)) || [],
     patients: prismaSession.sessionPatients.map(sp => mapPrismaPatientToAPI(sp.patient)),
   };

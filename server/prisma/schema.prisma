@@ -111,22 +111,23 @@ model Activity {
 }
 
 model Session {
-  id         String   @id @default(uuid())
-  roomId     String   @map("room_id")
-  scheduleId String   @map("schedule_id") // Required - sessions must belong to a schedule
-  day        String   // Values: "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY"
-  startTime  String   @map("start_time") // Store as "HH:mm" format
-  endTime    String   @map("end_time")   // Store as "HH:mm" format
-  notes      String?  @map("notes") // Optional notes field
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  
+  id            String   @id @default(uuid())
+  roomId        String   @map("room_id")
+  scheduleId    String   @map("schedule_id") // Required - sessions must belong to a schedule
+  day           String   // Values: "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY"
+  startTime     String   @map("start_time") // Store as "HH:mm" format
+  endTime       String   @map("end_time")   // Store as "HH:mm" format
+  notes         String?  @map("notes") // Optional notes field
+  everyTwoWeeks Boolean  @default(false) @map("every_two_weeks") // Boolean field for bi-weekly sessions
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
   // Relations
   room            Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
   schedule        Schedule        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   sessionEmployees SessionEmployee[]
   sessionPatients SessionPatient[]
-  
+
   @@map("sessions")
 }
 

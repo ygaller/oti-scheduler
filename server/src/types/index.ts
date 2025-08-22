@@ -93,6 +93,7 @@ export interface Session {
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
   notes?: string; // Optional notes field
+  everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
   employees?: Employee[]; // Optional array of employees assigned to this session
   patients?: Patient[]; // Optional array of patients assigned to this session
 }
@@ -148,6 +149,7 @@ export interface CreateSessionDto {
   startTime: string;
   endTime: string;
   notes?: string; // Optional notes field
+  everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
   forceCreate?: boolean; // Added to allow bypassing certain validations with confirmation
 }
 

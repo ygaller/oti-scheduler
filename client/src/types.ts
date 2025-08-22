@@ -97,6 +97,7 @@ export interface Session {
   startTime: string; // HH:mm format
   endTime: string;   // HH:mm format
   notes?: string; // Optional notes field
+  everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
   employees: Employee[]; // Array of employees assigned to this session
   patients: Patient[];
   patientIds: string[];

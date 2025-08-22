@@ -96,6 +96,7 @@ export class PrismaSessionRepository implements SessionRepository {
         startTime: sessionData.startTime,
         endTime: sessionData.endTime,
         notes: sessionData.notes,
+        everyTwoWeeks: sessionData.everyTwoWeeks || false,
         sessionEmployees: {
           create: sessionData.employeeIds.map(employeeId => ({
             employeeId
@@ -124,12 +125,13 @@ export class PrismaSessionRepository implements SessionRepository {
 
   async update(id: string, sessionData: UpdateSessionDto): Promise<Session> {
     const updateData: any = {};
-    
+
     if (sessionData.roomId !== undefined) updateData.roomId = sessionData.roomId;
     if (sessionData.day !== undefined) updateData.day = mapAPIWeekDayToPrisma(sessionData.day);
     if (sessionData.startTime !== undefined) updateData.startTime = sessionData.startTime;
     if (sessionData.endTime !== undefined) updateData.endTime = sessionData.endTime;
     if (sessionData.notes !== undefined) updateData.notes = sessionData.notes;
+    if (sessionData.everyTwoWeeks !== undefined) updateData.everyTwoWeeks = sessionData.everyTwoWeeks;
 
     // Handle employee assignments
     if (sessionData.employeeIds !== undefined) {
