@@ -414,12 +414,13 @@ function AppContent() {
                       )}
                       
                       {activeTab === 1 && (
-                        <EmployeeManagement 
-                          employees={employees} 
+                        <EmployeeManagement
+                          employees={employees}
                           setEmployees={refreshEmployees}
                           setEmployeeActive={setEmployeeActive}
                           setShowHelpModal={setShowHelpModal} // Pass to EmployeeManagement
                           activeTab={activeTab}
+                          sessions={sessions} // Pass current schedule sessions
                         />
                       )}
                       

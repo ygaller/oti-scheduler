@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { Add, Edit, PowerOff, Power, HelpOutline } from '@mui/icons-material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { Employee, ReservedHour, getRandomColor, getRoleName } from '../types';
+import { Employee, ReservedHour, Session, getRandomColor, getRoleName } from '../types';
 import { DAY_LABELS, WEEK_DAYS, WeekDay } from '../types/schedule';
 import { employeeService } from '../services';
 import { useRoles } from '../hooks';
@@ -40,12 +40,50 @@ interface EmployeeManagementProps {
   setEmployeeActive: (id: string, isActive: boolean) => Promise<Employee>;
   setShowHelpModal: (show: boolean) => void; // Add prop to open help modal
   activeTab: number; // Add prop to pass active tab index
+  sessions: Session[]; // Add sessions prop for calculating scheduled sessions
 }
 
-const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setEmployees, setEmployeeActive, setShowHelpModal, activeTab }) => {
+const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setEmployees, setEmployeeActive, setShowHelpModal, activeTab, sessions }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
+
+  // Helper function to count scheduled sessions for an employee
+  const getEmployeeScheduledSessions = (employeeId: string): number => {
+    if (!sessions) return 0;
+    return sessions.filter(session =>
+      session.employeeIds && session.employeeIds.includes(employeeId)
+    ).length;
+  };
+
+  // Helper function to get color coding for session fraction
+  const getSessionFractionColor = (scheduled: number, allocated: number): string => {
+    if (scheduled > allocated) return '#f44336'; // Red - over limit
+    if (scheduled >= allocated * 0.8) return '#ff9800'; // Orange - approaching limit
+    return '#4caf50'; // Green - under limit
+  };
+
+  // Component to display session fraction with color coding
+  const SessionFraction: React.FC<{ employeeId: string; weeklyLimit: number }> = ({ employeeId, weeklyLimit }) => {
+    const scheduled = getEmployeeScheduledSessions(employeeId);
+    const color = getSessionFractionColor(scheduled, weeklyLimit);
+
+    return (
+      <Chip
+        label={`${scheduled}/${weeklyLimit}`}
+        size="small"
+        sx={{
+          backgroundColor: color,
+          color: 'white',
+          fontWeight: 'bold',
+          '& .MuiChip-label': {
+            color: 'white',
+            fontSize: '0.875rem'
+          }
+        }}
+      />
+    );
+  };
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: '',
     lastName: '',
@@ -252,7 +290,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableCell>שם משפחה</TableCell>
               <TableCell>אימייל</TableCell>
               <TableCell>תפקיד</TableCell>
-              <TableCell>מספר טיפולים שבועי</TableCell>
+              <TableCell>טיפולים שבועיים (שובצו/מכסה)</TableCell>
               <TableCell>ימי עבודה</TableCell>
               <TableCell>שעות חסומות</TableCell>
               <TableCell>צבע</TableCell>
@@ -276,7 +314,12 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                     size="small" 
                   />
                 </TableCell>
-                <TableCell>{employee.weeklySessionsCount}</TableCell>
+                <TableCell>
+                  <SessionFraction
+                    employeeId={employee.id}
+                    weeklyLimit={employee.weeklySessionsCount}
+                  />
+                </TableCell>
                 <TableCell>
                   <Box display="flex" gap={1} flexWrap="wrap">
                     {WEEK_DAYS.map((day: WeekDay) => {
@@ -393,7 +436,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               </FormControl>
               <TextField
                 fullWidth
-                label="מספר טיפולים שבועי"
+                label="מכסת טיפולים שבועית"
                 type="number"
                 slotProps={{ input: { inputProps: { min: 0 } } }}
                 value={formData.weeklySessionsCount ?? 10}
@@ -401,6 +444,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                   const value = parseInt(e.target.value);
                   setFormData(prev => ({ ...prev, weeklySessionsCount: isNaN(value) ? 0 : Math.max(0, value) }));
                 }}
+                helperText="מספר הטיפולים המקסימלי שהעובד יכול לקבל בשבוע"
               />
             </Box>
             
