@@ -1,4 +1,5 @@
 // Test for the badge color logic in EmployeeManagement component
+import { describe, test, expect } from '@jest/globals';
 
 // Helper function to get color coding for session badge based on assigned/scheduled ratio
 const getSessionBadgeColor = (assigned: number, scheduled: number): string => {
