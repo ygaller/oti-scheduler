@@ -303,7 +303,7 @@ function AppContent() {
 
   // Create the print/export service
   const printExportService = selectedSchedule ? createPrintExportService(
-    selectedSchedule,
+    { ...selectedSchedule, sessions },
     patients,
     employees,
     rooms,
@@ -313,7 +313,12 @@ function AppContent() {
   ) : null;
 
   const handlePrint = async () => {
+    console.log('🖨️ [APP DEBUG] handlePrint called in App.tsx');
+    console.log('🖨️ [APP DEBUG] printExportService available:', !!printExportService);
+    console.log('🖨️ [APP DEBUG] selectedSchedule:', selectedSchedule?.name);
+
     if (!printExportService) {
+      console.log('🖨️ [APP DEBUG] No printExportService available');
       setErrorInfo({
         title: 'שגיאה בהדפסה',
         message: 'אין לוח זמנים נבחר להדפסה'
@@ -322,7 +327,9 @@ function AppContent() {
       return;
     }
 
+    console.log('🖨️ [APP DEBUG] Calling printExportService.handlePrint()');
     await printExportService.handlePrint();
+    console.log('🖨️ [APP DEBUG] printExportService.handlePrint() completed');
   };
 
   const refreshSchedule = async () => {

@@ -137,14 +137,28 @@ if (!gotTheLock) {
     }
   };
 
-  // Setup IPC handlers for printing
+  // Setup IPC handlers for printing - simplified approach
   ipcMain.handle('print:schedule', async (event, htmlContent) => {
-    console.log('🖨️ [ELECTRON PRINT DEBUG] Print handler called');
+    console.log('🖨️ [ELECTRON PRINT DEBUG] Print handler called (simplified)');
+    console.log('🖨️ [ELECTRON PRINT DEBUG] Platform:', process.platform);
     console.log('🖨️ [ELECTRON PRINT DEBUG] HTML content length:', htmlContent?.length || 0);
-    
+
     try {
-      console.log('🖨️ [ELECTRON PRINT DEBUG] Creating print window...');
-      // Create a new hidden window for printing
+      // Use a much simpler approach - write to temp file and open with system
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+      const { shell } = require('electron');
+
+      const tempDir = os.tmpdir();
+      const tempFile = path.join(tempDir, `schedule-print-${Date.now()}.html`);
+
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Writing to temp file:', tempFile);
+
+      // Write the HTML content to a temporary file
+      fs.writeFileSync(tempFile, htmlContent, 'utf8');
+
+      // Create a simple print window
       const printWindow = new BrowserWindow({
         width: 800,
         height: 600,
@@ -155,39 +169,72 @@ if (!gotTheLock) {
         }
       });
 
-      console.log('🖨️ [ELECTRON PRINT DEBUG] Print window created, loading HTML content...');
-      // Load the HTML content
-      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Loading file and printing...');
 
-      console.log('🖨️ [ELECTRON PRINT DEBUG] Waiting for content to finish loading...');
-      // Wait for content to be ready
-      await new Promise(resolve => {
-        printWindow.webContents.once('did-finish-load', () => {
-          console.log('🖨️ [ELECTRON PRINT DEBUG] Content finished loading');
-          resolve();
-        });
-      });
+      // Load the file and print immediately when ready
+      await printWindow.loadFile(tempFile);
 
-      console.log('🖨️ [ELECTRON PRINT DEBUG] Starting print operation...');
-      // Print silently (will show system print dialog)
-      await printWindow.webContents.print({
-        silent: false, // Show print dialog
-        printBackground: true,
-        margins: {
-          marginType: 'minimum'
+      // Print with callback
+      printWindow.webContents.print({
+        silent: false,
+        printBackground: true
+      }, (success, failureReason) => {
+        console.log('🖨️ [ELECTRON PRINT DEBUG] Print result:', success ? 'success' : failureReason);
+
+        // Clean up
+        printWindow.close();
+        try {
+          fs.unlinkSync(tempFile);
+        } catch (e) {
+          console.warn('🖨️ [ELECTRON PRINT DEBUG] Could not delete temp file:', e.message);
         }
       });
 
-      console.log('🖨️ [ELECTRON PRINT DEBUG] Print operation completed, closing window...');
-      // Close the print window
-      printWindow.close();
-      
-      console.log('🖨️ [ELECTRON PRINT DEBUG] Print process completed successfully');
       return { success: true };
+
     } catch (error) {
       console.error('🖨️ [ELECTRON PRINT DEBUG] Print error:', error);
-      console.error('🖨️ [ELECTRON PRINT DEBUG] Error stack:', error.stack);
       return { success: false, error: error.message };
+    }
+  });
+
+
+
+  // Add a diagnostic handler to check printer availability
+  ipcMain.handle('print:checkPrinters', async () => {
+    console.log('🖨️ [ELECTRON PRINT DEBUG] Checking printer availability...');
+
+    try {
+      // Create a temporary window to check printer availability
+      const tempWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+
+      await tempWindow.loadURL('data:text/html,<html><body>Printer Check</body></html>');
+
+      // Try to get printer list (this will help diagnose printer issues)
+      const printers = await tempWindow.webContents.getPrinters();
+      console.log('🖨️ [ELECTRON PRINT DEBUG] Available printers:', printers);
+
+      tempWindow.close();
+
+      return {
+        success: true,
+        printers: printers,
+        count: printers.length,
+        platform: process.platform
+      };
+    } catch (error) {
+      console.error('🖨️ [ELECTRON PRINT DEBUG] Error checking printers:', error);
+      return {
+        success: false,
+        error: error.message,
+        platform: process.platform
+      };
     }
   });
 

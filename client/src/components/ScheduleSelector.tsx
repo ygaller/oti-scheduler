@@ -268,7 +268,14 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
             <Button
               variant="outlined"
               startIcon={<Print />}
-              onClick={onPrint}
+              onClick={(e) => {
+                console.log('🖨️ [BUTTON DEBUG] Print button clicked');
+                console.log('🖨️ [BUTTON DEBUG] Event:', e);
+                console.log('🖨️ [BUTTON DEBUG] Button disabled:', loading || !selectedSchedule?.id);
+                console.log('🖨️ [BUTTON DEBUG] Loading:', loading);
+                console.log('🖨️ [BUTTON DEBUG] Selected schedule ID:', selectedSchedule?.id);
+                onPrint();
+              }}
               disabled={loading || !selectedSchedule?.id}
               size="small"
             >
