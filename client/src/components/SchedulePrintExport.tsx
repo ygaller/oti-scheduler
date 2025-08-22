@@ -1,6 +1,6 @@
 import { Employee, Room, Schedule, Session, getRoleName, Activity, Patient } from '../types';
-import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
-import { calculateEmployeeSessionCount, calculateTotalSessionCount, formatSessionCount } from '../utils/sessionCounting';
+import { WEEK_DAYS, DAY_LABELS } from '../types/schedule';
+import { calculateEmployeeSessionCount, calculateTotalSessionCount } from '../utils/sessionCounting';
 
 interface PrintExportService {
   handlePrint: () => Promise<void>;

@@ -55,11 +55,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
     return calculateEmployeeSessionCount(sessions, employeeId, false);
   };
 
-  // Helper function to count assigned sessions for an employee (employee AND patients assigned)
-  const getEmployeeAssignedSessions = (employeeId: string): number => {
-    if (!sessions) return 0;
-    return calculateEmployeeSessionCount(sessions, employeeId, true);
-  };
+
 
   // Helper function to get color coding for session fraction based on scheduled/limit ratio
   const getSessionFractionColor = (scheduled: number, limit: number): string => {
