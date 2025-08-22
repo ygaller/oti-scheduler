@@ -1,6 +1,7 @@
 import { PrismaClient, Role as PrismaRole } from '@prisma/client';
 import { CreateRoleDto, UpdateRoleDto, Role } from '../types';
 import { RoleRepository } from './interfaces';
+import { calculateTotalSessionCount } from '../utils/sessionCounting';
 
 export class PrismaRoleRepository implements RoleRepository {
   constructor(private prisma: PrismaClient) {}
@@ -164,15 +165,26 @@ export class PrismaRoleRepository implements RoleRepository {
 
     const allocatedSessions = employees.reduce((sum, employee) => sum + employee.weeklySessionsCount, 0);
 
-    // Count actual assigned sessions for all employees of this role
-    const assignedSessions = await this.prisma.sessionEmployee.count({
+    // Count actual assigned sessions for all employees of this role with fractional counting
+    const sessionEmployees = await this.prisma.sessionEmployee.findMany({
       where: {
         employee: {
           roleId: roleId,
           isActive: true
         }
+      },
+      include: {
+        session: {
+          select: {
+            everyTwoWeeks: true
+          }
+        }
       }
     });
+
+    const assignedSessions = calculateTotalSessionCount(
+      sessionEmployees.map(se => ({ everyTwoWeeks: se.session.everyTwoWeeks }))
+    );
 
     return {
       assignedSessions,

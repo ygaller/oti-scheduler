@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { Employee, Patient, Schedule } from '../types';
 import { useRoles } from '../hooks';
+import { calculateSessionCountsByRole, calculateEmployeeSessionCount, calculateTotalSessionCount, formatSessionCount } from '../utils/sessionCounting';
 
 interface TherapyRequirementsCardsProps {
   schedule: Schedule | null;
@@ -38,23 +39,9 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
     activePatients.forEach(patient => {
       const patientName = `${patient.firstName} ${patient.lastName}`;
       
-      // Count assigned sessions for this patient by role
-      const assignedSessionsByRole: Record<string, number> = {};
-      
-      if (schedule) {
-        schedule.sessions.forEach(session => {
-          // Only count sessions where this patient is assigned
-          if (session.patients?.some(p => p.id === patient.id)) {
-            // For multi-employee sessions, count for all employees assigned to the session
-            const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
-            sessionEmployees.forEach(employee => {
-              if (employee && employee.role?.roleStringKey) {
-                assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
-              }
-            });
-          }
-        });
-      }
+      // Count assigned sessions for this patient by role with fractional counting
+      const assignedSessionsByRole = schedule ?
+        calculateSessionCountsByRole(schedule.sessions, patient.id, employees) : {};
       
       // Iterate through each therapy requirement for this patient
       Object.entries(patient.therapyRequirements || {}).forEach(([role, requiredAmount]) => {
@@ -101,23 +88,9 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
     activePatients.forEach(patient => {
       const patientName = `${patient.firstName} ${patient.lastName}`;
       
-      // Count assigned sessions for this patient by role
-      const assignedSessionsByRole: Record<string, number> = {};
-      
-      if (schedule) {
-        schedule.sessions.forEach(session => {
-          // Only count sessions where this patient is assigned
-          if (session.patients?.some(p => p.id === patient.id)) {
-            // For multi-employee sessions, count for all employees assigned to the session
-            const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
-            sessionEmployees.forEach(employee => {
-              if (employee && employee.role?.roleStringKey) {
-                assignedSessionsByRole[employee.role.roleStringKey] = (assignedSessionsByRole[employee.role.roleStringKey] || 0) + 1;
-              }
-            });
-          }
-        });
-      }
+      // Count assigned sessions for this patient by role with fractional counting
+      const assignedSessionsByRole = schedule ?
+        calculateSessionCountsByRole(schedule.sessions, patient.id, employees) : {};
       
       // Iterate through each therapy requirement for this patient
       Object.entries(patient.therapyRequirements || {}).forEach(([role, requiredAmount]) => {
@@ -150,14 +123,12 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
 
   const getTotalScheduledSessions = () => {
     if (!schedule) return 0;
-    return schedule.sessions.length;
+    return calculateTotalSessionCount(schedule.sessions);
   };
 
   const getEmployeeSessionCount = (employeeId: string) => {
     if (!schedule) return 0;
-    return schedule.sessions.filter(s => 
-      s.employeeIds && s.employeeIds.includes(employeeId) && s.patients && s.patients.length > 0
-    ).length;
+    return calculateEmployeeSessionCount(schedule.sessions, employeeId, true);
   };
 
   if (!schedule) {
@@ -319,7 +290,7 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
               ).map(employee => (
                 <Chip
                   key={employee.id}
-                  label={`${employee.firstName} ${employee.lastName}: ${getEmployeeSessionCount(employee.id)}/${employee.weeklySessionsCount}`}
+                  label={`${employee.firstName} ${employee.lastName}: ${formatSessionCount(getEmployeeSessionCount(employee.id))}/${employee.weeklySessionsCount}`}
                   variant="outlined"
                   size="small"
                   sx={{
@@ -334,7 +305,7 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
             </Box>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            סה"כ טיפולים (עם ובלי מטופל): {getTotalScheduledSessions()}
+            סה"כ טיפולים (עם ובלי מטופל): {formatSessionCount(getTotalScheduledSessions())}
           </Typography>
         </CardContent>
       </Card>

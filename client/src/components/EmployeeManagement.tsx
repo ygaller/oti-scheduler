@@ -33,6 +33,7 @@ import { employeeService } from '../services';
 import { useRoles } from '../hooks';
 import ColorPicker from './ColorPicker';
 import { getEmailValidationError } from '../utils/validation';
+import { calculateEmployeeSessionCount, formatSessionCount } from '../utils/sessionCounting';
 
 interface EmployeeManagementProps {
   employees: Employee[];
@@ -48,19 +49,25 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
 
-  // Helper function to count scheduled sessions for an employee
+  // Helper function to count scheduled sessions for an employee (employee assigned, regardless of patients)
   const getEmployeeScheduledSessions = (employeeId: string): number => {
     if (!sessions) return 0;
-    return sessions.filter(session =>
-      session.employeeIds && session.employeeIds.includes(employeeId)
-    ).length;
+    return calculateEmployeeSessionCount(sessions, employeeId, false);
   };
 
-  // Helper function to get color coding for session fraction
-  const getSessionFractionColor = (scheduled: number, allocated: number): string => {
-    if (scheduled > allocated) return '#f44336'; // Red - over limit
-    if (scheduled >= allocated * 0.8) return '#ff9800'; // Orange - approaching limit
-    return '#4caf50'; // Green - under limit
+  // Helper function to count assigned sessions for an employee (employee AND patients assigned)
+  const getEmployeeAssignedSessions = (employeeId: string): number => {
+    if (!sessions) return 0;
+    return calculateEmployeeSessionCount(sessions, employeeId, true);
+  };
+
+  // Helper function to get color coding for session fraction based on scheduled/limit ratio
+  const getSessionFractionColor = (scheduled: number, limit: number): string => {
+    if (scheduled === 0) return '#9e9e9e'; // Gray - no sessions scheduled
+    if (scheduled < limit) return '#ff9800'; // Orange - under capacity
+    if (scheduled === limit) return '#4caf50'; // Green - at capacity
+    if (scheduled > limit) return '#f44336'; // Red - over capacity
+    return '#4caf50'; // Default green
   };
 
   // Component to display session fraction with color coding
@@ -70,7 +77,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
 
     return (
       <Chip
-        label={`${scheduled}/${weeklyLimit}`}
+        label={`${formatSessionCount(scheduled)}/${weeklyLimit}`}
         size="small"
         sx={{
           backgroundColor: color,
@@ -290,7 +297,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
               <TableCell>שם משפחה</TableCell>
               <TableCell>אימייל</TableCell>
               <TableCell>תפקיד</TableCell>
-              <TableCell>טיפולים שבועיים (שובצו/מכסה)</TableCell>
+              <TableCell>טיפולים שבועיים (הוגדרו / שובצו)</TableCell>
               <TableCell>ימי עבודה</TableCell>
               <TableCell>שעות חסומות</TableCell>
               <TableCell>צבע</TableCell>

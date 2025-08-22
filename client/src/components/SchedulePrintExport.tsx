@@ -1,5 +1,6 @@
 import { Employee, Room, Schedule, Session, getRoleName, Activity, Patient } from '../types';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
+import { calculateEmployeeSessionCount, calculateTotalSessionCount, formatSessionCount } from '../utils/sessionCounting';
 
 interface PrintExportService {
   handlePrint: () => Promise<void>;
@@ -18,14 +19,12 @@ export const createPrintExportService = (
 
   const getEmployeeSessionCount = (employeeId: string) => {
     if (!schedule) return 0;
-    return schedule.sessions.filter(s => 
-      s.employeeIds && s.employeeIds.includes(employeeId) && s.patients && s.patients.length > 0
-    ).length;
+    return calculateEmployeeSessionCount(schedule.sessions, employeeId, true);
   };
 
   const getTotalScheduledSessions = () => {
     if (!schedule) return 0;
-    return schedule.sessions.length;
+    return calculateTotalSessionCount(schedule.sessions);
   };
 
 

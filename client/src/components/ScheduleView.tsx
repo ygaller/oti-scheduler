@@ -53,6 +53,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 
 import { getContrastingTextColor } from '../utils/colorUtils';
+import { calculateEmployeeSessionCount, formatSessionCount } from '../utils/sessionCounting';
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -126,12 +127,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   // Get blocked periods for display
   const { activities } = useActivities();
 
-  // Helper function for session counting (used in print functionality)
+  // Helper function for session counting (used in print functionality) with fractional counting
   const getEmployeeSessionCount = (employeeId: string) => {
     if (!schedule) return 0;
-    return schedule.sessions.filter(s => 
-      s.employeeIds && s.employeeIds.includes(employeeId) && s.patients && s.patients.length > 0
-    ).length;
+    return calculateEmployeeSessionCount(schedule.sessions, employeeId, true);
   };
 
   // Set default selected patient to first active patient
@@ -896,7 +895,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           <div class="statistics-title" style="font-size: 16px; font-weight: bold; margin-bottom: 15px;">סטטיסטיקות - ${employee.firstName} ${employee.lastName}</div>
           <div class="stats-grid">
             <div class="stat-item">
-              <strong>סה"כ טיפולים לעובד זה:</strong> ${employeeSessionCount}/${employee.weeklySessionsCount}
+              <strong>סה"כ טיפולים לעובד זה:</strong> ${formatSessionCount(employeeSessionCount)}/${employee.weeklySessionsCount}
             </div>
             <div class="stat-item">
               <strong>צבע עובד:</strong> <span style="display: inline-block; width: 15px; height: 15px; background-color: ${employee.color}; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span> ${employee.color}
