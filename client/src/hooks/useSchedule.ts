@@ -17,7 +17,7 @@ interface UseScheduleResult {
   refetchSessions: () => Promise<void>;
 }
 
-export const useSchedule = (): UseScheduleResult => {
+export const useSchedule = (shouldLoad: boolean = true): UseScheduleResult => {
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
   const [selectedScheduleId, setSelectedScheduleIdState] = useState<string | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -183,16 +183,18 @@ export const useSchedule = (): UseScheduleResult => {
     }
   }, [selectedScheduleId, fetchSessions]);
 
-  // Fetch initial data
+  // Fetch initial data only when shouldLoad is true
   useEffect(() => {
+    if (!shouldLoad) return;
+
     const initializeData = async () => {
       setLoading(true);
       await fetchAllSchedules();
       setLoading(false);
     };
-    
+
     initializeData();
-  }, [fetchAllSchedules]);
+  }, [fetchAllSchedules, shouldLoad]);
 
   // Auto-select schedule from localStorage or first available schedule
   useEffect(() => {

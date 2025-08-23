@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, Box, Tabs, Tab, Typography, CircularProgress } from '@mui/material';
+import { CssBaseline, Container, Box, Tabs, Tab, Typography, CircularProgress, Button } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import rtlPlugin from 'stylis-plugin-rtl';
@@ -25,6 +25,7 @@ import ScheduleSelector from './components/ScheduleSelector';
 import { useActivities } from './hooks';
 import { createPrintExportService } from './components/SchedulePrintExport';
 import ErrorModal from './components/ErrorModal';
+import { useBackendHealth } from './hooks/useBackendHealth';
 
 import { Employee, Patient, Room } from './types';
 
@@ -133,7 +134,10 @@ function AppContent() {
 
   const [loading, setLoading] = useState(true);
   const [isExportingGoogleSheets, setIsExportingGoogleSheets] = useState(false);
-  
+
+  // Backend health check
+  const { isHealthy: isBackendHealthy, isChecking: isCheckingBackend, error: backendError, retryHealthCheck } = useBackendHealth();
+
   // Error modal states
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorInfo, setErrorInfo] = useState<{
@@ -142,7 +146,7 @@ function AppContent() {
     details?: string;
   } | null>(null);
   
-  // Use the new schedule hook
+  // Use the new schedule hook - only start loading when backend is healthy
   const {
     allSchedules,
     selectedSchedule,
@@ -155,14 +159,17 @@ function AppContent() {
     updateScheduleName,
     deleteSchedule,
     refetchSessions,
-  } = useSchedule();
+  } = useSchedule(isBackendHealthy);
 
   // Use activities hook for export functionality
   const { activities } = useActivities();
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    // Only fetch data when backend is healthy
+    if (isBackendHealthy) {
+      fetchData();
+    }
+  }, [isBackendHealthy]);
 
 
 
@@ -382,9 +389,24 @@ function AppContent() {
                     </Tabs>
                   </Box>
 
-                  {loading ? (
-                    <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                  {(loading || isCheckingBackend) ? (
+                    <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="200px" gap={2}>
                       <CircularProgress />
+                      <Typography variant="body2" color="text.secondary">
+                        {isCheckingBackend ? 'בודק חיבור לשרת...' : 'טוען נתונים...'}
+                      </Typography>
+                    </Box>
+                  ) : backendError ? (
+                    <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="200px" gap={2}>
+                      <Typography variant="h6" color="error" textAlign="center">
+                        שגיאה בחיבור לשרת
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" textAlign="center">
+                        {backendError}
+                      </Typography>
+                      <Button variant="contained" onClick={retryHealthCheck}>
+                        נסה שוב
+                      </Button>
                     </Box>
                   ) : (
                     <>

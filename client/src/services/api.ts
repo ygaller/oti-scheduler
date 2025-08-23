@@ -60,6 +60,22 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+// Health check function
+export const healthCheck = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.ok;
+  } catch (error) {
+    console.log('Health check failed:', error);
+    return false;
+  }
+};
+
 // Generic API methods
 export const api = {
   async get<T>(endpoint: string): Promise<T> {
