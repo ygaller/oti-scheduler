@@ -78,7 +78,40 @@ async function ensureDefaultRoles(roleRepo: RoleRepository): Promise<void> {
 }
 
 // Load environment variables
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Try multiple possible locations for the .env file
+const possibleEnvPaths = [
+  path.join(__dirname, '../../.env'),     // Development: server/.env
+  path.join(__dirname, '../.env'),        // Production build: dist/.env
+  path.join(process.cwd(), 'server/.env'), // Electron: server/.env from root
+  path.join(process.cwd(), '.env')        // Fallback: root .env
+];
+
+let envLoaded = false;
+for (const envPath of possibleEnvPaths) {
+  try {
+    if (require('fs').existsSync(envPath)) {
+      console.log(`Loading environment from: ${envPath}`);
+      dotenv.config({ path: envPath });
+      envLoaded = true;
+      break;
+    }
+  } catch (error) {
+    // Continue to next path
+  }
+}
+
+if (!envLoaded) {
+  console.log('No .env file found, using system environment variables');
+}
+
+// Debug: Log key environment variables (without exposing secrets)
+console.log('Environment variables loaded:');
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+console.log('- PORT:', process.env.PORT);
+console.log('- DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+console.log('- GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'NOT SET');
+console.log('- GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET');
+console.log('- ELECTRON:', process.env.ELECTRON);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
