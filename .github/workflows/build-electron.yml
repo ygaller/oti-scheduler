@@ -64,10 +64,7 @@ jobs:
           echo "PORT=3001" >> server/.env
           echo "FRONTEND_URL=http://localhost:3000" >> server/.env
           echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> server/.env
-          # Only add client secret if it's provided (Desktop apps don't need it)
-          if [ -n "${GOOGLE_CLIENT_SECRET}" ]; then
-            echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> server/.env
-          fi
+          echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> server/.env
           echo "GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback" >> server/.env
           echo "GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:3000/auth/google/callback" >> server/.env
           echo "ELECTRON=true" >> server/.env
