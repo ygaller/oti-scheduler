@@ -51,11 +51,12 @@ jobs:
 
       - name: Create environment files
         env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           # Create client .env file
           echo "REACT_APP_API_URL=http://localhost:3001/api" >> client/.env
-          
+
           # Create server .env file
           echo "DATABASE_URL=file:./production.db" > server/.env
           echo "DB_TYPE=embedded" >> server/.env
@@ -63,7 +64,9 @@ jobs:
           echo "PORT=3001" >> server/.env
           echo "FRONTEND_URL=http://localhost:3000" >> server/.env
           echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> server/.env
-          echo "GOOGLE_REDIRECT_URI=http://localhost:8080/callback" >> server/.env
+          echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> server/.env
+          echo "GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback" >> server/.env
+          echo "GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:3000/auth/google/callback" >> server/.env
           echo "ELECTRON=true" >> server/.env
           
           # Create Electron config file

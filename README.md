@@ -686,6 +686,18 @@ GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback/
 
 **הערה**: עבור אפליקציות Desktop (Electron) משתמשים ב-PKCE ולא נדרש Client Secret.
 
+#### הגדרת GitHub Repository Variables (לבניות אוטומטיות)
+
+עבור בניות אוטומטיות ב-GitHub Actions, יש להגדיר את המשתנים הבאים ב-GitHub repository:
+
+**Repository Variables** (Settings → Secrets and variables → Actions → Variables):
+- `GOOGLE_CLIENT_ID` - מזהה הלקוח של Google OAuth
+
+**Repository Secrets** (Settings → Secrets and variables → Actions → Secrets):
+- `GOOGLE_CLIENT_SECRET` - סוד הלקוח של Google OAuth (רק לאפליקציות Web)
+
+המשתנים האלה ישמשו את GitHub Actions ליצירת קבצי הגדרות במהלך תהליך הבנייה האוטומטית.
+
 ## 📋 רישיון
 
 MIT License
