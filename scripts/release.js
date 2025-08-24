@@ -39,10 +39,11 @@ if (!version) {
   process.exit(1);
 }
 
-// Validate version format
-const versionRegex = /^\d+\.\d+\.\d+$/;
+// Validate version format (supports prerelease/build metadata)
+// Examples: 1.2.3, 1.2.3-beta.1, 1.2.3-rc.0+exp.sha.5114f85
+const versionRegex = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 if (!versionRegex.test(version)) {
-  console.error('❌ Invalid version format. Use semantic versioning (e.g., 1.2.0)');
+  console.error('❌ Invalid version format. Use semver (e.g., 1.2.0 or 1.2.0-beta.1)');
   process.exit(1);
 }
 
