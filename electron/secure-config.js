@@ -12,6 +12,7 @@ class SecureConfigManager {
   loadConfig() {
     try {
       const configPath = path.join(__dirname, 'config.json');
+      console.log(`[SecureConfig] Looking for config at: ${configPath}`);
       if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         console.log('✅ Loaded Electron configuration from config.json');
@@ -20,6 +21,7 @@ class SecureConfigManager {
 
       // Fallback: look for a user-specific config in the app data directory
       const userConfigPath = path.join(app.getPath('userData'), 'config.json');
+      console.log(`[SecureConfig] Looking for user config at: ${userConfigPath}`);
       if (fs.existsSync(userConfigPath)) {
         const config = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
         console.log('✅ Loaded Electron configuration from user data config.json');
@@ -38,7 +40,7 @@ class SecureConfigManager {
   getServerEnvironment() {
     const config = this.loadConfig();
     
-    return {
+    const env = {
       // Database
       DATABASE_URL: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/scheduling",
       DB_TYPE: process.env.DB_TYPE || 'embedded',
@@ -66,6 +68,18 @@ class SecureConfigManager {
       ELECTRON: 'true',
       USER_DATA_PATH: app.getPath('userData')
     };
+
+    // Diagnostics: Log summary of env being passed to the server
+    try {
+      console.log('[SecureConfig] Server environment summary:');
+      console.log(`  - userData: ${env.USER_DATA_PATH}`);
+      console.log(`  - GOOGLE_CLIENT_ID: ${env.GOOGLE_CLIENT_ID ? env.GOOGLE_CLIENT_ID.substring(0, 10) + '...' : 'NOT SET'}`);
+      console.log(`  - GOOGLE_REDIRECT_URI: ${env.GOOGLE_REDIRECT_URI}`);
+      console.log(`  - GOOGLE_REDIRECT_URI_WEB: ${env.GOOGLE_REDIRECT_URI_WEB}`);
+      console.log(`  - GOOGLE_REDIRECT_URI_ELECTRON: ${env.GOOGLE_REDIRECT_URI_ELECTRON}`);
+    } catch (_) {}
+
+    return env;
   }
 
   // Clean up secrets (for uninstall) - delegates to server's SecretManager

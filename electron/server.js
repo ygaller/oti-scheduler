@@ -248,6 +248,15 @@ const startEmbeddedServer = () => {
       ELECTRON_RUN_AS_NODE: '1'
     };
 
+    // Extra diagnostics for Google env
+    try {
+      logDebug('🔎 Google env before spawn:');
+      logDebug(`  GOOGLE_CLIENT_ID: ${env.GOOGLE_CLIENT_ID ? env.GOOGLE_CLIENT_ID.substring(0, 10) + '...' : 'NOT SET'}`);
+      logDebug(`  GOOGLE_REDIRECT_URI: ${env.GOOGLE_REDIRECT_URI || 'NOT SET'}`);
+      logDebug(`  GOOGLE_REDIRECT_URI_WEB: ${env.GOOGLE_REDIRECT_URI_WEB || 'NOT SET'}`);
+      logDebug(`  GOOGLE_REDIRECT_URI_ELECTRON: ${env.GOOGLE_REDIRECT_URI_ELECTRON || 'NOT SET'}`);
+    } catch (_) {}
+
     // Set NODE_PATH to help Node.js find modules in the unpacked location
     const unpackedServerPath = path.dirname(serverEntryPoint);
     const unpackedNodeModules = path.join(path.dirname(unpackedServerPath), 'node_modules');

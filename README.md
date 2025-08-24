@@ -677,6 +677,10 @@ GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:8080/callback
 
 ניתן גם להציב קובץ `config.json` בתיקיית הנתונים של המשתמש כדי לעדכן את מזהה הלקוח ללא התקנה מחדש.
 
+Redirect URIs:
+- **Electron Desktop (PKCE)**: use `http://localhost:8080/callback` (handled by the embedded callback server)
+- **Web App**: use `http://localhost:3000/auth/google/callback/`
+
 #### באפליקצית Web
 יש להוסיף את המשתנים הבאים לקובץ `server/.env`:
 

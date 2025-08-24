@@ -22,6 +22,10 @@ function initializeGoogleServices() {
     console.log('Google OAuth configuration check:');
     console.log('- GOOGLE_CLIENT_ID:', clientId ? `${clientId.substring(0, 10)}...` : 'NOT SET');
     console.log('- GOOGLE_CLIENT_SECRET:', clientSecret ? 'SET' : 'NOT SET');
+    console.log('- ELECTRON:', process.env.ELECTRON);
+    console.log('- GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'NOT SET');
+    console.log('- GOOGLE_REDIRECT_URI_WEB:', process.env.GOOGLE_REDIRECT_URI_WEB || 'NOT SET');
+    console.log('- GOOGLE_REDIRECT_URI_ELECTRON:', process.env.GOOGLE_REDIRECT_URI_ELECTRON || 'NOT SET');
 
     if (clientId) {
       console.log('Initializing Google services...');

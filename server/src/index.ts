@@ -112,6 +112,9 @@ console.log('- DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 console.log('- GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...` : 'NOT SET');
 console.log('- GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET');
 console.log('- ELECTRON:', process.env.ELECTRON);
+console.log('- GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'NOT SET');
+console.log('- GOOGLE_REDIRECT_URI_WEB:', process.env.GOOGLE_REDIRECT_URI_WEB || 'NOT SET');
+console.log('- GOOGLE_REDIRECT_URI_ELECTRON:', process.env.GOOGLE_REDIRECT_URI_ELECTRON || 'NOT SET');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
