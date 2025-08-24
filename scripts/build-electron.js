@@ -148,10 +148,20 @@ try {
     return process.env[name] || serverEnv[name] || rootEnv[name] || fallback;
   };
 
+  const googleClientId = getVar('GOOGLE_CLIENT_ID', '');
+  const apiUrl = getVar('API_URL', 'http://localhost:3001/api');
+  let redirectUri = getVar('GOOGLE_REDIRECT_URI_ELECTRON', '') || 'http://localhost:8080/callback';
+
+  // Safety: if a web redirect accidentally leaks in, fix to Electron callback
+  if (/localhost:3000\//i.test(redirectUri)) {
+    console.warn(`⚠️  Detected web redirect URI (${redirectUri}). Using Electron default http://localhost:8080/callback instead.`);
+    redirectUri = 'http://localhost:8080/callback';
+  }
+
   const config = {
-    googleClientId: getVar('GOOGLE_CLIENT_ID', ''),
-    apiUrl: getVar('API_URL', 'http://localhost:3001/api'),
-    redirectUri: getVar('GOOGLE_REDIRECT_URI_ELECTRON', 'http://localhost:8080/callback'),
+    googleClientId,
+    apiUrl,
+    redirectUri,
     isDevelopment: false
   };
 

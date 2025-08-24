@@ -19,8 +19,10 @@ class GoogleAuthService {
   constructor() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    // Use web redirect URI for web-based OAuth flow
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/';
+    // Prefer Electron redirect URI for desktop PKCE; fall back to web
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI_ELECTRON
+      || process.env.GOOGLE_REDIRECT_URI_WEB
+      || 'http://localhost:8080/callback';
 
     if (!clientId) {
       throw new Error('Google OAuth client ID is not configured');
@@ -76,7 +78,9 @@ class GoogleAuthService {
     } else {
       // Public client (Desktop) - use PKCE flow
       const clientId = process.env.GOOGLE_CLIENT_ID;
-      const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/';
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI_ELECTRON
+        || process.env.GOOGLE_REDIRECT_URI_WEB
+        || 'http://localhost:8080/callback';
       const { codeChallenge, sessionId } = this.generatePKCE();
       
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -124,7 +128,9 @@ class GoogleAuthService {
         // Use direct API call for public clients (PKCE)
         console.log('Using public client flow (PKCE) without client secret');
         const clientId = process.env.GOOGLE_CLIENT_ID;
-        const redirectUri = process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/';
+        const redirectUri = process.env.GOOGLE_REDIRECT_URI_ELECTRON
+          || process.env.GOOGLE_REDIRECT_URI_WEB
+          || 'http://localhost:8080/callback';
         
         if (!clientId) {
           throw new Error('Google client ID not configured');
@@ -265,7 +271,7 @@ class GoogleAuthService {
     const client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET || undefined, // Use client secret if available
-      process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:3000/auth/google/callback/'
+      process.env.GOOGLE_REDIRECT_URI_ELECTRON || process.env.GOOGLE_REDIRECT_URI_WEB || 'http://localhost:8080/callback'
     );
 
     client.setCredentials({
