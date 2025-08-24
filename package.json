@@ -1,6 +1,6 @@
 {
   "name": "oti-scheduler",
-  "version": "1.0.19",
+  "version": "1.0.20-beta.1",
   "private": true,
   "main": "electron/main.js",
   "homepage": "https://github.com/ygaller/oti-scheduler#readme",
