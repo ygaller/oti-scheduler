@@ -132,7 +132,29 @@ Key configuration files:
 - `package.json`: Build configuration, dependencies, scripts
 - `electron/main.js`: Main process configuration
 - `electron/preload.js`: Security and IPC configuration
-- `electron.env`: Development environment variables
+- `electron/env`: Development environment variables
+- `electron/config.json`: Runtime configuration generated during build
+
+### Google OAuth in Electron
+
+- During build, a `electron/config.json` file is generated with `googleClientId`, `apiUrl`, and `redirectUri`.
+- At runtime, the app loads configuration from `electron/config.json`. If that file is missing (e.g., on Windows updates or manual edits), it falls back to loading `config.json` from the user data directory:
+  - Windows: `%AppData%/oti-scheduler/config.json`
+  - macOS: `~/Library/Application Support/oti-scheduler/config.json`
+
+Example `config.json`:
+```json
+{
+  "googleClientId": "your_google_client_id_here",
+  "apiUrl": "http://localhost:3001/api",
+  "redirectUri": "http://localhost:8080/callback",
+  "isDevelopment": false
+}
+```
+
+Notes:
+- Desktop apps use PKCE and do not require `GOOGLE_CLIENT_SECRET`.
+- If `googleClientId` is not set, Google integration will be disabled and the UI will show a warning.
 
 ## Security
 

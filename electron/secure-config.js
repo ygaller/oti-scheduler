@@ -16,10 +16,18 @@ class SecureConfigManager {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         console.log('✅ Loaded Electron configuration from config.json');
         return config;
-      } else {
-        console.log('⚠️  No config.json found, using defaults');
-        return {};
       }
+
+      // Fallback: look for a user-specific config in the app data directory
+      const userConfigPath = path.join(app.getPath('userData'), 'config.json');
+      if (fs.existsSync(userConfigPath)) {
+        const config = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+        console.log('✅ Loaded Electron configuration from user data config.json');
+        return config;
+      }
+
+      console.log('⚠️  No config.json found, using defaults');
+      return {};
     } catch (error) {
       console.error('❌ Failed to load config.json:', error.message);
       return {};

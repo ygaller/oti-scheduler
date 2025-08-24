@@ -115,6 +115,61 @@ iconFiles.forEach(iconFile => {
   }
 });
 
+// Generate electron/config.json with Google OAuth settings
+console.log('🛠️  Generating Electron config.json...');
+try {
+  // Helper to read simple .env files
+  const parseEnvFile = (filePath) => {
+    const vars = {};
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        content.split(/\r?\n/).forEach((line) => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) return;
+          const eqIndex = trimmed.indexOf('=');
+          if (eqIndex === -1) return;
+          const key = trimmed.substring(0, eqIndex).trim();
+          let value = trimmed.substring(eqIndex + 1).trim();
+          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith('\'') && value.endsWith('\''))) {
+            value = value.slice(1, -1);
+          }
+          vars[key] = value;
+        });
+      }
+    } catch (_) {}
+    return vars;
+  };
+
+  const rootEnv = parseEnvFile(path.join(__dirname, '..', '.env'));
+  const serverEnv = parseEnvFile(path.join(__dirname, '..', 'server', '.env'));
+
+  const getVar = (name, fallback = '') => {
+    return process.env[name] || serverEnv[name] || rootEnv[name] || fallback;
+  };
+
+  const config = {
+    googleClientId: getVar('GOOGLE_CLIENT_ID', ''),
+    apiUrl: getVar('API_URL', 'http://localhost:3001/api'),
+    redirectUri: getVar('GOOGLE_REDIRECT_URI_ELECTRON', 'http://localhost:8080/callback'),
+    isDevelopment: false
+  };
+
+  // Ensure electron dir exists
+  if (!fs.existsSync(electronDir)) {
+    fs.mkdirSync(electronDir, { recursive: true });
+  }
+
+  const configPath = path.join(electronDir, 'config.json');
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  console.log(`✅ Wrote ${configPath}`);
+  console.log(`   googleClientId: ${config.googleClientId ? config.googleClientId.substring(0, 10) + '...' : 'NOT SET'}`);
+  console.log(`   apiUrl: ${config.apiUrl}`);
+  console.log(`   redirectUri: ${config.redirectUri}`);
+} catch (e) {
+  console.warn('⚠️  Failed to generate electron/config.json automatically:', e.message);
+}
+
 // Verify server files exist before packaging
 console.log('🔍 Verifying server build...');
 const serverDistPath = path.join(__dirname, '..', 'server', 'dist', 'index.js');

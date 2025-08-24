@@ -664,7 +664,7 @@ GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:8080/callback
 לשימוש בתכונת ייצוא ל-Google Sheets, יש להגדיר OAuth עם Google:
 
 #### באפליקצית Electron (Desktop)
-במהלך הבנייה, המערכת תיצור קובץ `electron/config.json` עם הגדרות Google OAuth:
+במהלך הבנייה, המערכת תיצור קובץ `electron/config.json` עם הגדרות Google OAuth. בזמן ריצה, האפליקציה תחפש קודם את הקובץ הזה לצד קבצי האפליקציה, ואם אינו קיים תחפש קובץ `config.json` בתיקיית הנתונים של המשתמש (`appData` ב-Windows, `~/Library/Application Support` ב-macOS):
 
 ```json
 {
@@ -674,6 +674,8 @@ GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:8080/callback
   "isDevelopment": false
 }
 ```
+
+ניתן גם להציב קובץ `config.json` בתיקיית הנתונים של המשתמש כדי לעדכן את מזהה הלקוח ללא התקנה מחדש.
 
 #### באפליקצית Web
 יש להוסיף את המשתנים הבאים לקובץ `server/.env`:
