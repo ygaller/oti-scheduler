@@ -104,6 +104,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   // Session editing states (renamed from patient assignment)
   const [sessionEditDialogOpen, setSessionEditDialogOpen] = useState(false);
   const [editingSessionForAssignment, setEditingSessionForAssignment] = useState<Session | null>(null);
+  const [originalSessionForAssignment, setOriginalSessionForAssignment] = useState<Session | null>(null);
   const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string>('');
@@ -462,9 +463,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const handleSessionClick = (session: Session) => {
     setEditingSessionForAssignment(session);
+    setOriginalSessionForAssignment(session); // Store original session data for comparison
     const currentPatients = session.patients?.map(p => p.id) || [];
     const currentEmployees = session.employeeIds || [];
-    
+
     // Ensure at least one empty slot for adding patients
     setSelectedPatients(currentPatients.length > 0 ? currentPatients : ['']);
     // Ensure at least one employee is selected (required)
@@ -503,24 +505,34 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       // Filter out empty patient selections
       const filteredPatients = selectedPatients.filter(id => id !== '');
       
-      // Check if employees, room, or notes changed
-      const originalEmployees = editingSessionForAssignment.employeeIds || [];
-      const originalRoomId = editingSessionForAssignment.roomId || '';
+      // Check if employees, room, day, time, or notes changed
+      const originalEmployees = originalSessionForAssignment?.employeeIds || [];
+      const originalRoomId = originalSessionForAssignment?.roomId || '';
+      const originalDay = originalSessionForAssignment?.day || '';
+      const originalStartTime = originalSessionForAssignment?.startTime || '';
+      const originalEndTime = originalSessionForAssignment?.endTime || '';
+
       const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
       const roomChanged = originalRoomId !== selectedRoomId;
+      const dayChanged = originalDay !== editingSessionForAssignment.day;
+      const startTimeChanged = originalStartTime !== editingSessionForAssignment.startTime;
+      const endTimeChanged = originalEndTime !== editingSessionForAssignment.endTime;
       // For notes, we assume they might have changed since we're directly modifying the editingSessionForAssignment object
       const notesChanged = true; // Always save notes since we're editing them directly
       
-      if (employeesChanged || roomChanged || notesChanged) {
-        // Employees, room, or notes changed - need to update session properties (may trigger blocking validation for employee/room changes)
+      if (employeesChanged || roomChanged || dayChanged || startTimeChanged || endTimeChanged || notesChanged) {
+        // Session properties changed - need to update session properties (may trigger blocking validation)
         await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
           employeeIds: selectedEmployees,
           roomId: selectedRoomId,
+          day: editingSessionForAssignment.day,
+          startTime: editingSessionForAssignment.startTime,
+          endTime: editingSessionForAssignment.endTime,
           scheduleId: editingSessionForAssignment.scheduleId,
           notes: editingSessionForAssignment.notes,
           everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks
         });
-        
+
         // Then update patients separately
         await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       } else {
@@ -546,17 +558,27 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         console.log('Blocking activity warning in session assignment, proceeding with force');
         try {
           // Check what changed to determine how to force update
-          const originalEmployees = editingSessionForAssignment.employeeIds || [];
-          const originalRoomId = editingSessionForAssignment.roomId || '';
+          const originalEmployees = originalSessionForAssignment?.employeeIds || [];
+          const originalRoomId = originalSessionForAssignment?.roomId || '';
+          const originalDay = originalSessionForAssignment?.day || '';
+          const originalStartTime = originalSessionForAssignment?.startTime || '';
+          const originalEndTime = originalSessionForAssignment?.endTime || '';
+
           const employeesChanged = JSON.stringify(originalEmployees.sort()) !== JSON.stringify(selectedEmployees.sort());
           const roomChanged = originalRoomId !== selectedRoomId;
+          const dayChanged = originalDay !== editingSessionForAssignment.day;
+          const startTimeChanged = originalStartTime !== editingSessionForAssignment.startTime;
+          const endTimeChanged = originalEndTime !== editingSessionForAssignment.endTime;
           const notesChanged = true; // Always save notes
-          
+
           // Force update the session if properties changed
-          if (employeesChanged || roomChanged || notesChanged) {
+          if (employeesChanged || roomChanged || dayChanged || startTimeChanged || endTimeChanged || notesChanged) {
             await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
               employeeIds: selectedEmployees,
               roomId: selectedRoomId,
+              day: editingSessionForAssignment.day,
+              startTime: editingSessionForAssignment.startTime,
+              endTime: editingSessionForAssignment.endTime,
               scheduleId: editingSessionForAssignment.scheduleId,
               notes: editingSessionForAssignment.notes,
               everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
@@ -2081,12 +2103,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   label="שעת התחלה"
                   value={sessionForm.startTime ? parseTime(sessionForm.startTime) : null}
                   onChange={(time) => setSessionForm(prev => ({ ...prev, startTime: time ? formatTime(time) : '' }))}
+                  ampm={false}
                   sx={{ width: '50%' }}
                 />
                 <TimePicker
                   label="שעת סיום"
                   value={sessionForm.endTime ? parseTime(sessionForm.endTime) : null}
                   onChange={(time) => setSessionForm(prev => ({ ...prev, endTime: time ? formatTime(time) : '' }))}
+                  ampm={false}
                   sx={{ width: '50%' }}
                 />
               </Box>
@@ -2251,28 +2275,85 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <Typography variant="body1" gutterBottom>
                 פרטי הטיפול:
               </Typography>
-              
-              <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="body2" gutterBottom>
-                  <strong>יום:</strong> {DAY_LABELS[editingSessionForAssignment.day]}
-                </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>שעות:</strong> {editingSessionForAssignment.startTime} - {editingSessionForAssignment.endTime}
-                </Typography>
-                {editingSessionForAssignment.everyTwoWeeks && (
-                  <Box sx={{ mt: 1 }}>
-                    <Chip
-                      label="אחת לשבועיים"
-                      size="small"
-                      sx={{
-                        backgroundColor: '#1976d2',
-                        color: 'white',
-                        '& .MuiChip-label': { color: 'white' }
-                      }}
-                    />
-                  </Box>
-                )}
+
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="day-select-label">יום</InputLabel>
+                <Select
+                  labelId="day-select-label"
+                  id="day-select"
+                  value={editingSessionForAssignment.day}
+                  label="יום"
+                  onChange={(e) => {
+                    if (editingSessionForAssignment) {
+                      setEditingSessionForAssignment({
+                        ...editingSessionForAssignment,
+                        day: e.target.value as WeekDay
+                      });
+                    }
+                  }}
+                >
+                  {WEEK_DAYS.map((day) => (
+                    <MenuItem key={day} value={day}>
+                      {DAY_LABELS[day]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Box display="flex" gap={2} sx={{ mb: 2 }}>
+                <TimePicker
+                  label="שעת התחלה"
+                  value={editingSessionForAssignment.startTime ? parseTime(editingSessionForAssignment.startTime) : null}
+                  onChange={(time) => {
+                    if (editingSessionForAssignment && time) {
+                      const newStartTime = formatTime(time);
+                      // Calculate session duration in minutes
+                      const originalStart = parseTime(editingSessionForAssignment.startTime);
+                      const originalEnd = parseTime(editingSessionForAssignment.endTime);
+                      const durationMs = originalEnd.getTime() - originalStart.getTime();
+
+                      // Calculate new end time maintaining the same duration
+                      const newEndTime = new Date(time.getTime() + durationMs);
+
+                      setEditingSessionForAssignment({
+                        ...editingSessionForAssignment,
+                        startTime: newStartTime,
+                        endTime: formatTime(newEndTime)
+                      });
+                    }
+                  }}
+                  ampm={false}
+                  sx={{ width: '50%' }}
+                />
+                <TimePicker
+                  label="שעת סיום"
+                  value={editingSessionForAssignment.endTime ? parseTime(editingSessionForAssignment.endTime) : null}
+                  onChange={(time) => {
+                    if (editingSessionForAssignment && time) {
+                      setEditingSessionForAssignment({
+                        ...editingSessionForAssignment,
+                        endTime: formatTime(time)
+                      });
+                    }
+                  }}
+                  ampm={false}
+                  sx={{ width: '50%' }}
+                />
               </Box>
+
+              {editingSessionForAssignment.everyTwoWeeks && (
+                <Box sx={{ mb: 2 }}>
+                  <Chip
+                    label="אחת לשבועיים"
+                    size="small"
+                    sx={{
+                      backgroundColor: '#1976d2',
+                      color: 'white',
+                      '& .MuiChip-label': { color: 'white' }
+                    }}
+                  />
+                </Box>
+              )}
 
               <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
                 חדר:
