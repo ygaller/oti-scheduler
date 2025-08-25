@@ -1223,10 +1223,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             return (
               <Card
                 key={session.id}
-                sx={{ 
-                  backgroundColor: backgroundColor, 
+                sx={{
+                  backgroundColor: backgroundColor,
                   cursor: 'pointer',
-                  '&:hover': { 
+                  width: session.everyTwoWeeks ? '50%' : '100%',
+                  margin: session.everyTwoWeeks ? '0 auto' : '0',
+                  '&:hover': {
                     filter: 'brightness(0.8)'
                   }
                 }}
@@ -1387,12 +1389,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       const room = rooms.find(r => r.id === session.roomId);
                       const backgroundColor = room?.color || '#845ec2';
                       const textColor = getContrastingTextColor(backgroundColor);
+
                       return (
-                        <TableCell key={employee.id} 
+                        <TableCell key={employee.id}
                           rowSpan={duration}
-                          sx={{ 
-                            p: 1,
-                            backgroundColor: backgroundColor,
+                          sx={{
+                            p: session.everyTwoWeeks ? 0 : 1,
+                            backgroundColor: session.everyTwoWeeks ? 'transparent' : backgroundColor,
                             textAlign: 'center',
                             fontSize: '0.8rem',
                             color: textColor,
@@ -1400,68 +1403,155 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             position: 'relative',
                             zIndex: 2, // Ensure sessions appear on top of activities
                             borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                            '&:hover': { 
-                              filter: 'brightness(0.8)'
+                            '&:hover': {
+                              filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
                             }
                           }}
-                          onClick={() => handleSessionClick(session)}
+                          onClick={session.everyTwoWeeks ? undefined : () => handleSessionClick(session)}
                         >
-                          <Box>
-                            <Typography variant="caption" display="block">
-                              {session.startTime} - {session.endTime}
-                            </Typography>
-                            <Typography variant="caption" display="block">
-                              {getRoomName(session.roomId)}
-                            </Typography>
-                            {/* Display patients or missing patient warning */}
-                            {session.patients && session.patients.length > 0 ? (
-                              session.patients.map(patient => (
-                                <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
-                                  {patient.firstName} {patient.lastName}
+                          {session.everyTwoWeeks ? (
+                            <Box sx={{
+                              display: 'flex',
+                              width: '100%',
+                              height: '100%',
+                              minHeight: `${duration * 20}px` // Ensure proper height based on duration
+                            }}>
+                              {/* Session box at 50% width */}
+                              <Box
+                                sx={{
+                                  width: '50%',
+                                  backgroundColor: backgroundColor,
+                                  color: textColor,
+                                  p: 0.5,
+                                  borderRadius: 1,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'center',
+                                  '&:hover': {
+                                    filter: 'brightness(0.8)'
+                                  }
+                                }}
+                                onClick={() => handleSessionClick(session)}
+                              >
+                                <Typography variant="caption" display="block" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
+                                  {session.startTime} - {session.endTime}
                                 </Typography>
-                              ))
-                            ) : (
-                              <Typography variant="caption" display="block" color="error" sx={{ fontSize: '0.65rem' }}>
-                                (חסר מטופל)
-                              </Typography>
-                            )}
-                            {session.employeeIds && session.employeeIds.length > 1 && (
-                              <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
-                                + {session.employeeIds.length - 1} מטפלים נוספים
-                              </Typography>
-                            )}
-                            {session.notes && (
-                              <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', fontStyle: 'italic', mt: 0.5 }}>
-                                הערות: {session.notes}
-                              </Typography>
-                            )}
-                            {session.everyTwoWeeks && (
-                              <Box sx={{ mt: 0.5 }}>
-                                <Chip
-                                  label="אחת לשבועיים"
-                                  size="small"
-                                  sx={{
-                                    fontSize: '0.6rem',
-                                    height: '16px',
-                                    backgroundColor: '#1976d2',
-                                    color: 'white',
-                                    '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
-                                  }}
-                                />
+                                <Typography variant="caption" display="block" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
+                                  {getRoomName(session.roomId)}
+                                </Typography>
+                                {session.patients && session.patients.length > 0 ? (
+                                  session.patients.slice(0, 1).map(patient => (
+                                    <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.5rem', lineHeight: 1.1 }}>
+                                      {patient.firstName} {patient.lastName}
+                                    </Typography>
+                                  ))
+                                ) : (
+                                  <Typography variant="caption" display="block" color="error" sx={{ fontSize: '0.5rem', lineHeight: 1.1 }}>
+                                    (חסר מטופל)
+                                  </Typography>
+                                )}
+                                {session.employeeIds && session.employeeIds.length > 1 && (
+                                  <Typography variant="caption" display="block" sx={{ fontSize: '0.45rem', lineHeight: 1.1 }}>
+                                    + {session.employeeIds.length - 1} מטפלים נוספים
+                                  </Typography>
+                                )}
+                                {session.notes && (
+                                  <Typography variant="caption" display="block" sx={{ fontSize: '0.45rem', fontStyle: 'italic', lineHeight: 1.1 }}>
+                                    הערות: {session.notes}
+                                  </Typography>
+                                )}
+                                <Box sx={{ mt: 0.25 }}>
+                                  <Chip
+                                    label="אחת לשבועיים"
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.45rem',
+                                      height: '12px',
+                                      backgroundColor: '#1976d2',
+                                      color: 'white',
+                                      '& .MuiChip-label': { color: 'white', fontSize: '0.45rem', px: 0.5 }
+                                    }}
+                                  />
+                                </Box>
                               </Box>
-                            )}
-                          </Box>
+                              {/* Clickable area for adding sessions at 50% width */}
+                              <Box
+                                sx={{
+                                  width: '50%',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                  }
+                                }}
+                                onClick={() => handleAddSession(day, time, employee.id)}
+                              >
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', opacity: 0.7 }}>
+                                  +
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Box>
+                              <Typography variant="caption" display="block">
+                                {session.startTime} - {session.endTime}
+                              </Typography>
+                              <Typography variant="caption" display="block">
+                                {getRoomName(session.roomId)}
+                              </Typography>
+                              {/* Display patients or missing patient warning */}
+                              {session.patients && session.patients.length > 0 ? (
+                                session.patients.map(patient => (
+                                  <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
+                                    {patient.firstName} {patient.lastName}
+                                  </Typography>
+                                ))
+                              ) : (
+                                <Typography variant="caption" display="block" color="error" sx={{ fontSize: '0.65rem' }}>
+                                  (חסר מטופל)
+                                </Typography>
+                              )}
+                              {session.employeeIds && session.employeeIds.length > 1 && (
+                                <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
+                                  + {session.employeeIds.length - 1} מטפלים נוספים
+                                </Typography>
+                              )}
+                              {session.notes && (
+                                <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', fontStyle: 'italic', mt: 0.5 }}>
+                                  הערות: {session.notes}
+                                </Typography>
+                              )}
+                              {session.everyTwoWeeks && (
+                                <Box sx={{ mt: 0.5 }}>
+                                  <Chip
+                                    label="אחת לשבועיים"
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.6rem',
+                                      height: '16px',
+                                      backgroundColor: '#1976d2',
+                                      color: 'white',
+                                      '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
+                                    }}
+                                  />
+                                </Box>
+                              )}
+                            </Box>
+                          )}
                         </TableCell>
                       );
                     }
                     
                     // Skip cells that are part of a session span
-                    const hasSessionAbove = daySessions.some(s => 
-                      s.employeeIds && s.employeeIds.includes(employee.id) && 
-                      isTimeInRange(time, s.startTime, s.endTime) && 
+                    const hasSessionAbove = daySessions.some(s =>
+                      s.employeeIds && s.employeeIds.includes(employee.id) &&
+                      isTimeInRange(time, s.startTime, s.endTime) &&
                       s.startTime !== time
                     );
-                    
+
                     if (hasSessionAbove) {
                       return null;
                     }
@@ -1587,12 +1677,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             // const sessionEmployees = session.employeeIds ? employees.filter(e => session.employeeIds.includes(e.id)) : [];
                       const backgroundColor = session.roomId ? rooms.find(r => r.id === session.roomId)?.color || '#845ec2' : '#845ec2';
                       const textColor = getContrastingTextColor(backgroundColor);
+
                       return (
-                        <TableCell key={room.id} 
+                        <TableCell key={room.id}
                           rowSpan={duration}
-                          sx={{ 
-                            p: 1,
-                            backgroundColor: backgroundColor,
+                          sx={{
+                            p: session.everyTwoWeeks ? 0 : 1,
+                            backgroundColor: session.everyTwoWeeks ? 'transparent' : backgroundColor,
                             textAlign: 'center',
                             fontSize: '0.8rem',
                             color: textColor,
@@ -1600,53 +1691,151 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             position: 'relative',
                             zIndex: 2, // Ensure sessions appear on top of activities
                             borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                            '&:hover': { 
-                              filter: 'brightness(0.8)'
+                            '&:hover': {
+                              filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
                             }
                           }}
-                          onClick={() => handleSessionClick(session)}
+                          onClick={session.everyTwoWeeks ? undefined : () => handleSessionClick(session)}
                         >
-                          <Box>
-                            <Typography variant="caption" display="block">
-                              {session.startTime} - {session.endTime}
-                            </Typography>
-                            <Typography variant="caption" display="block">
-                              {getEmployeeNames(session.employeeIds)}
-                            </Typography>
-                            {/* Display patients or missing patient warning */}
-                            {session.patients && session.patients.length > 0 ? (
-                              session.patients.map(patient => (
-                                <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
-                                  {patient.firstName} {patient.lastName}
+                          {session.everyTwoWeeks ? (
+                            <Box sx={{
+                              display: 'flex',
+                              width: '100%',
+                              height: '100%',
+                              minHeight: `${duration * 20}px` // Ensure proper height based on duration
+                            }}>
+                              {/* Session box at 50% width */}
+                              <Box
+                                sx={{
+                                  width: '50%',
+                                  backgroundColor: backgroundColor,
+                                  color: textColor,
+                                  p: 0.5,
+                                  borderRadius: 1,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'center',
+                                  '&:hover': {
+                                    filter: 'brightness(0.8)'
+                                  }
+                                }}
+                                onClick={() => handleSessionClick(session)}
+                              >
+                                <Typography variant="caption" display="block" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
+                                  {session.startTime} - {session.endTime}
                                 </Typography>
-                              ))
-                            ) : (
-                              <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
-                                חסר מטופל
+                                <Typography variant="caption" display="block" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
+                                  {getEmployeeNames(session.employeeIds)}
+                                </Typography>
+                                {session.patients && session.patients.length > 0 ? (
+                                  session.patients.slice(0, 1).map(patient => (
+                                    <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.5rem', lineHeight: 1.1 }}>
+                                      {patient.firstName} {patient.lastName}
+                                    </Typography>
+                                  ))
+                                ) : (
+                                  <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.5rem', lineHeight: 1.1 }}>
+                                    חסר מטופל
+                                  </Typography>
+                                )}
+                                <Box sx={{ mt: 0.25 }}>
+                                  <Chip
+                                    label="אחת לשבועיים"
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.45rem',
+                                      height: '12px',
+                                      backgroundColor: '#1976d2',
+                                      color: 'white',
+                                      '& .MuiChip-label': { color: 'white', fontSize: '0.45rem', px: 0.5 }
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
+                              {/* Clickable area for adding sessions at 50% width */}
+                              <Box
+                                sx={{
+                                  width: '50%',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                  }
+                                }}
+                                onClick={() => handleAddSession(day, time)}
+                              >
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', opacity: 0.7 }}>
+                                  +
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Box>
+                              <Typography variant="caption" display="block">
+                                {session.startTime} - {session.endTime}
                               </Typography>
-                            )}
-                          </Box>
+                              <Typography variant="caption" display="block">
+                                {getEmployeeNames(session.employeeIds)}
+                              </Typography>
+                              {/* Display patients or missing patient warning */}
+                              {session.patients && session.patients.length > 0 ? (
+                                session.patients.map(patient => (
+                                  <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
+                                    {patient.firstName} {patient.lastName}
+                                  </Typography>
+                                ))
+                              ) : (
+                                <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
+                                  חסר מטופל
+                                </Typography>
+                              )}
+                              {session.everyTwoWeeks && (
+                                <Box sx={{ mt: 0.5 }}>
+                                  <Chip
+                                    label="אחת לשבועיים"
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.6rem',
+                                      height: '16px',
+                                      backgroundColor: '#1976d2',
+                                      color: 'white',
+                                      '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
+                                    }}
+                                  />
+                                </Box>
+                              )}
+                            </Box>
+                          )}
                         </TableCell>
                       );
                     }
                     
                     // Skip cells that are part of a session span
-                    const hasSessionAbove = daySessions.some(s => 
-                      s.roomId === room.id && 
-                      isTimeInRange(time, s.startTime, s.endTime) && 
+                    const hasSessionAbove = daySessions.some(s =>
+                      s.roomId === room.id &&
+                      isTimeInRange(time, s.startTime, s.endTime) &&
                       s.startTime !== time
                     );
-                    
+
                     if (hasSessionAbove) {
                       return null;
                     }
                     
                     return (
-                      <TableCell key={room.id} sx={{ 
+                      <TableCell key={room.id} sx={{
                         p: 0.5,
                         backgroundColor: 'transparent', // Let the row background show through
-                        borderLeft: '1px solid rgba(224, 224, 224, 1)'
-                      }}>
+                        borderLeft: '1px solid rgba(224, 224, 224, 1)',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        }
+                      }}
+                      onClick={() => handleAddSession(day, time)}
+                      >
                       </TableCell>
                     );
                   })}
