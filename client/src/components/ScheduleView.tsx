@@ -2233,7 +2233,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       </Dialog>
 
       {/* Session Edit Dialog */}
-      <Dialog open={sessionEditDialogOpen} onClose={() => setSessionEditDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={sessionEditDialogOpen} onClose={() => setSessionEditDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           עריכת טיפול
         </DialogTitle>
