@@ -25,11 +25,11 @@ export const scheduleService = {
     return api.get<Session[]>(`/schedule/${scheduleId}/sessions`);
   },
 
-  async createSession(scheduleId: string, session: CreateSessionDto, forceCreate: boolean = false): Promise<Session> {
-    return api.post<Session>(`/schedule/${scheduleId}/sessions`, { ...session, forceCreate });
+  async createSession(scheduleId: string, session: CreateSessionDto & { forceCreate?: boolean }): Promise<Session> {
+    return api.post<Session>(`/schedule/${scheduleId}/sessions`, session);
   },
 
-  async updateSession(scheduleId: string, sessionId: string, session: UpdateSessionDto): Promise<Session> {
+  async updateSession(scheduleId: string, sessionId: string, session: UpdateSessionDto & { forceCreate?: boolean }): Promise<Session> {
     return api.put<Session>(`/schedule/${scheduleId}/sessions/${sessionId}`, session);
   },
 

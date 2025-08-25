@@ -122,7 +122,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   } | null>(null);
 
   const [preselectedEmployeeId, setPreselectedEmployeeId] = useState<string | null>(null);
-  const [forceCreateSession, setForceCreateSession] = useState(false); // Track if user confirmed through blocking activity warning
 
   // Get blocked periods for display
   const { activities } = useActivities();
@@ -182,11 +181,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const handleWarningDialogConfirm = () => {
     setWarningDialogOpen(false);
     if (pendingSessionData) {
-      // User confirmed to proceed through blocking activity - set force flag
-      setForceCreateSession(true);
-      // Proceed with creating the session
-      const { day, startTime, employeeId, endTime } = pendingSessionData;
-      proceedWithAddSession(day, startTime, employeeId, endTime);
+      // User confirmed to proceed through blocking activity - proceed with force save
+      performSaveSession(true); // Pass true to force the save
     }
     setPendingSessionData(null);
   };
@@ -194,7 +190,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const handleWarningDialogCancel = () => {
     setWarningDialogOpen(false);
     setPendingSessionData(null);
-    setForceCreateSession(false); // Reset force flag on cancel
   };
 
   const proceedWithAddSession = (day: WeekDay, startTime: string, employeeId?: string, endTime?: string) => {
@@ -226,23 +221,38 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     const sessionStartTime = startTime || '09:00';
     const sessionEmployeeId = employeeId || employees[0]?.id || '';
 
-    // Check for conflicts
-    const conflict = checkForConflicts(sessionDay, sessionStartTime, sessionEmployeeId);
-    
-    if (conflict) {
-      // Show warning dialog
-      setWarningDialogTitle(conflict.title);
-      setWarningDialogMessage(conflict.message);
-      setPendingSessionData({ day: sessionDay, startTime: sessionStartTime, employeeId: sessionEmployeeId, endTime });
-      setWarningDialogOpen(true);
-    } else {
-      // No conflicts, proceed directly
-      proceedWithAddSession(sessionDay, sessionStartTime, sessionEmployeeId, endTime);
-    }
+    // No conflict checking here - proceed directly to open dialog
+    proceedWithAddSession(sessionDay, sessionStartTime, sessionEmployeeId, endTime);
   };
 
   const handleSaveSession = async () => {
-    if (!sessionForm.employeeIds || sessionForm.employeeIds.length === 0 || !sessionForm.roomId || !sessionForm.day || 
+    // Check for conflicts before saving
+    const conflict = checkForConflicts(
+      sessionForm.day as WeekDay,
+      sessionForm.startTime!,
+      sessionForm.employeeIds![0] // Use first employee for conflict checking
+    );
+
+    if (conflict) {
+      // Show warning dialog and store session data for later
+      setWarningDialogTitle(conflict.title);
+      setWarningDialogMessage(conflict.message);
+      setPendingSessionData({
+        day: sessionForm.day as WeekDay,
+        startTime: sessionForm.startTime!,
+        employeeId: sessionForm.employeeIds![0],
+        endTime: sessionForm.endTime
+      });
+      setWarningDialogOpen(true);
+      return; // Don't proceed with save until user confirms
+    }
+
+    // No conflicts, proceed with save
+    await performSaveSession(false);
+  };
+
+  const performSaveSession = async (forceCreate: boolean = false) => {
+    if (!sessionForm.employeeIds || sessionForm.employeeIds.length === 0 || !sessionForm.roomId || !sessionForm.day ||
         !sessionForm.startTime || !sessionForm.endTime) {
       setErrorInfo({
         title: 'שדות חסרים',
@@ -252,7 +262,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       return;
     }
 
-    const newSession: Omit<Session, 'employees' | 'patients' | 'patientIds'> = {
+    const newSession = {
       id: editingSession?.id || `manual_${Date.now()}_${Math.random()}`,
       employeeIds: sessionForm.employeeIds!,
       roomId: sessionForm.roomId!,
@@ -261,7 +271,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       endTime: sessionForm.endTime!,
       notes: sessionForm.notes,
       everyTwoWeeks: sessionForm.everyTwoWeeks,
-      forceCreate: forceCreateSession, // Use force create if user already confirmed through warning
+      forceCreate: forceCreate, // Include forceCreate in the session object
     };
 
     // Server-side validation will handle all schedule constraints
@@ -270,7 +280,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     try {
       let savedSession: Session;
       if (editingSession) {
-        savedSession = await scheduleService.updateSession(selectedScheduleId, editingSession.id, newSession as Partial<Session>);
+        savedSession = await scheduleService.updateSession(selectedScheduleId, editingSession.id, newSession);
       } else {
         savedSession = await scheduleService.createSession(selectedScheduleId, newSession);
       }
@@ -283,7 +293,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       await setSchedule(); // Refresh the schedule from the server
       setEditDialogOpen(false);
       setPreselectedEmployeeId(null);
-      setForceCreateSession(false); // Reset force flag after successful creation
     } catch (error) {
       console.error('Error saving session:', error);
       
@@ -308,7 +317,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           await setSchedule(); // Refresh the schedule from the server
           setEditDialogOpen(false);
           setPreselectedEmployeeId(null);
-          setForceCreateSession(false); // Reset force flag after successful force creation
           return;
         } catch (forceError) {
           console.error('Error force creating session after blocking warning:', forceError);
@@ -380,7 +388,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       } else if (pendingSessionCreationData) {
         // Handle session creation with force
         const sessionToCreate = { ...pendingSessionCreationData, forceCreate: true } as CreateSessionDto;
-        savedSession = await scheduleService.createSession(selectedScheduleId, sessionToCreate, true); // Pass true for forceCreate
+        savedSession = await scheduleService.createSession(selectedScheduleId, sessionToCreate);
         
         // If patient assignments were included in the original session creation, handle them now
         if (pendingSessionCreationData.patientIds && pendingSessionCreationData.patientIds.length > 0) {
@@ -1998,7 +2006,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       )}
 
       {/* Edit/Add Session Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => { setEditDialogOpen(false); setForceCreateSession(false); }} maxWidth="sm" fullWidth>
+      <Dialog open={editDialogOpen} onClose={() => { setEditDialogOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>
           {editingSession ? 'מחיקת טיפול' : 'הוספת טיפול חדש'}
         </DialogTitle>
@@ -2214,7 +2222,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setEditDialogOpen(false); setForceCreateSession(false); }}>ביטול</Button>
+          <Button onClick={() => { setEditDialogOpen(false); }}>ביטול</Button>
           {editingSession ? (
             <Button 
               onClick={handleDeleteSession} 

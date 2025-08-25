@@ -309,7 +309,8 @@ export const createScheduleRouter = (
   router.put('/:scheduleId/sessions/:sessionId', validateUUID('scheduleId'), validateUUID('sessionId'), async (req, res) => {
     try {
       const { scheduleId, sessionId } = req.params;
-      const updateData: UpdateSessionDto = req.body;
+      const sessionData: UpdateSessionDto & { forceCreate?: boolean } = req.body;
+      const { forceCreate = false, ...updateData } = sessionData;
 
       // First verify the schedule exists
       const schedule = await scheduleRepo.findById(scheduleId);
@@ -324,6 +325,36 @@ export const createScheduleRouter = (
       }
       if (existingSession.scheduleId !== scheduleId) {
         return res.status(404).json({ error: 'Session not found in this schedule' });
+      }
+
+      // If not forcing update, run validations for the updated session
+      if (!forceCreate) {
+        // Create a merged session object for validation
+        const sessionForValidation = { ...existingSession, ...updateData, scheduleId };
+
+        // Check for blocking activities
+        const overlapsBlocking = await checkSessionOverlapsBlocking(sessionForValidation, activityRepo);
+        if (overlapsBlocking) {
+          return res.status(409).json({
+            error: 'Session overlaps with a blocking activity',
+            code: 'BLOCKING_ACTIVITY_OVERLAP'
+          });
+        }
+
+        // Validate schedule constraints
+        const constraintValidation = await validateScheduleConstraintsAsync(
+          sessionForValidation,
+          employeeRepo,
+          sessionRepo,
+          scheduleId
+        );
+
+        if (!constraintValidation.isValid) {
+          return res.status(409).json({
+            error: constraintValidation.error,
+            code: 'SCHEDULE_CONSTRAINT_VIOLATION'
+          });
+        }
       }
 
       const session = await sessionRepo.update(sessionId, updateData);
