@@ -192,6 +192,11 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
 
   // Render session in slot
   const renderSessionInSlot = (session: Session, day: WeekDay, employeeId: string) => {
+    const startMinutes = timeToMinutes(session.startTime);
+    const endMinutes = timeToMinutes(session.endTime);
+    const durationMinutes = endMinutes - startMinutes;
+    const durationSlots = Math.ceil(durationMinutes / 15); // Number of 15-minute slots
+    
     const room = rooms.find(r => r.id === session.roomId);
     const backgroundColor = room?.color || '#845ec2';
     const textColor = getContrastingTextColor(backgroundColor);
@@ -252,13 +257,18 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             margin: '1px',
             fontSize: '0.75rem',
             width: session.everyTwoWeeks ? '50%' : '100%',
-            minHeight: '30px',
+            height: `${durationSlots * 20 - 2}px`, // Each slot is 20px, subtract 2px for margins
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
             textAlign: 'center',
+            position: 'absolute',
+            top: '1px',
+            left: '1px',
+            right: '1px',
+            zIndex: 10,
             '&:hover': {
               filter: 'brightness(0.8)'
             }
@@ -437,7 +447,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
                       const reservedHourDetails = getReservedHourForTime(employee, time, day);
                       const sessionsAtTime = daySessions.filter(s => 
                         s.employeeIds.includes(employee.id) &&
-                        s.startTime <= time && s.endTime > time
+                        s.startTime === time // Only show sessions at their start time
                       );
 
                       // Determine background color: reserved hours are greyed out like non-working hours but still clickable
@@ -489,11 +499,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
                           
                           {/* Render sessions */}
                           {sessionsAtTime.map(session => {
-                            // Only render session at its start time
-                            if (session.startTime === time) {
-                              return renderSessionInSlot(session, day, employee.id);
-                            }
-                            return null;
+                            return renderSessionInSlot(session, day, employee.id);
                           })}
                         </Box>
                       );
