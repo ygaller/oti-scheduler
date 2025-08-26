@@ -245,9 +245,8 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
       <Tooltip title={tooltipContent} placement="top" arrow key={session.id}>
         <Box
           sx={{
-            backgroundColor: session.everyTwoWeeks ? 'transparent' : backgroundColor,
+            backgroundColor: backgroundColor,
             color: textColor,
-            border: session.everyTwoWeeks ? `2px solid ${backgroundColor}` : 'none',
             borderRadius: '4px',
             padding: '4px',
             margin: '1px',
@@ -261,7 +260,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             alignItems: 'center',
             textAlign: 'center',
             '&:hover': {
-              filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
+              filter: 'brightness(0.8)'
             }
           }}
           onClick={() => onSelectEvent(session)}

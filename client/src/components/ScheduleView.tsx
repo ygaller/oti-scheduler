@@ -1380,7 +1380,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   backgroundColor: backgroundColor,
                   cursor: 'pointer',
                   width: session.everyTwoWeeks ? '50%' : '100%',
-                  margin: session.everyTwoWeeks ? '0 auto' : '0',
                   '&:hover': {
                     filter: 'brightness(0.8)'
                   }
@@ -1610,112 +1609,74 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                               position: 'absolute',
                               top: overlap.startOffset > 0 ? `${50 / duration}%` : '0%',
                               left: 0,
-                              right: 0,
+                              right: firstOverlapSession.everyTwoWeeks ? '50%' : 0,
                               bottom: lastSlotOverlap.endOffset < 15 ? `${50 / duration}%` : '0%',
-                              backgroundColor: firstOverlapSession.everyTwoWeeks ? 'transparent' : backgroundColor,
+                              backgroundColor: backgroundColor,
                               color: textColor,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               cursor: 'pointer',
                               '&:hover': {
-                                filter: firstOverlapSession.everyTwoWeeks ? 'none' : 'brightness(0.8)'
+                                filter: 'brightness(0.8)'
                               }
                             }}
                             onClick={() => handleSessionClick(firstOverlapSession)}
                           >
-                            {firstOverlapSession.everyTwoWeeks ? (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                display: 'flex'
-                              }}>
-                                <Box sx={{
-                                  width: '50%',
-                                  backgroundColor: backgroundColor,
-                                  color: textColor,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  p: 0.25
-                                }}>
-                                  <Typography variant="caption" sx={{ fontSize: '0.5rem', lineHeight: 1, textAlign: 'center' }}>
-                                    {firstOverlapSession.startTime}-{firstOverlapSession.endTime}
-                                    <br />
-                                    {getEmployeeNames(firstOverlapSession.employeeIds).split(',')[0]}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{
-                                  width: '50%',
-                                  cursor: 'pointer',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                  }
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddSession(day, time);
-                                }} />
-                              </Box>
-                            ) : (
-                              <Box sx={{ 
-                                width: '100%', 
-                                height: '100%', 
-                                display: 'flex', 
-                                flexDirection: 'column', 
-                                justifyContent: 'flex-start',
-                                p: 0.5,
-                                overflow: 'visible'
-                              }}>
-                                <Typography variant="caption" display="block">
-                                  {firstOverlapSession.startTime} - {firstOverlapSession.endTime}
-                                </Typography>
-                                <Typography variant="caption" display="block">
-                                  {getEmployeeNames(firstOverlapSession.employeeIds)}
-                                </Typography>
-                                {firstOverlapSession.patients && firstOverlapSession.patients.length > 0 ? (
-                                  <Box sx={{ maxHeight: 'none', overflow: 'visible' }}>
-                                    {firstOverlapSession.patients.map((patient: any) => (
-                                      <Typography 
-                                        key={patient.id} 
-                                        variant="caption" 
-                                        display="block" 
-                                        sx={{ 
-                                          fontSize: '0.65rem',
-                                          lineHeight: 1.2,
-                                          wordWrap: 'break-word',
-                                          whiteSpace: 'normal'
-                                        }}
-                                      >
-                                        {patient.firstName} {patient.lastName}
-                                      </Typography>
-                                    ))}
-                                  </Box>
-                                ) : (
-                                  <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
-                                    חסר מטופל
-                                  </Typography>
-                                )}
-                                {firstOverlapSession.everyTwoWeeks && (
-                                  <Box sx={{ mt: 0.5 }}>
-                                    <Chip
-                                      label="אחת לשבועיים"
-                                      size="small"
-                                      sx={{
-                                        fontSize: '0.6rem',
-                                        height: '16px',
-                                        backgroundColor: '#1976d2',
-                                        color: 'white',
-                                        '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
+                            <Box sx={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'flex-start',
+                              p: 0.5,
+                              overflow: 'visible'
+                            }}>
+                              <Typography variant="caption" display="block">
+                                {firstOverlapSession.startTime} - {firstOverlapSession.endTime}
+                              </Typography>
+                              <Typography variant="caption" display="block">
+                                {getEmployeeNames(firstOverlapSession.employeeIds)}
+                              </Typography>
+                              {firstOverlapSession.patients && firstOverlapSession.patients.length > 0 ? (
+                                <Box sx={{ maxHeight: 'none', overflow: 'visible' }}>
+                                  {firstOverlapSession.patients.map((patient: any) => (
+                                    <Typography 
+                                      key={patient.id} 
+                                      variant="caption" 
+                                      display="block" 
+                                      sx={{ 
+                                        fontSize: '0.65rem',
+                                        lineHeight: 1.2,
+                                        wordWrap: 'break-word',
+                                        whiteSpace: 'normal'
                                       }}
-                                    />
-                                  </Box>
-                                )}
-                              </Box>
-                            )}
+                                    >
+                                      {patient.firstName} {patient.lastName}
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              ) : (
+                                <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
+                                  חסר מטופל
+                                </Typography>
+                              )}
+                              {firstOverlapSession.everyTwoWeeks && (
+                                <Box sx={{ mt: 0.5 }}>
+                                  <Chip
+                                    label="אחת לשבועיים"
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.6rem',
+                                      height: '16px',
+                                      backgroundColor: '#1976d2',
+                                      color: 'white',
+                                      '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
+                                    }}
+                                  />
+                                </Box>
+                              )}
+                            </Box>
                           </Box>
                           
                           {/* Bottom empty area if session doesn't end at last slot ending */}
