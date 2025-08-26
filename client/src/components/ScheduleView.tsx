@@ -800,7 +800,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     const minHeight = lines * 16 + 16; // 16px padding
     const finalHeight = Math.max(minHeight, 60); // Minimum 60px
     
-    console.log(`Session ${session.startTime}-${session.endTime}: lines=${lines}, minHeight=${minHeight}, finalHeight=${finalHeight}`);
     return finalHeight;
   };
 
@@ -1546,7 +1545,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       adjustedHeight = minHeightPerSlot;
                     }
                     
-                    console.log(`Employee view - Session ${s.startTime}-${s.endTime}: contentHeight=${sessionContentHeight}, spanSlots=${sessionSpanSlots}, adjustedHeight=${adjustedHeight}`);
                     return adjustedHeight;
                   }), 20)
                 : 20;
@@ -2092,7 +2090,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       adjustedHeight = minHeightPerSlot;
                     }
                     
-                    console.log(`Room view - Session ${s.startTime}-${s.endTime}: contentHeight=${sessionContentHeight}, spanSlots=${sessionSpanSlots}, adjustedHeight=${adjustedHeight}`);
                     return adjustedHeight;
                   }), 20)
                 : 20;
