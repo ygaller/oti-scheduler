@@ -798,7 +798,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     
     // Each line needs approximately 16px height + padding
     const minHeight = lines * 16 + 16; // 16px padding
-    return Math.max(minHeight, 60); // Minimum 60px
+    const finalHeight = Math.max(minHeight, 60); // Minimum 60px
+    
+    console.log(`Session ${session.startTime}-${session.endTime}: lines=${lines}, minHeight=${minHeight}, finalHeight=${finalHeight}`);
+    return finalHeight;
   };
 
   const isTimeInRange = (time: string, startTime: string, endTime: string): boolean => {
@@ -1522,8 +1525,30 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 });
                 return firstOverlapSession && firstOverlapSession.id === s.id;
               });
+              // Calculate minimum row height based on sessions in this row
+              // For sessions that span multiple slots, ensure adequate height for content
               const minRowHeight = sessionsAtThisTime.length > 0 
-                ? Math.max(...sessionsAtThisTime.map(s => calculateSessionContentHeight(s) / getSessionSpanInSlots(s)), 20)
+                ? Math.max(...sessionsAtThisTime.map(s => {
+                    const sessionContentHeight = calculateSessionContentHeight(s);
+                    const sessionSpanSlots = getSessionSpanInSlots(s);
+                    
+                    // Instead of dividing by slots, ensure adequate height for readability
+                    // For multi-slot sessions, give more height to accommodate content
+                    let adjustedHeight;
+                    if (sessionSpanSlots === 1) {
+                      adjustedHeight = sessionContentHeight; // Single slot gets full height
+                    } else {
+                      // For multi-slot sessions, we need to ensure enough height per slot
+                      // The session content will be distributed across all slots
+                      // Give each slot generous height to ensure content doesn't overflow
+                      // For a session that needs 64px total, give each slot at least 50px
+                      const minHeightPerSlot = Math.max(50, sessionContentHeight * 0.8 / sessionSpanSlots);
+                      adjustedHeight = minHeightPerSlot;
+                    }
+                    
+                    console.log(`Employee view - Session ${s.startTime}-${s.endTime}: contentHeight=${sessionContentHeight}, spanSlots=${sessionSpanSlots}, adjustedHeight=${adjustedHeight}`);
+                    return adjustedHeight;
+                  }), 20)
                 : 20;
               
               return (
@@ -2046,8 +2071,30 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 });
                 return firstOverlapSession ? [firstOverlapSession] : [];
               });
+              // Calculate minimum row height based on sessions in this row
+              // For sessions that span multiple slots, ensure adequate height for content
               const minRowHeight = sessionsAtThisTime.length > 0 
-                ? Math.max(...sessionsAtThisTime.map(s => calculateSessionContentHeight(s) / getSessionSpanInSlots(s)), 20)
+                ? Math.max(...sessionsAtThisTime.map(s => {
+                    const sessionContentHeight = calculateSessionContentHeight(s);
+                    const sessionSpanSlots = getSessionSpanInSlots(s);
+                    
+                    // Instead of dividing by slots, ensure adequate height for readability
+                    // For multi-slot sessions, give more height to accommodate content
+                    let adjustedHeight;
+                    if (sessionSpanSlots === 1) {
+                      adjustedHeight = sessionContentHeight; // Single slot gets full height
+                    } else {
+                      // For multi-slot sessions, we need to ensure enough height per slot
+                      // The session content will be distributed across all slots
+                      // Give each slot generous height to ensure content doesn't overflow
+                      // For a session that needs 64px total, give each slot at least 50px
+                      const minHeightPerSlot = Math.max(50, sessionContentHeight * 0.8 / sessionSpanSlots);
+                      adjustedHeight = minHeightPerSlot;
+                    }
+                    
+                    console.log(`Room view - Session ${s.startTime}-${s.endTime}: contentHeight=${sessionContentHeight}, spanSlots=${sessionSpanSlots}, adjustedHeight=${adjustedHeight}`);
+                    return adjustedHeight;
+                  }), 20)
                 : 20;
               
               return (
