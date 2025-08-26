@@ -34,20 +34,28 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));
     
     // Handle 409 warnings that require confirmation
-    if (response.status === 409 && errorData.requiresConfirmation) {
-      if (errorData.warnings) {
-        // Multiple warnings - this is always consecutive sessions
-        throw new ConsecutiveSessionsWarning(response.status, errorData.warnings);
-      } else if (errorData.warning && (errorData.consecutiveCount || errorData.warning.includes('טיפולים רצופים'))) {
-        // Single warning - consecutive sessions
-        throw new ConsecutiveSessionsWarning(response.status, [{
-          patientId: '',
-          warning: errorData.warning,
-          consecutiveCount: errorData.consecutiveCount || 0
-        }]);
-      } else if (errorData.warning) {
-        // Single warning that's not consecutive sessions - blocking activity
-        throw new BlockingActivityWarning(response.status, errorData.warning);
+    if (response.status === 409) {
+      // Handle blocking activity overlap
+      if (errorData.code === 'BLOCKING_ACTIVITY_OVERLAP') {
+        throw new BlockingActivityWarning(response.status, errorData.error);
+      }
+      
+      // Handle legacy format with requiresConfirmation flag
+      if (errorData.requiresConfirmation) {
+        if (errorData.warnings) {
+          // Multiple warnings - this is always consecutive sessions
+          throw new ConsecutiveSessionsWarning(response.status, errorData.warnings);
+        } else if (errorData.warning && (errorData.consecutiveCount || errorData.warning.includes('טיפולים רצופים'))) {
+          // Single warning - consecutive sessions
+          throw new ConsecutiveSessionsWarning(response.status, [{
+            patientId: '',
+            warning: errorData.warning,
+            consecutiveCount: errorData.consecutiveCount || 0
+          }]);
+        } else if (errorData.warning) {
+          // Single warning that's not consecutive sessions - blocking activity
+          throw new BlockingActivityWarning(response.status, errorData.warning);
+        }
       }
     }
     

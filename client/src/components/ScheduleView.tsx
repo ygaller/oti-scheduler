@@ -184,6 +184,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     if (pendingSessionData) {
       // User confirmed to proceed through blocking activity - proceed with force save
       performSaveSession(true); // Pass true to force the save
+    } else {
+      // User confirmed blocking activity warning from session save attempt - retry with force
+      performSaveSession(true);
     }
     setPendingSessionData(null);
   };
@@ -297,49 +300,34 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     } catch (error) {
       console.error('Error saving session:', error);
       
-      // Handle blocking activity warning - proceed with force create since warning was already shown
+      // Handle blocking activity warning - show confirmation dialog to user
       if (error instanceof BlockingActivityWarning) {
-        console.log('Blocking activity warning received, proceeding with force create');
-        try {
-          let savedSession: Session;
-          if (editingSession) {
-            const sessionWithForce = { ...newSession, forceCreate: true };
-            savedSession = await scheduleService.updateSession(selectedScheduleId, editingSession.id, sessionWithForce as Partial<Session>);
-          } else {
-            const sessionWithForce = { ...newSession, forceCreate: true };
-            savedSession = await scheduleService.createSession(selectedScheduleId, sessionWithForce);
-          }
+        console.log('Blocking activity warning received, showing confirmation dialog');
+        
+        // Find which blocking activity is causing the conflict
+        const sessionDay = sessionForm.day as WeekDay;
+        const sessionStart = sessionForm.startTime!;
+        const sessionEnd = sessionForm.endTime!;
+        
+        let conflictingActivity = '';
+        for (const activity of activities) {
+          if (!activity.isBlocking) continue;
           
-          // Handle patient assignments if they were included
-          if (sessionForm.patientIds !== undefined) {
-            await scheduleService.updateSessionPatients(selectedScheduleId, savedSession.id, sessionForm.patientIds);
+          const activityTime = getActivityTimeForDay(activity, sessionDay);
+          if (activityTime && timesOverlap(sessionStart, sessionEnd, activityTime.startTime, activityTime.endTime)) {
+            conflictingActivity = activity.name;
+            break;
           }
-
-          await setSchedule(); // Refresh the schedule from the server
-          setEditDialogOpen(false);
-          setPreselectedEmployeeId(null);
-          return;
-        } catch (forceError) {
-          console.error('Error force creating session after blocking warning:', forceError);
-          // Show error if force creation also fails
-          let errorMessage = 'שגיאה בשמירת הטיפול לאחר התרעת חסימה';
-          let errorDetails = '';
-          
-          if (forceError instanceof ApiError) {
-            errorMessage = forceError.message;
-            errorDetails = forceError.details || '';
-          } else if (forceError instanceof Error) {
-            errorMessage = forceError.message || errorMessage;
-          }
-          
-          setErrorInfo({
-            title: 'שגיאה בשמירה',
-            message: errorMessage,
-            details: errorDetails
-          });
-          setErrorModalOpen(true);
-          return;
         }
+        
+        const hebrewMessage = conflictingActivity 
+          ? `הטיפול שאתה מנסה ליצור (${sessionStart}-${sessionEnd}) חופף עם הפעילות החוסמת "${conflictingActivity}". האם אתה בטוח שברצונך ליצור את הטיפול בכל זאת?`
+          : `הטיפול שאתה מנסה ליצור (${sessionStart}-${sessionEnd}) חופף עם פעילות חוסמת. האם אתה בטוח שברצונך ליצור את הטיפול בכל זאת?`;
+        
+        setWarningDialogTitle('פעילות חוסמת');
+        setWarningDialogMessage(hebrewMessage);
+        setWarningDialogOpen(true);
+        return;
       }
       
       let errorMessage = 'שגיאה בשמירת הטיפול';
@@ -776,6 +764,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
     return timeMinutes >= startMinutes && timeMinutes < endMinutes;
+  };
+
+  // Helper function to check if two time ranges overlap
+  const timesOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
+    const timeStringToMinutes = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+    const start1Min = timeStringToMinutes(start1);
+    const end1Min = timeStringToMinutes(end1);
+    const start2Min = timeStringToMinutes(start2);
+    const end2Min = timeStringToMinutes(end2);
+    return start1Min < end2Min && start2Min < end1Min;
   };
 
   // Helper function to get the effective time range for a blocked period on a specific day
