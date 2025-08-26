@@ -906,19 +906,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       הערות: {session.notes}
                     </Typography>
                   )}
-                  {session.everyTwoWeeks && (
-                    <Box sx={{ mt: 1 }}>
-                      <Chip
-                        label="אחת לשבועיים"
-                        size="small"
-                        sx={{
-                          backgroundColor: '#1976d2',
-                          color: 'white',
-                          '& .MuiChip-label': { color: 'white' }
-                        }}
-                      />
-                    </Box>
-                  )}
+
                 </CardContent>
               </Card>
             );
@@ -1096,19 +1084,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     <strong>הערות:</strong> {editingSession.notes}
                   </Typography>
                 )}
-                {editingSession.everyTwoWeeks && (
-                  <Box sx={{ mt: 1 }}>
-                    <Chip
-                      label="אחת לשבועיים"
-                      size="small"
-                      sx={{
-                        backgroundColor: '#1976d2',
-                        color: 'white',
-                        '& .MuiChip-label': { color: 'white' }
-                      }}
-                    />
-                  </Box>
-                )}
+
               </Box>
               
               <Typography variant="body2" color="error" sx={{ mt: 2 }}>
@@ -1374,19 +1350,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 />
               </Box>
 
-              {editingSessionForAssignment.everyTwoWeeks && (
-                <Box sx={{ mb: 2 }}>
-                  <Chip
-                    label="אחת לשבועיים"
-                    size="small"
-                    sx={{
-                      backgroundColor: '#1976d2',
-                      color: 'white',
-                      '& .MuiChip-label': { color: 'white' }
-                    }}
-                  />
-                </Box>
-              )}
+
 
               <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
                 חדר:

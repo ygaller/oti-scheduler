@@ -189,21 +189,7 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
             <strong>הערות:</strong> {session.notes}
           </Typography>
         )}
-        {session.everyTwoWeeks && (
-          <Box sx={{ mt: 1 }}>
-            <Chip
-              label="אחת לשבועיים"
-              size="small"
-              sx={{
-                fontSize: '0.6rem',
-                height: '16px',
-                backgroundColor: '#1976d2',
-                color: 'white',
-                '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
-              }}
-            />
-          </Box>
-        )}
+
       </Box>
     );
 
@@ -244,20 +230,7 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
               {primaryEmployee.firstName} {primaryEmployee.lastName}
             </Typography>
           )}
-          {session.everyTwoWeeks && (
-            <Chip
-              label="אחת לשבועיים"
-              size="small"
-              sx={{
-                fontSize: '0.5rem',
-                height: '12px',
-                backgroundColor: '#1976d2',
-                color: 'white',
-                '& .MuiChip-label': { color: 'white', fontSize: '0.5rem', px: 0.5 },
-                mt: 0.25
-              }}
-            />
-          )}
+
         </Box>
       </Tooltip>
     );
@@ -294,7 +267,7 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
 
         return (
           <Paper key={day} sx={{ 
-            minWidth: '400px',
+            minWidth: '600px',
             flexShrink: 0
           }}>
             {/* Day Header */}
@@ -345,7 +318,7 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
               </Box>
 
               {/* Activities Column */}
-              <Box sx={{ width: '120px', borderRight: '1px solid #e0e0e0' }}>
+              <Box sx={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
                 <Box sx={{ 
                   height: '40px', 
                   borderBottom: '1px solid #e0e0e0', 
