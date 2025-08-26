@@ -1847,7 +1847,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
           {scheduleViewTab === 0 ? (
             // Employee view - use big calendar for all days at once
-            <Box sx={{ width: '100%', height: '600px' }}>
+            <Box sx={{ width: '100%' }}>
               <EmployeeBigCalendarView
                 employees={employees}
                 rooms={rooms}

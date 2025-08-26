@@ -34,29 +34,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
   onSelectSlot,
   onSelectEvent,
 }) => {
-  // Refs for synchronized scrolling
-  const scrollRefs = React.useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const isScrolling = React.useRef(false);
 
-  // Handle synchronized scrolling
-  const handleScroll = (scrollingElementKey: string) => (event: React.UIEvent<HTMLDivElement>) => {
-    if (isScrolling.current) return;
-    
-    isScrolling.current = true;
-    const scrollTop = event.currentTarget.scrollTop;
-    
-    // Sync all other scroll containers
-    Object.entries(scrollRefs.current).forEach(([key, element]) => {
-      if (key !== scrollingElementKey && element) {
-        element.scrollTop = scrollTop;
-      }
-    });
-    
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      isScrolling.current = false;
-    }, 10);
-  };
   // Generate time slots
   const generateTimeSlots = () => {
     const slots = [];
@@ -343,8 +321,6 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
 
         return (
           <Paper key={day} sx={{ 
-            height: '600px', 
-            overflow: 'hidden',
             minWidth: '400px',
             flexShrink: 0
           }}>
@@ -362,7 +338,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             </Box>
 
             {/* Employees Grid */}
-            <Box sx={{ display: 'flex', height: '570px' }}>
+            <Box sx={{ display: 'flex' }}>
               {/* Time Column */}
               <Box sx={{ width: '60px', borderRight: '1px solid #e0e0e0' }}>
                 <Box sx={{ height: '40px', borderBottom: '1px solid #e0e0e0', p: 0.5 }}>
@@ -370,19 +346,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
                     שעה
                   </Typography>
                 </Box>
-                <Box 
-                  sx={{ 
-                    overflowY: 'auto', 
-                    height: '530px',
-                    '&::-webkit-scrollbar': {
-                      display: 'none'
-                    },
-                    scrollbarWidth: 'none', // Firefox
-                    msOverflowStyle: 'none' // IE/Edge
-                  }}
-                  ref={(el) => { scrollRefs.current[`time-${day}`] = el as HTMLDivElement | null; }}
-                  onScroll={handleScroll(`time-${day}`)}
-                >
+                <Box>
                   {timeSlots.map((time, index) => {
                     const isHourMark = time.endsWith(':00');
                     return (
@@ -420,29 +384,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
                     פעילויות
                   </Typography>
                 </Box>
-                <Box 
-                  sx={{ 
-                    overflowY: 'auto', 
-                    height: '530px',
-                    direction: 'ltr', // Force left-to-right to put scrollbar on right
-                    '&::-webkit-scrollbar': {
-                      width: '8px'
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      backgroundColor: '#f1f1f1',
-                      borderRadius: '4px'
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      backgroundColor: '#888',
-                      borderRadius: '4px',
-                      '&:hover': {
-                        backgroundColor: '#555'
-                      }
-                    }
-                  }}
-                  ref={(el) => { scrollRefs.current[`activities-${day}`] = el as HTMLDivElement | null; }}
-                  onScroll={handleScroll(`activities-${day}`)}
-                >
+                <Box>
                   {timeSlots.map((time, index) => {
                     const reservedSlot = getReservedSlot(time, day);
                     return (
@@ -489,19 +431,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
                   </Box>
 
                   {/* Time Slots */}
-                  <Box 
-                    sx={{ 
-                      overflowY: 'auto', 
-                      height: '530px',
-                      '&::-webkit-scrollbar': {
-                        display: 'none'
-                      },
-                      scrollbarWidth: 'none', // Firefox
-                      msOverflowStyle: 'none' // IE/Edge
-                    }}
-                    ref={(el) => { scrollRefs.current[`employee-${day}-${employee.id}`] = el as HTMLDivElement | null; }}
-                    onScroll={handleScroll(`employee-${day}-${employee.id}`)}
-                  >
+                  <Box>
                     {timeSlots.map(time => {
                       const isWorkingHour = isTimeWithinWorkingHours(employee, time, day);
                       const isReservedHour = isTimeWithinReservedHours(employee, time, day);
