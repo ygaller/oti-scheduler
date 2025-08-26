@@ -47,6 +47,7 @@ import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import TherapyRequirementsCards from './TherapyRequirementsCards';
 import EmployeeBigCalendarView from './EmployeeBigCalendarView';
+import RoomBigCalendarView from './RoomBigCalendarView';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
 import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from '../services';
 import { useActivities } from '../hooks';
@@ -1884,47 +1885,16 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               ))}
             </Box>
           ) : (
-            // Room view - keep original horizontal scroll layout
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                overflowX: 'auto',
-                gap: 3,
-                pb: 2,
-                '&::-webkit-scrollbar': {
-                  height: 8,
-                },
-                '&::-webkit-scrollbar-track': {
-                  backgroundColor: 'grey.200',
-                  borderRadius: 4,
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: 'grey.400',
-                  borderRadius: 4,
-                  '&:hover': {
-                    backgroundColor: 'grey.500',
-                  },
-                },
-              }}
-            >
-              {WEEK_DAYS.map(day => (
-                <Paper 
-                  key={day} 
-                  sx={{ 
-                    p: 3, 
-                    minWidth: '500px',
-                    flexShrink: 0,
-                    height: 'fit-content'
-                  }}
-                >
-                  <Typography variant="h5" component="h3" mb={2} color="primary" textAlign="center">
-                    {DAY_LABELS[day]}
-                  </Typography>
-                  
-                  {/* Room view */}
-                  <RoomCalendarView day={day} />
-                </Paper>
-              ))}
+            // Room view - use big calendar for all days at once
+            <Box sx={{ width: '100%' }}>
+              <RoomBigCalendarView
+                employees={employees}
+                rooms={rooms}
+                schedule={schedule}
+                activities={activities}
+                onSelectSlot={handleBigCalendarSlotSelect}
+                onSelectEvent={handleSessionClick}
+              />
             </Box>
           )}
         </>
