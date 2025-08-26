@@ -1761,7 +1761,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                           backgroundColor: 'rgba(0, 0, 0, 0.04)',
                                         }
                                       }}
-                                      onClick={() => handleAddSession(day, slotTime, employee.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddSession(day, slotTime, employee.id);
+                                      }}
                                     >
                                     </Box>
                                   );
