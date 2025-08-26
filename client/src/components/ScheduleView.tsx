@@ -46,6 +46,7 @@ import {
 import ErrorModal from './ErrorModal';
 import ConsecutiveSessionsWarningModal from './ConsecutiveSessionsWarningModal';
 import TherapyRequirementsCards from './TherapyRequirementsCards';
+import EmployeeBigCalendarView from './EmployeeBigCalendarView';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
 import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from '../services';
 import { useActivities } from '../hooks';
@@ -74,6 +75,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   setSchedule,
   activeTab // Destructure new prop
 }) => {
+  const { activities } = useActivities();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [sessionForm, setSessionForm] = useState<Partial<Session>>({
@@ -124,8 +126,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const [preselectedEmployeeId, setPreselectedEmployeeId] = useState<string | null>(null);
 
-  // Get blocked periods for display
-  const { activities } = useActivities();
+  // Get blocked periods for display (activities already declared above)
 
   // Helper function for session counting (used in print functionality) with fractional counting
   const getEmployeeSessionCount = (employeeId: string) => {
@@ -213,6 +214,38 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setSessionForm(sessionData);
     setPreselectedEmployeeId(employeeId || null);
     setEditDialogOpen(true);
+  };
+
+  // Handler for big calendar slot selection
+  const handleBigCalendarSlotSelect = (slotInfo: { start: Date; end: Date; resourceId?: string }) => {
+    if (!slotInfo.resourceId) return;
+
+    // The resourceId is now just the employeeId (from our custom implementation)
+    const employeeId = String(slotInfo.resourceId);
+    
+    const startTime = slotInfo.start.toLocaleTimeString('en-GB', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+    // Don't use the endTime from slot selection - let dialog set default 45-minute duration
+
+    // We need to determine the day from the current context
+    // For now, we'll use the day from the slot date
+    const dayOfWeek = slotInfo.start.getDay();
+    const weekDayMap: Record<number, WeekDay> = {
+      0: 'sunday',
+      1: 'monday', 
+      2: 'tuesday',
+      3: 'wednesday',
+      4: 'thursday',
+    };
+    
+    const weekDay = weekDayMap[dayOfWeek];
+    if (weekDay) {
+      // Don't pass endTime - let the dialog calculate 45-minute default
+      handleAddSession(weekDay, startTime, employeeId);
+    }
   };
 
   const handleAddSession = (
@@ -916,60 +949,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     }).sort((a, b) => a.startTime.localeCompare(b.startTime)); // Sort by start time
   };
 
-  // Create segments for a time slot that can contain multiple sessions with gaps
-  const createTimeSlotSegments = (sessions: Session[], slotTime: string): Array<{
-    type: 'session' | 'empty';
-    startOffset: number;
-    endOffset: number;
-    session?: Session;
-  }> => {
-    if (sessions.length === 0) {
-      return [{ type: 'empty', startOffset: 0, endOffset: 15 }];
-    }
 
-    const segments: Array<{ type: 'session' | 'empty'; startOffset: number; endOffset: number; session?: Session }> = [];
-    let currentOffset = 0;
-    const slotStartMinutes = timeToMinutes(slotTime);
-
-    for (const session of sessions) {
-      const sessionStartMinutes = timeToMinutes(session.startTime);
-      const sessionEndMinutes = timeToMinutes(session.endTime);
-      
-      // Calculate session boundaries within this slot
-      const sessionStartOffset = Math.max(0, sessionStartMinutes - slotStartMinutes);
-      const sessionEndOffset = Math.min(15, sessionEndMinutes - slotStartMinutes);
-
-      // Add empty segment before session if there's a gap
-      if (sessionStartOffset > currentOffset) {
-        segments.push({
-          type: 'empty',
-          startOffset: currentOffset,
-          endOffset: sessionStartOffset
-        });
-      }
-
-      // Add session segment
-      segments.push({
-        type: 'session',
-        startOffset: sessionStartOffset,
-        endOffset: sessionEndOffset,
-        session
-      });
-
-      currentOffset = sessionEndOffset;
-    }
-
-    // Add empty segment at the end if needed
-    if (currentOffset < 15) {
-      segments.push({
-        type: 'empty',
-        startOffset: currentOffset,
-        endOffset: 15
-      });
-    }
-
-    return segments;
-  };
 
 
 
@@ -1446,624 +1426,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     );
   };
 
-  const EmployeeCalendarView = ({ day }: { day: WeekDay }) => {
-    const timeSlots = generateTimeSlots();
-    const daySessions = getSessionsForDay(day);
-    const sortedEmployees = [...employees]
-      .filter(employee => employee.workingHours[day]) // Filter out employees who don't work on this day
-      .sort((a, b) => 
-        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
-      );
-
-    const isTimeWithinWorkingHours = (employee: Employee, time: string, currentDay: WeekDay): boolean => {
-      const workingHours = employee.workingHours[currentDay];
-      if (!workingHours) return false;
-
-      const startMinutes = timeToMinutes(workingHours.startTime);
-      const endMinutes = timeToMinutes(workingHours.endTime);
-      const currentTimeMinutes = timeToMinutes(time);
-
-      return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
-    };
-
-    const isTimeWithinReservedHours = (employee: Employee, time: string, currentDay: WeekDay): boolean => {
-      if (!employee.reservedHours || employee.reservedHours.length === 0) return false;
-
-      const currentTimeMinutes = timeToMinutes(time);
-
-      return employee.reservedHours.some(reservedHour => {
-        if (reservedHour.day !== currentDay) return false;
-
-        const startMinutes = timeToMinutes(reservedHour.startTime);
-        const endMinutes = timeToMinutes(reservedHour.endTime);
-
-        return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
-      });
-    };
-
-    const getReservedHourForTime = (employee: Employee, time: string, currentDay: WeekDay) => {
-      if (!employee.reservedHours || employee.reservedHours.length === 0) return null;
-
-      const currentTimeMinutes = timeToMinutes(time);
-
-      return employee.reservedHours.find(reservedHour => {
-        if (reservedHour.day !== currentDay) return false;
-
-        const startMinutes = timeToMinutes(reservedHour.startTime);
-        const endMinutes = timeToMinutes(reservedHour.endTime);
-
-        return currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
-      }) || null;
-    };
-    
-    return (
-      <TableContainer sx={{ border: 1, borderColor: 'divider', maxHeight: 'none' }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ width: 80, fontWeight: 'bold', textAlign: 'center', borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
-                שעה
-              </TableCell>
-              <TableCell sx={{ width: 120, fontWeight: 'bold', textAlign: 'center', backgroundColor: 'grey.100', borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
-                פעילויות
-              </TableCell>
-              {sortedEmployees.map(employee => (
-                <TableCell key={employee.id} sx={{ fontWeight: 'bold', textAlign: 'center', minWidth: 120, borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
-                  <div>{employee.firstName} {employee.lastName}</div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#666' }}>
-                    ({getRoleName(employee.role, employee.roleId)})
-                  </div>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {timeSlots.map((time, index) => {
-              const isHourMark = time.endsWith(':00');
-              const reservedSlot = getReservedSlot(time, day);
-              
-              // Calculate minimum row height based on sessions in this row
-              const sessionsAtThisTime = daySessions.filter(s => {
-                const overlappingSessions = getSessionsOverlappingTimeSlot(daySessions, time, undefined).filter(session => 
-                  session.employeeIds && session.employeeIds.some(id => sortedEmployees.some(emp => emp.id === id))
-                );
-                const firstOverlapSession = overlappingSessions.find(session => {
-                  const overlap = getSessionOverlapForTimeSlot(session, time);
-                  return overlap.isFirstSlot;
-                });
-                return firstOverlapSession && firstOverlapSession.id === s.id;
-              });
-              // Calculate minimum row height based on sessions in this row
-              // For sessions that span multiple slots, ensure adequate height for content
-              const minRowHeight = sessionsAtThisTime.length > 0 
-                ? Math.max(...sessionsAtThisTime.map(s => {
-                    const sessionContentHeight = calculateSessionContentHeight(s);
-                    const sessionSpanSlots = getSessionSpanInSlots(s);
-                    
-                    // Instead of dividing by slots, ensure adequate height for readability
-                    // For multi-slot sessions, give more height to accommodate content
-                    let adjustedHeight;
-                    if (sessionSpanSlots === 1) {
-                      adjustedHeight = sessionContentHeight; // Single slot gets full height
-                    } else {
-                      // For multi-slot sessions, we need to ensure enough height per slot
-                      // The session content will be distributed across all slots
-                      // Give each slot generous height to ensure content doesn't overflow
-                      // For sessions with many patients, be more generous with height
-                      const patientCount = s.patients ? s.patients.length : 0;
-                      
-                      // Calculate minimum height needed for the first slot (where content appears)
-                      // Don't divide by sessionSpanSlots since content only appears in first slot
-                      if (patientCount > 4) {
-                        // For sessions with many patients, ensure the first slot gets the full content height
-                        adjustedHeight = Math.max(sessionContentHeight, 150);
-                      } else if (patientCount > 2) {
-                        adjustedHeight = Math.max(sessionContentHeight * 0.8, 100);
-                      } else {
-                        adjustedHeight = Math.max(sessionContentHeight * 0.6, 80);
-                      }
-                    }
-                    
-                    // Debug logging for sessions with many patients
-                    if (s.patients && s.patients.length > 3) {
-                      console.log(`Employee view - Session ${s.id} row height calculation:`, {
-                        patientCount: s.patients.length,
-                        sessionContentHeight,
-                        sessionSpanSlots,
-                        adjustedHeight,
-                        time
-                      });
-                    }
-                    
-                    return adjustedHeight;
-                  }), 30) // Increased minimum row height from 20 to 30
-                : 30;
-              
-              return (
-                <TableRow key={time} sx={{ 
-                  height: minRowHeight,
-                  borderTop: isHourMark ? 2 : 0.5,
-                  borderColor: isHourMark ? 'primary.main' : 'divider',
-                  backgroundColor: reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'transparent' // Light background for activity rows
-                }}>
-                  <TableCell sx={{ 
-                    p: 0.5, 
-                    fontSize: '0.75rem',
-                    textAlign: 'center',
-                    backgroundColor: isHourMark ? (reservedSlot && reservedSlot.isBlocking ? reservedSlot.color + '15' : 'grey.50') : 'transparent',
-                    fontWeight: isHourMark ? 'bold' : 'normal',
-                    borderLeft: '1px solid rgba(224, 224, 224, 1)'
-                  }}>
-                    {isHourMark ? time : ''}
-                  </TableCell>
-                  
-                  {/* Activities Column */}
-                  <TableCell sx={{ 
-                    p: 0.5,
-                    backgroundColor: reservedSlot ? reservedSlot.color + '30' : 'grey.50',
-                    textAlign: 'center',
-                    fontSize: '0.7rem',
-                    color: reservedSlot ? 'text.primary' : 'text.secondary',
-                    fontWeight: reservedSlot ? 'bold' : 'normal',
-                    borderLeft: '1px solid rgba(224, 224, 224, 1)'
-                  }}>
-                    {reservedSlot?.isStartTime ? reservedSlot.label : ''}
-                  </TableCell>
-                  
-                  {sortedEmployees.map(employee => {
-                    // Get all sessions that overlap with this time slot for this employee
-                    const overlappingSessions = getSessionsOverlappingTimeSlot(daySessions, time, undefined).filter(s => 
-                      s.employeeIds && s.employeeIds.includes(employee.id)
-                    );
-                    const segments = createTimeSlotSegments(overlappingSessions, time);
-                    
-                    // Check if any session starts at the first overlapping slot for this time
-                    const firstOverlapSession = overlappingSessions.find(s => {
-                      const overlap = getSessionOverlapForTimeSlot(s, time);
-                      return overlap.isFirstSlot;
-                    });
-                    
-                    if (firstOverlapSession) {
-                      const duration = getSessionSpanInSlots(firstOverlapSession);
-                                              const room = rooms.find(r => r.id === firstOverlapSession.roomId);
-                        const backgroundColor = room?.color || '#845ec2';
-                        const textColor = getContrastingTextColor(backgroundColor);
-                        const overlap = getSessionOverlapForTimeSlot(firstOverlapSession, time);
-                        
-                        // Calculate the partial coverage for the first and last slots
-                        const lastSlotStartTime = timeSlots[timeSlots.indexOf(time) + duration - 1];
-                        const lastSlotOverlap = getSessionOverlapForTimeSlot(firstOverlapSession, lastSlotStartTime);
-
-                        return (
-                          <TableCell key={employee.id}
-                            rowSpan={duration}
-                            sx={{
-                              p: 0,
-                              position: 'relative',
-                              backgroundColor: 'transparent',
-                              textAlign: 'center',
-                              fontSize: '0.8rem',
-                              color: textColor,
-                              cursor: 'pointer',
-                              overflow: 'visible',
-                              zIndex: 2,
-                              borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                              '&:hover': {
-                                filter: firstOverlapSession.everyTwoWeeks ? 'none' : 'brightness(0.8)'
-                              }
-                            }}
-                            onClick={() => handleSessionClick(firstOverlapSession)}
-                          >
-                            {/* Top empty area if session doesn't start at slot beginning */}
-                            {overlap.startOffset > 0 && (
-                              <Box
-                                sx={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  height: `${50 / duration}%`, // Simple 50% of first slot
-                                  cursor: 'pointer',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                  }
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddSession(day, time, employee.id);
-                                }}
-                              />
-                            )}
-                            
-                            {/* Session content area */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                top: overlap.startOffset > 0 ? `${50 / duration}%` : '0%',
-                                left: 0,
-                                right: 0,
-                                bottom: lastSlotOverlap.endOffset < 15 ? `${50 / duration}%` : '0%',
-                                backgroundColor: firstOverlapSession.everyTwoWeeks ? 'transparent' : backgroundColor,
-                                color: textColor,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  filter: firstOverlapSession.everyTwoWeeks ? 'none' : 'brightness(0.8)'
-                                }
-                              }}
-                              onClick={() => handleSessionClick(firstOverlapSession)}
-                            >
-                          {firstOverlapSession.everyTwoWeeks ? (
-                            <Box sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              width: '100%',
-                              height: '100%',
-
-                            }}>
-                              {/* Session content positioned on left side */}
-                              <Box
-                                sx={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  width: '50%',
-                                  height: '100%',
-                                  backgroundColor: backgroundColor,
-                                  color: textColor,
-                                  p: 0.5,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  justifyContent: 'center',
-                                  pointerEvents: 'none'
-                                }}
-                              >
-                                <Typography variant="caption" display="block" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
-                                  {firstOverlapSession.startTime} - {firstOverlapSession.endTime}
-                                </Typography>
-                                <Typography variant="caption" display="block" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
-                                  {getRoomName(firstOverlapSession.roomId)}
-                                </Typography>
-                                {firstOverlapSession.patients && firstOverlapSession.patients.length > 0 ? (
-                                  firstOverlapSession.patients.slice(0, 1).map((patient: any) => (
-                                    <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.5rem', lineHeight: 1.1 }}>
-                                      {patient.firstName} {patient.lastName}
-                                    </Typography>
-                                  ))
-                                ) : (
-                                  <Typography variant="caption" display="block" color="error" sx={{ fontSize: '0.5rem', lineHeight: 1.1 }}>
-                                    (חסר מטופל)
-                                  </Typography>
-                                )}
-                                {firstOverlapSession.employeeIds && firstOverlapSession.employeeIds.length > 1 && (
-                                  <Typography variant="caption" display="block" sx={{ fontSize: '0.45rem', lineHeight: 1.1 }}>
-                                    + {firstOverlapSession.employeeIds.length - 1} מטפלים נוספים
-                                  </Typography>
-                                )}
-                                {firstOverlapSession.notes && (
-                                  <Typography variant="caption" display="block" sx={{ fontSize: '0.45rem', fontStyle: 'italic', lineHeight: 1.1 }}>
-                                    הערות: {firstOverlapSession.notes}
-                                  </Typography>
-                                )}
-                                <Box sx={{ mt: 0.25 }}>
-                                  <Chip
-                                    label="אחת לשבועיים"
-                                    size="small"
-                                    sx={{
-                                      fontSize: '0.45rem',
-                                      height: '12px',
-                                      backgroundColor: '#1976d2',
-                                      color: 'white',
-                                      '& .MuiChip-label': { color: 'white', fontSize: '0.45rem', px: 0.5 }
-                                    }}
-                                  />
-                                </Box>
-                              </Box>
-                              {/* Right side with individual 15-minute time slots */}
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                right: 0,
-                                width: '50%',
-                                height: '100%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                zIndex: 2
-                              }}>
-                                {Array.from({ length: duration }, (_, index) => {
-                                  const slotTime = timeSlots[timeSlots.indexOf(time) + index];
-                                  return (
-                                    <Box
-                                      key={`${employee.id}-${slotTime}`}
-                                      sx={{
-                                        height: '20px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        '&:hover': {
-                                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                        }
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddSession(day, slotTime, employee.id);
-                                      }}
-                                    >
-                                    </Box>
-                                  );
-                                })}
-                              </Box>
-                            </Box>
-                          ) : (
-                            <Box>
-                              <Typography variant="caption" display="block">
-                                {firstOverlapSession.startTime} - {firstOverlapSession.endTime}
-                              </Typography>
-                              <Typography variant="caption" display="block">
-                                {getRoomName(firstOverlapSession.roomId)}
-                              </Typography>
-                              {/* Display patients or missing patient warning */}
-                              {firstOverlapSession.patients && firstOverlapSession.patients.length > 0 ? (
-                                firstOverlapSession.patients.map((patient: any) => (
-                                  <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
-                                    {patient.firstName} {patient.lastName}
-                                  </Typography>
-                                ))
-                              ) : (
-                                <Typography variant="caption" display="block" color="error" sx={{ fontSize: '0.65rem' }}>
-                                  (חסר מטופל)
-                                </Typography>
-                              )}
-                              {firstOverlapSession.employeeIds && firstOverlapSession.employeeIds.length > 1 && (
-                                <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
-                                  + {firstOverlapSession.employeeIds.length - 1} מטפלים נוספים
-                                </Typography>
-                              )}
-                              {firstOverlapSession.notes && (
-                                <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', fontStyle: 'italic', mt: 0.5 }}>
-                                  הערות: {firstOverlapSession.notes}
-                                </Typography>
-                              )}
-                              {firstOverlapSession.everyTwoWeeks && (
-                                <Box sx={{ mt: 0.5 }}>
-                                  <Chip
-                                    label="אחת לשבועיים"
-                                    size="small"
-                                    sx={{
-                                      fontSize: '0.6rem',
-                                      height: '16px',
-                                      backgroundColor: '#1976d2',
-                                      color: 'white',
-                                      '& .MuiChip-label': { color: 'white', fontSize: '0.6rem' }
-                                    }}
-                                  />
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-                          </Box>
-                          
-                          {/* Bottom empty area if session doesn't end at last slot ending */}
-                          {lastSlotOverlap.endOffset < 15 && (
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                height: `${50 / duration}%`, // Simple 50% of last slot
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                }
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddSession(day, time, employee.id);
-                              }}
-                            />
-                          )}
-                        </TableCell>
-                      );
-                    }
-                    
-                    // Skip cells that are part of a session span (check if any overlapping session started earlier)
-                    const hasSessionAbove = overlappingSessions.some(s => {
-                      const overlap = getSessionOverlapForTimeSlot(s, time);
-                      return overlap.overlaps && !overlap.isFirstSlot;
-                    });
-
-                    if (hasSessionAbove) {
-                      return null;
-                    }
-                    
-                    // Check if we have any partial sessions that need segment rendering
-                    if (overlappingSessions.length > 0 && !firstOverlapSession) {
-                      return (
-                        <TableCell key={employee.id} sx={{
-                          p: 0,
-                          position: 'relative',
-                          height: '20px',
-                          borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                        }}>
-                          {segments.map((segment, segmentIndex) => {
-                            const startPercentage = (segment.startOffset / 15) * 100;
-                            const endPercentage = (segment.endOffset / 15) * 100;
-                            const segmentHeight = endPercentage - startPercentage;
-
-                            if (segment.type === 'empty') {
-                              const isWorkingHour = isTimeWithinWorkingHours(employee, time, day);
-                              const isReservedHour = isTimeWithinReservedHours(employee, time, day);
-                              const emptyBgColor = !isWorkingHour ? 'grey.400' : (isReservedHour ? 'grey.400' : 'transparent');
-                              const cursor = isWorkingHour ? 'pointer' : 'not-allowed';
-                              
-                              return (
-                                <Box
-                                  key={`empty-${segmentIndex}`}
-                                  sx={{
-                                    position: 'absolute',
-                                    top: `${startPercentage}%`,
-                                    left: 0,
-                                    right: 0,
-                                    height: `${segmentHeight}%`,
-                                    backgroundColor: emptyBgColor,
-                                    cursor,
-                                    '&:hover': {
-                                      backgroundColor: isWorkingHour ? 'rgba(0, 0, 0, 0.04)' : emptyBgColor,
-                                    }
-                                  }}
-                                  onClick={() => {
-                                    if (isWorkingHour) {
-                                      handleAddSession(day, time, employee.id);
-                                    }
-                                  }}
-                                />
-                              );
-                            }
-
-                            // Session segment
-                            const session = segment.session!;
-                            const overlap = getSessionOverlapForTimeSlot(session, time);
-                            const room = rooms.find(r => r.id === session.roomId);
-                            const backgroundColor = room?.color || '#845ec2';
-                            const textColor = getContrastingTextColor(backgroundColor);
-
-                            return (
-                              <Box
-                                key={`session-${session.id}-${segmentIndex}`}
-                                sx={{
-                                  position: 'absolute',
-                                  top: `${startPercentage}%`,
-                                  left: 0,
-                                  right: 0,
-                                  height: `${segmentHeight}%`,
-                                  backgroundColor: session.everyTwoWeeks ? 'transparent' : backgroundColor,
-                                  color: textColor,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  zIndex: 2,
-                                  '&:hover': {
-                                    filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
-                                  },
-                                  overflow: 'visible',
-                                }}
-                                onClick={() => handleSessionClick(session)}
-                              >
-                                {session.everyTwoWeeks ? (
-                                  <Box sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    display: 'flex'
-                                  }}>
-                                    <Box sx={{
-                                      width: '50%',
-                                      backgroundColor: backgroundColor,
-                                      color: textColor,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      p: 0.25
-                                    }}>
-                                      {overlap.isFirstSlot && (
-                                        <Typography variant="caption" sx={{ fontSize: '0.5rem', lineHeight: 1, textAlign: 'center' }}>
-                                          {session.startTime}-{session.endTime}
-                                          <br />
-                                          {getRoomName(session.roomId)}
-                                        </Typography>
-                                      )}
-                                    </Box>
-                                    <Box sx={{
-                                      width: '50%',
-                                      cursor: 'pointer',
-                                      '&:hover': {
-                                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                      }
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAddSession(day, time, employee.id);
-                                    }} />
-                                  </Box>
-                                ) : (
-                                  (overlap.isFirstSlot || segmentHeight > 50) && (
-                                    <Typography variant="caption" sx={{ fontSize: '0.6rem', lineHeight: 1.1, textAlign: 'center' }}>
-                                      {overlap.isFirstSlot ? `${session.startTime} - ${session.endTime}` : ''}
-                                      {overlap.isFirstSlot && <br />}
-                                      {overlap.isFirstSlot ? getRoomName(session.roomId) : ''}
-                                    </Typography>
-                                  )
-                                )}
-                              </Box>
-                            );
-                          })}
-                        </TableCell>
-                      );
-                    }
-
-                    const isWorkingHour = isTimeWithinWorkingHours(employee, time, day);
-                    const isReservedHour = isTimeWithinReservedHours(employee, time, day);
-                    const reservedHourDetails = getReservedHourForTime(employee, time, day);
-                    
-                    // Determine background color: reserved hours are greyed out like non-working hours but still clickable
-                    const backgroundColor = !isWorkingHour ? 'grey.400' : (isReservedHour ? 'grey.400' : 'transparent');
-                    const cursor = isWorkingHour ? 'pointer' : 'not-allowed'; // Working hours are always clickable, even if reserved
-                    const hoverColor = isWorkingHour ? '#f0f0f0' : 'grey.400';
-                    
-                    return (
-                      <TableCell key={employee.id} sx={{
-                        p: 0.5,
-                        backgroundColor,
-                        borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                        cursor,
-                        '&:hover': {
-                          backgroundColor: hoverColor,
-                        }
-                      }}
-                      onClick={() => {
-                        if (isWorkingHour) {
-                          handleAddSession(day, time, employee.id);
-                        }
-                      }}>
-                        {reservedHourDetails && reservedHourDetails.notes && time === reservedHourDetails.startTime && (
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              fontSize: '0.6rem', 
-                              color: 'text.secondary',
-                              display: 'block',
-                              textAlign: 'center',
-                              lineHeight: 1.2,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {reservedHourDetails.notes}
-                          </Typography>
-                        )}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    );
-  };
 
   const RoomCalendarView = ({ day }: { day: WeekDay }) => {
     const timeSlots = generateTimeSlots();
@@ -2483,7 +1845,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </Box>
           )}
 
-          {scheduleViewTab === 2 ? (
+          {scheduleViewTab === 0 ? (
+            // Employee view - use big calendar for all days at once
+            <Box sx={{ width: '100%', height: '600px' }}>
+              <EmployeeBigCalendarView
+                employees={employees}
+                rooms={rooms}
+                schedule={schedule}
+                activities={activities}
+                onSelectSlot={handleBigCalendarSlotSelect}
+                onSelectEvent={handleSessionClick}
+              />
+            </Box>
+          ) : scheduleViewTab === 2 ? (
             // Patient view - show all days in a grid without horizontal scroll
             <Box 
               sx={{ 
@@ -2510,7 +1884,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               ))}
             </Box>
           ) : (
-            // Employee and Room views - keep original horizontal scroll layout
+            // Room view - keep original horizontal scroll layout
             <Box 
               sx={{ 
                 display: 'flex', 
@@ -2547,9 +1921,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     {DAY_LABELS[day]}
                   </Typography>
                   
-                  {/* Always render calendar views, even if no sessions are scheduled */}
-                  {scheduleViewTab === 0 && <EmployeeCalendarView day={day} />}
-                  {scheduleViewTab === 1 && <RoomCalendarView day={day} />}
+                  {/* Room view */}
+                  <RoomCalendarView day={day} />
                 </Paper>
               ))}
             </Box>
