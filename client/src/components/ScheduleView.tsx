@@ -796,9 +796,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       lines += 1;
     }
     
-    // Each line needs approximately 16px height + padding
-    const minHeight = lines * 16 + 16; // 16px padding
-    const finalHeight = Math.max(minHeight, 60); // Minimum 60px
+    // Each line needs approximately 18px height for good readability
+    // Use more generous spacing for sessions with many patients
+    const lineHeight = session.patients && session.patients.length > 3 ? 20 : 18;
+    const minHeight = lines * lineHeight + 20; // 20px padding
+    const finalHeight = Math.max(minHeight, 70); // Increased minimum height to 70px
+    
+    // Debug logging for sessions with many patients
+    if (session.patients && session.patients.length > 3) {
+      console.log(`Session ${session.id} has ${session.patients.length} patients:`, 
+        session.patients.map(p => `${p.firstName} ${p.lastName}`),
+        `Calculated height: ${finalHeight}px (${lines} lines)`);
+    }
     
     return finalHeight;
   };
@@ -1540,14 +1549,35 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       // For multi-slot sessions, we need to ensure enough height per slot
                       // The session content will be distributed across all slots
                       // Give each slot generous height to ensure content doesn't overflow
-                      // For a session that needs 64px total, give each slot at least 50px
-                      const minHeightPerSlot = Math.max(50, sessionContentHeight * 0.8 / sessionSpanSlots);
-                      adjustedHeight = minHeightPerSlot;
+                      // For sessions with many patients, be more generous with height
+                      const patientCount = s.patients ? s.patients.length : 0;
+                      
+                      // Calculate minimum height needed for the first slot (where content appears)
+                      // Don't divide by sessionSpanSlots since content only appears in first slot
+                      if (patientCount > 4) {
+                        // For sessions with many patients, ensure the first slot gets the full content height
+                        adjustedHeight = Math.max(sessionContentHeight, 150);
+                      } else if (patientCount > 2) {
+                        adjustedHeight = Math.max(sessionContentHeight * 0.8, 100);
+                      } else {
+                        adjustedHeight = Math.max(sessionContentHeight * 0.6, 80);
+                      }
+                    }
+                    
+                    // Debug logging for sessions with many patients
+                    if (s.patients && s.patients.length > 3) {
+                      console.log(`Employee view - Session ${s.id} row height calculation:`, {
+                        patientCount: s.patients.length,
+                        sessionContentHeight,
+                        sessionSpanSlots,
+                        adjustedHeight,
+                        time
+                      });
                     }
                     
                     return adjustedHeight;
-                  }), 20)
-                : 20;
+                  }), 30) // Increased minimum row height from 20 to 30
+                : 30;
               
               return (
                 <TableRow key={time} sx={{ 
@@ -1615,7 +1645,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                               fontSize: '0.8rem',
                               color: textColor,
                               cursor: 'pointer',
-                              overflow: 'hidden',
+                              overflow: 'visible',
                               zIndex: 2,
                               borderLeft: '1px solid rgba(224, 224, 224, 1)',
                               '&:hover': {
@@ -1924,7 +1954,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                   '&:hover': {
                                     filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
                                   },
-                                  overflow: 'hidden',
+                                  overflow: 'visible',
                                 }}
                                 onClick={() => handleSessionClick(session)}
                               >
@@ -2088,14 +2118,35 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                       // For multi-slot sessions, we need to ensure enough height per slot
                       // The session content will be distributed across all slots
                       // Give each slot generous height to ensure content doesn't overflow
-                      // For a session that needs 64px total, give each slot at least 50px
-                      const minHeightPerSlot = Math.max(50, sessionContentHeight * 0.8 / sessionSpanSlots);
-                      adjustedHeight = minHeightPerSlot;
+                      // For sessions with many patients, be more generous with height
+                      const patientCount = s.patients ? s.patients.length : 0;
+                      
+                      // Calculate minimum height needed for the first slot (where content appears)
+                      // Don't divide by sessionSpanSlots since content only appears in first slot
+                      if (patientCount > 4) {
+                        // For sessions with many patients, ensure the first slot gets the full content height
+                        adjustedHeight = Math.max(sessionContentHeight, 150);
+                      } else if (patientCount > 2) {
+                        adjustedHeight = Math.max(sessionContentHeight * 0.8, 100);
+                      } else {
+                        adjustedHeight = Math.max(sessionContentHeight * 0.6, 80);
+                      }
+                    }
+                    
+                    // Debug logging for sessions with many patients
+                    if (s.patients && s.patients.length > 3) {
+                      console.log(`Room view - Session ${s.id} row height calculation:`, {
+                        patientCount: s.patients.length,
+                        sessionContentHeight,
+                        sessionSpanSlots,
+                        adjustedHeight,
+                        time
+                      });
                     }
                     
                     return adjustedHeight;
-                  }), 20)
-                : 20;
+                  }), 30) // Increased minimum row height from 20 to 30
+                : 30;
               
               return (
                 <TableRow key={time} sx={{ 
@@ -2160,7 +2211,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             fontSize: '0.8rem',
                             color: textColor,
                             cursor: 'pointer',
-                            overflow: 'hidden',
+                            overflow: 'visible',
                             zIndex: 2,
                             borderLeft: '1px solid rgba(224, 224, 224, 1)',
                             '&:hover': {
@@ -2247,7 +2298,15 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                 }} />
                               </Box>
                             ) : (
-                              <Box>
+                              <Box sx={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                justifyContent: 'flex-start',
+                                p: 0.5,
+                                overflow: 'visible'
+                              }}>
                                 <Typography variant="caption" display="block">
                                   {firstOverlapSession.startTime} - {firstOverlapSession.endTime}
                                 </Typography>
@@ -2255,11 +2314,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                   {getEmployeeNames(firstOverlapSession.employeeIds)}
                                 </Typography>
                                 {firstOverlapSession.patients && firstOverlapSession.patients.length > 0 ? (
-                                  firstOverlapSession.patients.map((patient: any) => (
-                                    <Typography key={patient.id} variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>
-                                      {patient.firstName} {patient.lastName}
-                                    </Typography>
-                                  ))
+                                  <Box sx={{ maxHeight: 'none', overflow: 'visible' }}>
+                                    {firstOverlapSession.patients.map((patient: any) => (
+                                      <Typography 
+                                        key={patient.id} 
+                                        variant="caption" 
+                                        display="block" 
+                                        sx={{ 
+                                          fontSize: '0.65rem',
+                                          lineHeight: 1.2,
+                                          wordWrap: 'break-word',
+                                          whiteSpace: 'normal'
+                                        }}
+                                      >
+                                        {patient.firstName} {patient.lastName}
+                                      </Typography>
+                                    ))}
+                                  </Box>
                                 ) : (
                                   <Typography variant="caption" display="block" sx={{ color: 'red', fontSize: '0.65rem' }}>
                                     חסר מטופל
