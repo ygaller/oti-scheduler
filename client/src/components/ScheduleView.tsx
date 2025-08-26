@@ -1431,38 +1431,43 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             color: textColor,
                             cursor: 'pointer',
                             position: 'relative',
+                            overflow: 'hidden',
                             zIndex: 2, // Ensure sessions appear on top of activities
                             borderLeft: '1px solid rgba(224, 224, 224, 1)',
                             '&:hover': {
-                              filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
+                              filter: 'brightness(0.8)'
                             }
                           }}
-                          onClick={session.everyTwoWeeks ? undefined : () => handleSessionClick(session)}
+                          onClick={() => handleSessionClick(session)}
                         >
                           {session.everyTwoWeeks ? (
                             <Box sx={{
-                              display: 'flex',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
                               width: '100%',
                               height: '100%',
-                              minHeight: `${duration * 20}px` // Ensure proper height based on duration
+
                             }}>
-                              {/* Session box at 50% width */}
+                              {/* Session content positioned on left side */}
                               <Box
                                 sx={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
                                   width: '50%',
+                                  height: '100%',
                                   backgroundColor: backgroundColor,
                                   color: textColor,
                                   p: 0.5,
-                                  borderRadius: 1,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   justifyContent: 'center',
-                                  '&:hover': {
-                                    filter: 'brightness(0.8)'
-                                  }
+                                  pointerEvents: 'none'
                                 }}
-                                onClick={() => handleSessionClick(session)}
                               >
                                 <Typography variant="caption" display="block" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
                                   {session.startTime} - {session.endTime}
@@ -1505,23 +1510,37 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                   />
                                 </Box>
                               </Box>
-                              {/* Clickable area for adding sessions at 50% width */}
-                              <Box
-                                sx={{
-                                  width: '50%',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                  }
-                                }}
-                                onClick={() => handleAddSession(day, time, employee.id)}
-                              >
-                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', opacity: 0.7 }}>
-                                  +
-                                </Typography>
+                              {/* Right side with individual 15-minute time slots */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: '50%',
+                                height: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                zIndex: 2
+                              }}>
+                                {Array.from({ length: duration }, (_, index) => {
+                                  const slotTime = timeSlots[timeSlots.indexOf(time) + index];
+                                  return (
+                                    <Box
+                                      key={`${employee.id}-${slotTime}`}
+                                      sx={{
+                                        height: '20px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        '&:hover': {
+                                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                        }
+                                      }}
+                                      onClick={() => handleAddSession(day, slotTime, employee.id)}
+                                    >
+                                    </Box>
+                                  );
+                                })}
                               </Box>
                             </Box>
                           ) : (
@@ -1719,38 +1738,43 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                             color: textColor,
                             cursor: 'pointer',
                             position: 'relative',
+                            overflow: 'hidden',
                             zIndex: 2, // Ensure sessions appear on top of activities
                             borderLeft: '1px solid rgba(224, 224, 224, 1)',
                             '&:hover': {
-                              filter: session.everyTwoWeeks ? 'none' : 'brightness(0.8)'
+                              filter: 'brightness(0.8)'
                             }
                           }}
-                          onClick={session.everyTwoWeeks ? undefined : () => handleSessionClick(session)}
+                          onClick={() => handleSessionClick(session)}
                         >
                           {session.everyTwoWeeks ? (
                             <Box sx={{
-                              display: 'flex',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
                               width: '100%',
                               height: '100%',
-                              minHeight: `${duration * 20}px` // Ensure proper height based on duration
+
                             }}>
-                              {/* Session box at 50% width */}
+                              {/* Session content positioned on left side */}
                               <Box
                                 sx={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
                                   width: '50%',
+                                  height: '100%',
                                   backgroundColor: backgroundColor,
                                   color: textColor,
                                   p: 0.5,
-                                  borderRadius: 1,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   justifyContent: 'center',
-                                  '&:hover': {
-                                    filter: 'brightness(0.8)'
-                                  }
+                                  pointerEvents: 'none'
                                 }}
-                                onClick={() => handleSessionClick(session)}
                               >
                                 <Typography variant="caption" display="block" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
                                   {session.startTime} - {session.endTime}
@@ -1783,23 +1807,37 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                                   />
                                 </Box>
                               </Box>
-                              {/* Clickable area for adding sessions at 50% width */}
-                              <Box
-                                sx={{
-                                  width: '50%',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                                  }
-                                }}
-                                onClick={() => handleAddSession(day, time)}
-                              >
-                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', opacity: 0.7 }}>
-                                  +
-                                </Typography>
+                              {/* Right side with individual 15-minute time slots */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: '50%',
+                                height: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                zIndex: 2
+                              }}>
+                                {Array.from({ length: duration }, (_, index) => {
+                                  const slotTime = timeSlots[timeSlots.indexOf(time) + index];
+                                  return (
+                                    <Box
+                                      key={`${room.id}-${slotTime}`}
+                                      sx={{
+                                        height: '20px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        '&:hover': {
+                                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                        }
+                                      }}
+                                      onClick={() => handleAddSession(day, slotTime)}
+                                    >
+                                    </Box>
+                                  );
+                                })}
                               </Box>
                             </Box>
                           ) : (
