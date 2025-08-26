@@ -118,7 +118,7 @@ describe('ScheduleView Overlap Warning Behavior', () => {
       employeeIds: ['emp1']
     };
     
-    const result = mockHandleSaveSession(sessionForm, false);
+    const result = mockHandleSaveSession(sessionForm);
     
     expect(result.warningShown).toBe(true);
     expect(mockCheckForConflicts).toHaveBeenCalled();

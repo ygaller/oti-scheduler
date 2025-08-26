@@ -753,11 +753,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     return hours * 60 + minutes;
   };
 
-  const getSessionDurationInSlots = (session: Session): number => {
-    const startMinutes = timeToMinutes(session.startTime);
-    const endMinutes = timeToMinutes(session.endTime);
-    return Math.ceil((endMinutes - startMinutes) / 15);
-  };
+
 
   // Calculate how many time slots a session spans (for rowSpan)
   const getSessionSpanInSlots = (session: Session): number => {
@@ -868,13 +864,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     return null;
   };
 
-  const getSessionAtTime = (sessions: Session[], time: string, employeeId?: string, roomId?: string): Session | null => {
-    return sessions.find(session => {
-      const matchesEmployee = !employeeId || (session.employeeIds && session.employeeIds.includes(employeeId));
-      const matchesRoom = !roomId || session.roomId === roomId;
-      return matchesEmployee && matchesRoom && isTimeInRange(time, session.startTime, session.endTime);
-    }) || null;
-  };
+
 
   // Helper functions for partial session coverage
   const getSessionOverlapForTimeSlot = (session: Session, slotStartTime: string): {
