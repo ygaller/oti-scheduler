@@ -208,11 +208,11 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
     const leftPosition = calculateSessionLeftPosition(session, roomSessions);
     
     const room = rooms.find(r => r.id === session.roomId);
-    const backgroundColor = room?.color || '#845ec2';
-    const textColor = getContrastingTextColor(backgroundColor);
-
-    // Get primary employee for display
+    
+    // Get primary employee for display and color
     const primaryEmployee = employees.find(e => session.employeeIds.includes(e.id));
+    const backgroundColor = primaryEmployee?.color || '#845ec2';
+    const textColor = getContrastingTextColor(backgroundColor);
 
     const tooltipContent = (
       <Box>
