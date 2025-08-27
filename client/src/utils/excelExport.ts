@@ -82,6 +82,39 @@ function getNextHour(time: string): string {
   return `${nextHour.toString().padStart(2, '0')}:00`;
 }
 
+// Helper function to find all sessions for an employee in a time slot
+function findSessionsForEmployeeInTimeSlot(
+  sessions: Session[], 
+  employeeId: string, 
+  time: string, 
+  day: WeekDay
+): Session[] {
+  const nextHour = getNextHour(time);
+  return sessions.filter(s => 
+    s.day === day &&
+    s.employeeIds && 
+    s.employeeIds.includes(employeeId) && 
+    s.startTime >= time && 
+    s.startTime < nextHour
+  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+// Helper function to find all sessions for a room in a time slot
+function findSessionsForRoomInTimeSlot(
+  sessions: Session[], 
+  roomId: string, 
+  time: string, 
+  day: WeekDay
+): Session[] {
+  const nextHour = getNextHour(time);
+  return sessions.filter(s => 
+    s.day === day &&
+    s.roomId === roomId && 
+    s.startTime >= time && 
+    s.startTime < nextHour
+  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
 // Helper function to clean file names and worksheet names
 function cleanFileName(name: string): string {
   // Allow English letters, Hebrew letters, spaces, hyphens, and underscores
@@ -96,10 +129,11 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
     `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
   );
 
-  // Create headers: יום, שעה, פעילויות, then employee columns
+  // Create headers: יום, שעה, פעילויות, then employee columns (2 columns per employee)
   const headers: any[] = ['יום', 'שעה', 'פעילויות'];
   sortedEmployees.forEach(employee => {
     headers.push(`${employee.firstName} ${employee.lastName}`);
+    headers.push(''); // Second column for the employee (will be merged with first)
   });
   
   const data: any[][] = [headers];
@@ -107,51 +141,112 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
   // Create data rows for each day and time slot
   WEEK_DAYS.forEach((day: WeekDay) => {
     const dayLabel = DAY_LABELS[day];
-    const daySessions = sessions.filter(s => s.day === day);
     
     timeSlots.forEach((time, timeIndex) => {
-      const row: any[] = [
-        timeIndex === 0 ? dayLabel : '', // Show day only for first time slot
-        time,
-      ];
-      
-      // Check for activities
-      const activity = isTimeInActivityPeriod(time, activities, day);
-      row.push(activity ? activity.name : '');
-      
-      // Check for sessions for each employee
+      // Find maximum number of regular sessions for any employee in this time slot
+      // Every two weeks sessions go side by side, not in additional rows
+      let maxSessionsInTimeSlot = 1;
       sortedEmployees.forEach(employee => {
-        const session = daySessions.find(s => 
-          s.employeeIds && s.employeeIds.includes(employee.id) && 
-          s.startTime >= time && 
-          s.startTime < getNextHour(time)
-        );
-        
-        if (session) {
-          const room = options.rooms.find(r => r.id === session.roomId);
-          const patientNames = session.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
-          const employeeNames = session.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
-          let cellContent = `${session.startTime}-${session.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
-          if (session.notes && session.notes.trim()) {
-            cellContent += `\nהערות: ${session.notes}`;
-          }
-          row.push(cellContent);
-        } else {
-          // Check for reserved hours if no session (only show in start time slot)
-          const reservedHour = employee.reservedHours?.find(rh => 
-            rh.day === day && 
-            rh.startTime >= time && 
-            rh.startTime < getNextHour(time)
-          );
-          if (reservedHour) {
-            row.push(`${reservedHour.startTime}-${reservedHour.endTime}\nשעות שמורות\n${reservedHour.notes || 'ללא הערות'}`);
-          } else {
-            row.push('');
-          }
+        const employeeSessions = findSessionsForEmployeeInTimeSlot(sessions, employee.id, time, day);
+        const regularSessionCount = employeeSessions.filter(s => !s.everyTwoWeeks).length;
+        if (regularSessionCount > maxSessionsInTimeSlot) {
+          maxSessionsInTimeSlot = regularSessionCount;
         }
       });
       
-      data.push(row);
+      // Create rows for this time slot (one or more if there are multiple sessions)
+      for (let sessionRowIndex = 0; sessionRowIndex < maxSessionsInTimeSlot; sessionRowIndex++) {
+        const row: any[] = [
+          timeIndex === 0 && sessionRowIndex === 0 ? dayLabel : '', // Show day only for first time slot and first session row
+          sessionRowIndex === 0 ? time : '', // Show time only for first session row
+        ];
+        
+        // Check for activities (only in first session row)
+        const activity = sessionRowIndex === 0 ? isTimeInActivityPeriod(time, activities, day) : null;
+        row.push(activity ? activity.name : '');
+        
+        // Process each employee (2 columns per employee)
+        sortedEmployees.forEach(employee => {
+          const employeeSessions = findSessionsForEmployeeInTimeSlot(sessions, employee.id, time, day);
+          const regularSessions = employeeSessions.filter(s => !s.everyTwoWeeks);
+          const everyTwoWeeksSessions = employeeSessions.filter(s => s.everyTwoWeeks);
+          
+          // Handle every two weeks sessions only in the first row
+          if (sessionRowIndex === 0 && everyTwoWeeksSessions.length > 0) {
+            // Handle both every two weeks sessions in the first row
+            const firstEveryTwoWeeks = everyTwoWeeksSessions[0];
+            const secondEveryTwoWeeks = everyTwoWeeksSessions[1];
+            
+            // First column
+            if (firstEveryTwoWeeks) {
+              const room = options.rooms.find(r => r.id === firstEveryTwoWeeks.roomId);
+              const patientNames = firstEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+              const employeeNames = firstEveryTwoWeeks.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+              let cellContent = `${firstEveryTwoWeeks.startTime}-${firstEveryTwoWeeks.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+              if (firstEveryTwoWeeks.notes && firstEveryTwoWeeks.notes.trim()) {
+                cellContent += `\nהערות: ${firstEveryTwoWeeks.notes}`;
+              }
+              row.push(cellContent);
+            } else {
+              row.push('');
+            }
+            
+            // Second column
+            if (secondEveryTwoWeeks) {
+              const room = options.rooms.find(r => r.id === secondEveryTwoWeeks.roomId);
+              const patientNames = secondEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+              const employeeNames = secondEveryTwoWeeks.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+              let cellContent = `${secondEveryTwoWeeks.startTime}-${secondEveryTwoWeeks.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+              if (secondEveryTwoWeeks.notes && secondEveryTwoWeeks.notes.trim()) {
+                cellContent += `\nהערות: ${secondEveryTwoWeeks.notes}`;
+              }
+              row.push(cellContent);
+            } else {
+              row.push('');
+            }
+            
+            return; // Skip regular session handling for this employee
+          }
+          
+          // Handle regular sessions
+          const currentSession = regularSessions[sessionRowIndex];
+          
+          if (currentSession) {
+            const room = options.rooms.find(r => r.id === currentSession.roomId);
+            const patientNames = currentSession.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+            const employeeNames = currentSession.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+            let cellContent = `${currentSession.startTime}-${currentSession.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+            if (currentSession.notes && currentSession.notes.trim()) {
+              cellContent += `\nהערות: ${currentSession.notes}`;
+            }
+            
+            // Regular sessions span both columns
+            row.push(cellContent); // First column
+            row.push(''); // Second column will be merged
+          } else if (sessionRowIndex === 0) {
+            // Check for reserved hours if no session (only in first session row)
+            const reservedHour = employee.reservedHours?.find(rh => 
+              rh.day === day && 
+              rh.startTime >= time && 
+              rh.startTime < getNextHour(time)
+            );
+            if (reservedHour) {
+              const reservedContent = `${reservedHour.startTime}-${reservedHour.endTime}\nשעות שמורות\n${reservedHour.notes || 'ללא הערות'}`;
+              row.push(reservedContent); // First column
+              row.push(''); // Second column will be merged
+            } else {
+              row.push(''); // First column
+              row.push(''); // Second column
+            }
+          } else {
+            // Empty cells for additional session rows when this employee has no more sessions
+            row.push(''); // First column
+            row.push(''); // Second column
+          }
+        });
+        
+        data.push(row);
+      }
     });
   });
 
@@ -188,21 +283,58 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
     currentRow = endRow + 1;
   });
   
-  // Apply employee colors to their columns
+  // Merge headers for employee names (span across 2 columns)
+  if (!ws['!merges']) ws['!merges'] = [];
   sortedEmployees.forEach((employee, empIndex) => {
-    const colIndex = 3 + empIndex; // Start after יום, שעה, פעילויות columns
+    const startCol = 3 + (empIndex * 2); // Start after יום, שעה, פעילויות columns
+    const endCol = startCol + 1;
+    ws['!merges']!.push({
+      s: { r: 0, c: startCol },
+      e: { r: 0, c: endCol }
+    });
+  });
+
+  // Apply employee colors to their columns and merge regular sessions
+  sortedEmployees.forEach((employee, empIndex) => {
+    const firstColIndex = 3 + (empIndex * 2); // Start after יום, שעה, פעילויות columns
+    const secondColIndex = firstColIndex + 1;
     
     for (let row = 1; row <= range.e.r; row++) {
-      const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
-      if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
-        if (!ws[cellRef].s) ws[cellRef].s = {};
+      const firstCellRef = XLSX.utils.encode_cell({ r: row, c: firstColIndex });
+      const secondCellRef = XLSX.utils.encode_cell({ r: row, c: secondColIndex });
+      
+      // Check if first cell has content
+      if (ws[firstCellRef] && ws[firstCellRef].v && ws[firstCellRef].v !== '') {
+        // Check if second cell is empty (indicating a regular session that should span both columns)
+        if (!ws[secondCellRef] || !ws[secondCellRef].v || ws[secondCellRef].v === '') {
+          // Merge cells for regular sessions
+          ws['!merges']!.push({
+            s: { r: row, c: firstColIndex },
+            e: { r: row, c: secondColIndex }
+          });
+        }
+        
+        // Apply styling to first cell
+        if (!ws[firstCellRef].s) ws[firstCellRef].s = {};
         const textColor = getContrastingTextColor(employee.color);
-        ws[cellRef].s.fill = { 
+        ws[firstCellRef].s.fill = { 
           patternType: 'solid',
           fgColor: { rgb: hexToExcelColor(employee.color) }
         };
-        ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
-        ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
+        ws[firstCellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+        ws[firstCellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
+      }
+      
+      // Apply styling to second cell if it has content (every two weeks sessions)
+      if (ws[secondCellRef] && ws[secondCellRef].v && ws[secondCellRef].v !== '') {
+        if (!ws[secondCellRef].s) ws[secondCellRef].s = {};
+        const textColor = getContrastingTextColor(employee.color);
+        ws[secondCellRef].s.fill = { 
+          patternType: 'solid',
+          fgColor: { rgb: hexToExcelColor(employee.color) }
+        };
+        ws[secondCellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+        ws[secondCellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
       }
     }
   });
@@ -214,7 +346,8 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
     { width: 15 }  // פעילויות column
   ];
   sortedEmployees.forEach(() => {
-    colWidths.push({ width: 20 }); // Employee columns
+    colWidths.push({ width: 15 }); // Employee first column
+    colWidths.push({ width: 15 }); // Employee second column
   });
   
   ws['!cols'] = colWidths;
@@ -232,10 +365,11 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   const timeSlots = generateTimeSlots().filter(time => time.endsWith(':00')); // Only hourly marks
   const sortedRooms = [...rooms].filter(r => r.isActive).sort((a, b) => a.name.localeCompare(b.name, 'he'));
 
-  // Create headers: יום, שעה, פעילויות, then room columns
+  // Create headers: יום, שעה, פעילויות, then room columns (2 columns per room)
   const headers: any[] = ['יום', 'שעה', 'פעילויות'];
   sortedRooms.forEach(room => {
     headers.push(room.name);
+    headers.push(''); // Second column for the room (will be merged with first)
   });
   
   const data: any[][] = [headers];
@@ -243,40 +377,94 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
   // Create data rows for each day and time slot
   WEEK_DAYS.forEach((day: WeekDay) => {
     const dayLabel = DAY_LABELS[day];
-    const daySessions = sessions.filter(s => s.day === day);
     
     timeSlots.forEach((time, timeIndex) => {
-      const row: any[] = [
-        timeIndex === 0 ? dayLabel : '', // Show day only for first time slot
-        time,
-      ];
-      
-      // Check for activities
-      const activity = isTimeInActivityPeriod(time, activities, day);
-      row.push(activity ? activity.name : '');
-      
-      // Check for sessions for each room
+      // Find maximum number of regular sessions for any room in this time slot
+      // Every two weeks sessions go side by side, not in additional rows
+      let maxSessionsInTimeSlot = 1;
       sortedRooms.forEach(room => {
-        const session = daySessions.find(s => 
-          s.roomId === room.id && 
-          s.startTime >= time && 
-          s.startTime < getNextHour(time)
-        );
-        
-        if (session) {
-          const patientNames = session.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
-          const employeeNames = session.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
-          let cellContent = `${session.startTime}-${session.endTime}\n${employeeNames}\n${patientNames}`;
-          if (session.notes && session.notes.trim()) {
-            cellContent += `\nהערות: ${session.notes}`;
-          }
-          row.push(cellContent);
-        } else {
-          row.push('');
+        const roomSessions = findSessionsForRoomInTimeSlot(sessions, room.id, time, day);
+        const regularSessionCount = roomSessions.filter(s => !s.everyTwoWeeks).length;
+        if (regularSessionCount > maxSessionsInTimeSlot) {
+          maxSessionsInTimeSlot = regularSessionCount;
         }
       });
       
-      data.push(row);
+      // Create rows for this time slot (one or more if there are multiple sessions)
+      for (let sessionRowIndex = 0; sessionRowIndex < maxSessionsInTimeSlot; sessionRowIndex++) {
+        const row: any[] = [
+          timeIndex === 0 && sessionRowIndex === 0 ? dayLabel : '', // Show day only for first time slot and first session row
+          sessionRowIndex === 0 ? time : '', // Show time only for first session row
+        ];
+        
+        // Check for activities (only in first session row)
+        const activity = sessionRowIndex === 0 ? isTimeInActivityPeriod(time, activities, day) : null;
+        row.push(activity ? activity.name : '');
+        
+        // Process each room (2 columns per room)
+        sortedRooms.forEach(room => {
+          const roomSessions = findSessionsForRoomInTimeSlot(sessions, room.id, time, day);
+          const regularSessions = roomSessions.filter(s => !s.everyTwoWeeks);
+          const everyTwoWeeksSessions = roomSessions.filter(s => s.everyTwoWeeks);
+          
+          // Handle every two weeks sessions only in the first row
+          if (sessionRowIndex === 0 && everyTwoWeeksSessions.length > 0) {
+            // Handle both every two weeks sessions in the first row
+            const firstEveryTwoWeeks = everyTwoWeeksSessions[0];
+            const secondEveryTwoWeeks = everyTwoWeeksSessions[1];
+            
+            // First column
+            if (firstEveryTwoWeeks) {
+              const patientNames = firstEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+              const employeeNames = firstEveryTwoWeeks.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+              let cellContent = `${firstEveryTwoWeeks.startTime}-${firstEveryTwoWeeks.endTime}\n${employeeNames}\n${patientNames}`;
+              if (firstEveryTwoWeeks.notes && firstEveryTwoWeeks.notes.trim()) {
+                cellContent += `\nהערות: ${firstEveryTwoWeeks.notes}`;
+              }
+              row.push(cellContent);
+            } else {
+              row.push('');
+            }
+            
+            // Second column
+            if (secondEveryTwoWeeks) {
+              const patientNames = secondEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+              const employeeNames = secondEveryTwoWeeks.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+              let cellContent = `${secondEveryTwoWeeks.startTime}-${secondEveryTwoWeeks.endTime}\n${employeeNames}\n${patientNames}`;
+              if (secondEveryTwoWeeks.notes && secondEveryTwoWeeks.notes.trim()) {
+                cellContent += `\nהערות: ${secondEveryTwoWeeks.notes}`;
+              }
+              row.push(cellContent);
+            } else {
+              row.push('');
+            }
+            
+            return; // Skip regular session handling for this room
+          }
+          
+          // Handle regular sessions
+          const currentSession = regularSessions[sessionRowIndex];
+          
+          if (currentSession) {
+            const patientNames = currentSession.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
+            const employeeNames = currentSession.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
+            let cellContent = `${currentSession.startTime}-${currentSession.endTime}\n${employeeNames}\n${patientNames}`;
+            if (currentSession.notes && currentSession.notes.trim()) {
+              cellContent += `\nהערות: ${currentSession.notes}`;
+            }
+            
+            // Regular sessions span both columns
+            row.push(cellContent); // First column
+            row.push(''); // Second column will be merged
+          } else {
+            // Empty cells for additional session rows when this room has no more sessions
+            row.push(''); // First column
+            row.push(''); // Second column
+          }
+        });
+        
+        data.push(row);
+      }
     });
   });
 
@@ -313,21 +501,58 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
     currentRow = endRow + 1;
   });
   
-  // Apply room colors to their columns
+  // Merge headers for room names (span across 2 columns)
+  if (!ws['!merges']) ws['!merges'] = [];
   sortedRooms.forEach((room, roomIndex) => {
-    const colIndex = 3 + roomIndex; // Start after יום, שעה, פעילויות columns
+    const startCol = 3 + (roomIndex * 2); // Start after יום, שעה, פעילויות columns
+    const endCol = startCol + 1;
+    ws['!merges']!.push({
+      s: { r: 0, c: startCol },
+      e: { r: 0, c: endCol }
+    });
+  });
+
+  // Apply room colors to their columns and merge regular sessions
+  sortedRooms.forEach((room, roomIndex) => {
+    const firstColIndex = 3 + (roomIndex * 2); // Start after יום, שעה, פעילויות columns
+    const secondColIndex = firstColIndex + 1;
     
     for (let row = 1; row <= range.e.r; row++) {
-      const cellRef = XLSX.utils.encode_cell({ r: row, c: colIndex });
-      if (ws[cellRef] && ws[cellRef].v && ws[cellRef].v !== '') {
-        if (!ws[cellRef].s) ws[cellRef].s = {};
+      const firstCellRef = XLSX.utils.encode_cell({ r: row, c: firstColIndex });
+      const secondCellRef = XLSX.utils.encode_cell({ r: row, c: secondColIndex });
+      
+      // Check if first cell has content
+      if (ws[firstCellRef] && ws[firstCellRef].v && ws[firstCellRef].v !== '') {
+        // Check if second cell is empty (indicating a regular session that should span both columns)
+        if (!ws[secondCellRef] || !ws[secondCellRef].v || ws[secondCellRef].v === '') {
+          // Merge cells for regular sessions
+          ws['!merges']!.push({
+            s: { r: row, c: firstColIndex },
+            e: { r: row, c: secondColIndex }
+          });
+        }
+        
+        // Apply styling to first cell
+        if (!ws[firstCellRef].s) ws[firstCellRef].s = {};
         const textColor = getContrastingTextColor(room.color);
-        ws[cellRef].s.fill = { 
+        ws[firstCellRef].s.fill = { 
           patternType: 'solid',
           fgColor: { rgb: hexToExcelColor(room.color) }
         };
-        ws[cellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
-        ws[cellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
+        ws[firstCellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+        ws[firstCellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
+      }
+      
+      // Apply styling to second cell if it has content (every two weeks sessions)
+      if (ws[secondCellRef] && ws[secondCellRef].v && ws[secondCellRef].v !== '') {
+        if (!ws[secondCellRef].s) ws[secondCellRef].s = {};
+        const textColor = getContrastingTextColor(room.color);
+        ws[secondCellRef].s.fill = { 
+          patternType: 'solid',
+          fgColor: { rgb: hexToExcelColor(room.color) }
+        };
+        ws[secondCellRef].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'right' };
+        ws[secondCellRef].s.font = { color: { rgb: textColor === 'white' ? 'FFFFFF' : '000000' } };
       }
     }
   });
@@ -339,7 +564,8 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
     { width: 15 }  // פעילויות column
   ];
   sortedRooms.forEach(() => {
-    colWidths.push({ width: 20 }); // Room columns
+    colWidths.push({ width: 15 }); // Room first column
+    colWidths.push({ width: 15 }); // Room second column
   });
   
   ws['!cols'] = colWidths;

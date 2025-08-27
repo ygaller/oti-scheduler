@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Box, 
   Typography, 
   Tooltip,
-  Paper
+  Paper,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { 
   Employee, 
@@ -32,6 +34,7 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
   onSelectSlot,
   onSelectEvent,
 }) => {
+  const [selectedDay, setSelectedDay] = useState<WeekDay>(WEEK_DAYS[0]);
 
   // Generate time slots for grid display (15-minute intervals)
   const generateTimeSlots = () => {
@@ -67,6 +70,12 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
     return durationMinutes * PIXELS_PER_MINUTE;
   };
 
+  // Helper function to convert time string to minutes
+  const timeToMinutes = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
   // Get sessions for a specific day
   const getSessionsForDay = (day: WeekDay) => {
     if (!schedule) return [];
@@ -75,144 +84,75 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   };
 
-  // Helper function to convert time to minutes
-  const timeToMinutes = (timeStr: string) => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
-
   // Get activity time for a specific day
   const getActivityTimeForDay = (activity: Activity, day: WeekDay) => {
-    if (activity.dayOverrides && activity.dayOverrides[day]) {
-      return activity.dayOverrides[day];
-    }
-    if (activity.defaultStartTime && activity.defaultEndTime) {
+    // First check if there's a day-specific override
+    const dayOverride = activity.dayOverrides?.[day];
+    if (dayOverride) {
       return {
-        startTime: activity.defaultStartTime,
-        endTime: activity.defaultEndTime
+        startTime: dayOverride.startTime,
+        endTime: dayOverride.endTime
       };
     }
-    return null;
+    
+    // Fall back to default times
+    return {
+      startTime: activity.defaultStartTime,
+      endTime: activity.defaultEndTime
+    };
   };
 
-  // Check if time is within activity range
-  const isTimeInRange = (time: string, startTime: string, endTime: string) => {
-    const timeMinutes = timeToMinutes(time);
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = timeToMinutes(endTime);
-    return timeMinutes >= startMinutes && timeMinutes < endMinutes;
-  };
-
-  // Get reserved slot info for activities
+  // Get reserved slot for a specific time and day
   const getReservedSlot = (time: string, day: WeekDay) => {
-    for (const activity of activities) {
-      const timeRange = getActivityTimeForDay(activity, day);
-      if (timeRange && isTimeInRange(time, timeRange.startTime, timeRange.endTime)) {
-        return {
-          label: activity.name,
-          color: activity.color,
-          isBlocking: activity.isBlocking,
-          isStartTime: time === timeRange.startTime
-        };
-      }
-    }
-    return null;
+    const activity = activities.find(activity => {
+      const activityTime = getActivityTimeForDay(activity, day);
+      if (!activityTime.startTime || !activityTime.endTime) return false;
+      
+      return time >= activityTime.startTime && time < activityTime.endTime;
+    });
+    
+    return activity;
   };
 
-  // Get active rooms (similar to employees for day filtering)
+  // Get active rooms (rooms that have sessions or working hours)
   const getActiveRooms = () => {
-    return rooms
-      .filter(room => room.isActive)
-      .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    return rooms.filter(room => room.isActive !== false);
   };
 
   // Handle slot click
   const handleSlotClick = (day: WeekDay, time: string, roomId: string) => {
-    const room = rooms.find(r => r.id === roomId);
-    if (!room) return;
-
-    // Create a date for the correct day of the week
-    const today = new Date();
-    const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const [hours, minutes] = time.split(':').map(Number);
+    const startDate = new Date();
     
-    // Map our WeekDay type to JavaScript's day numbers
+    // Map day to number (0 = Sunday)
     const dayMap: Record<WeekDay, number> = {
-      'sunday': 0,
-      'monday': 1, 
-      'tuesday': 2,
-      'wednesday': 3,
-      'thursday': 4,
+      sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4
     };
     
-    const targetDayOfWeek = dayMap[day];
-    const dayDifference = targetDayOfWeek - currentDayOfWeek;
+    startDate.setDate(startDate.getDate() - startDate.getDay() + dayMap[day]);
+    startDate.setHours(hours, minutes, 0, 0);
     
-    // Create the date for the clicked day
-    const [hours, minutes] = time.split(':').map(Number);
-    const start = new Date(today);
-    start.setDate(today.getDate() + dayDifference);
-    start.setHours(hours, minutes, 0, 0);
-    const end = new Date(start);
-    end.setMinutes(end.getMinutes() + 15); // Placeholder end time for interface
-
+    const endDate = new Date(startDate);
+    endDate.setMinutes(endDate.getMinutes() + 15);
+    
     onSelectSlot({
-      start,
-      end,
+      start: startDate,
+      end: endDate,
       resourceId: roomId
     });
   };
 
-  // Helper function to check if two time ranges overlap
-  const timesOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
-    const timeToMinutes = (timeStr: string) => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
-    
-    const start1Min = timeToMinutes(start1);
-    const end1Min = timeToMinutes(end1);
-    const start2Min = timeToMinutes(start2);
-    const end2Min = timeToMinutes(end2);
-    
-    return start1Min < end2Min && start2Min < end1Min;
-  };
-
-  // Helper function to calculate left position for overlapping every-two-weeks sessions
-  const calculateSessionLeftPosition = (session: Session, roomSessions: Session[]) => {
-    if (!session.everyTwoWeeks) return '1px';
-    
-    // Find other every-two-weeks sessions that overlap with this session
-    const overlappingSessions = roomSessions.filter(s => 
-      s.id !== session.id &&
-      s.everyTwoWeeks &&
-      timesOverlap(session.startTime, session.endTime, s.startTime, s.endTime)
-    );
-    
-    if (overlappingSessions.length === 0) return '1px';
-    
-    // Sort overlapping sessions by ID to ensure consistent positioning
-    const allOverlappingSessions = [session, ...overlappingSessions].sort((a, b) => a.id.localeCompare(b.id));
-    const sessionIndex = allOverlappingSessions.findIndex(s => s.id === session.id);
-    
-    // Position sessions side by side (each takes 50% width)
-    return sessionIndex === 0 ? '1px' : '50%';
-  };
-
-  // Render session with exact positioning
   const renderSessionInSlot = (session: Session, day: WeekDay, roomId: string) => {
     const topPosition = getPixelPositionFromTime(session.startTime);
     const height = getPixelHeightFromDuration(session.startTime, session.endTime);
     
-    // Get all sessions for this room to calculate positioning
-    const roomSessions = getSessionsForDay(day).filter(s => s.roomId === roomId);
-    const leftPosition = calculateSessionLeftPosition(session, roomSessions);
-    
-    const room = rooms.find(r => r.id === session.roomId);
-    
-    // Get primary employee for display and color
-    const primaryEmployee = employees.find(e => session.employeeIds.includes(e.id));
-    const backgroundColor = primaryEmployee?.color || '#845ec2';
+    const room = rooms.find(r => r.id === roomId);
+    const backgroundColor = room?.color || '#845ec2';
     const textColor = getContrastingTextColor(backgroundColor);
+    
+    const primaryEmployee = employees.find(e => session.employeeIds.includes(e.id));
+    
+    const leftPosition = session.everyTwoWeeks ? (session.startTime.localeCompare('12:00') < 0 ? '1px' : '50%') : '1px';
 
     const tooltipContent = (
       <Box>
@@ -222,16 +162,6 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
         <Typography variant="body2" gutterBottom>
           <strong>חדר:</strong> {room?.name || 'לא ידוע'}
         </Typography>
-        {primaryEmployee && (
-          <Typography variant="body2" gutterBottom>
-            <strong>מטפל ראשי:</strong> {primaryEmployee.firstName} {primaryEmployee.lastName}
-          </Typography>
-        )}
-        {session.employeeIds && session.employeeIds.length > 1 && (
-          <Typography variant="body2" gutterBottom>
-            <strong>מטפלים נוספים:</strong> +{session.employeeIds.length - 1} מטפלים נוספים
-          </Typography>
-        )}
         {session.patients && session.patients.length > 0 ? (
           <Typography variant="body2" gutterBottom>
             <strong>מטופלים:</strong> {session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
@@ -239,6 +169,14 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
         ) : (
           <Typography variant="body2" color="error" gutterBottom>
             <strong>מטופלים:</strong> חסר מטופל
+          </Typography>
+        )}
+        {session.employeeIds && session.employeeIds.length > 0 && (
+          <Typography variant="body2" gutterBottom>
+            <strong>מטפלים:</strong> {session.employeeIds.map(id => {
+              const emp = employees.find(e => e.id === id);
+              return emp ? `${emp.firstName} ${emp.lastName}` : 'לא ידוע';
+            }).join(', ')}
           </Typography>
         )}
         {session.notes && (
@@ -295,195 +233,191 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
     );
   };
 
-  const activeRooms = getActiveRooms();
+  // Helper function to render day content
+  const renderDayContent = (day: WeekDay) => {
+    const daySessions = getSessionsForDay(day);
+    const activeRooms = getActiveRooms();
+    
+    if (activeRooms.length === 0) {
+      return (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '200px',
+          color: 'text.secondary'
+        }}>
+          <Typography variant="h6">
+            אין חדרים פעילים ביום {DAY_LABELS[day]}
+          </Typography>
+        </Box>
+      );
+    }
 
-  return (
-    <Box sx={{ 
-      width: '100%', 
-      overflowX: 'auto',
-      display: 'flex',
-      gap: 2,
-      pb: 2,
-      '&::-webkit-scrollbar': {
-        height: 8,
-      },
-      '&::-webkit-scrollbar-track': {
-        backgroundColor: 'grey.200',
-        borderRadius: 4,
-      },
-      '&::-webkit-scrollbar-thumb': {
-        backgroundColor: 'grey.400',
-        borderRadius: 4,
-        '&:hover': {
-          backgroundColor: 'grey.500',
-        },
-      },
-    }}>
-      {WEEK_DAYS.map(day => {
-        const daySessions = getSessionsForDay(day);
-        
-        if (activeRooms.length === 0) return null;
-
-        return (
-          <Paper key={day} sx={{ 
-            minWidth: '600px',
-            flexShrink: 0
-          }}>
-            {/* Day Header */}
-            <Box sx={{ 
-              backgroundColor: 'primary.main', 
-              color: 'white', 
-              p: 1, 
-              textAlign: 'center',
-              fontWeight: 'bold'
-            }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                {DAY_LABELS[day]}
+    return (
+      <Paper sx={{ 
+        width: '100%',
+        minHeight: '500px'
+      }}>
+        {/* Rooms Grid */}
+        <Box sx={{ display: 'flex' }}>
+          {/* Time Column */}
+          <Box sx={{ width: '60px', borderRight: '1px solid #e0e0e0' }}>
+            <Box sx={{ height: '40px', borderBottom: '1px solid #e0e0e0', p: 0.5 }}>
+              <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                שעה
               </Typography>
             </Box>
-
-            {/* Rooms Grid */}
-            <Box sx={{ display: 'flex' }}>
-              {/* Time Column */}
-              <Box sx={{ width: '60px', borderRight: '1px solid #e0e0e0' }}>
-                <Box sx={{ height: '40px', borderBottom: '1px solid #e0e0e0', p: 0.5 }}>
-                  <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
-                    שעה
-                  </Typography>
-                </Box>
-                <Box>
-                  {timeSlots.map((time, index) => {
-                    const isHourMark = time.endsWith(':00');
-                    return (
-                      <Box
-                        key={time}
-                        sx={{
-                          height: '20px',
-                          borderBottom: '1px solid #f0f0f0',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: isHourMark ? '#f5f5f5' : 'transparent',
-                          fontWeight: isHourMark ? 'bold' : 'normal'
-                        }}
-                      >
-                        <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                          {isHourMark ? time : ''}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              </Box>
-
-              {/* Activities Column */}
-              <Box sx={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
-                <Box sx={{ 
-                  height: '40px', 
-                  borderBottom: '1px solid #e0e0e0', 
-                  p: 0.5,
-                  textAlign: 'center',
-                  backgroundColor: 'grey.100'
-                }}>
-                  <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
-                    פעילויות
-                  </Typography>
-                </Box>
-                <Box>
-                  {timeSlots.map((time, index) => {
-                    const reservedSlot = getReservedSlot(time, day);
-                    return (
-                      <Box
-                        key={time}
-                        sx={{
-                          height: '20px',
-                          borderBottom: '1px solid #f0f0f0',
-                          backgroundColor: reservedSlot ? reservedSlot.color + '30' : 'grey.50',
-                          textAlign: 'center',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: reservedSlot ? 'text.primary' : 'text.secondary',
-                          fontWeight: reservedSlot ? 'bold' : 'normal',
-                          direction: 'rtl' // Reset direction for content
-                        }}
-                      >
-                        <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                          {reservedSlot?.isStartTime ? reservedSlot.label : ''}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              </Box>
-
-              {/* Room Columns */}
-              {activeRooms.map(room => (
-                <Box key={room.id} sx={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
-                  {/* Room Header */}
-                  <Box sx={{ 
-                    height: '40px', 
-                    borderBottom: '1px solid #e0e0e0', 
-                    p: 0.5,
-                    textAlign: 'center'
-                  }}>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
-                      {room.name}
+            <Box>
+              {timeSlots.map((time, index) => {
+                const isHourMark = time.endsWith(':00');
+                return (
+                  <Box
+                    key={time}
+                    sx={{
+                      height: '20px',
+                      borderBottom: '1px solid #f0f0f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isHourMark ? '#f5f5f5' : 'transparent',
+                      fontWeight: isHourMark ? 'bold' : 'normal'
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
+                      {isHourMark ? time : ''}
                     </Typography>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        backgroundColor: room.color,
-                        borderRadius: '50%',
-                        border: 1,
-                        borderColor: 'grey.300',
-                        mx: 'auto',
-                        mt: 0.5
-                      }}
-                    />
                   </Box>
-
-                  {/* Time Slots */}
-                  <Box sx={{ position: 'relative' }}>
-                    {timeSlots.map(time => {
-                      const backgroundColor = 'transparent';
-                      const cursor = 'pointer';
-                      const hoverColor = '#f0f0f0';
-
-                      return (
-                        <Box
-                          key={time}
-                          sx={{
-                            height: '20px',
-                            borderBottom: '1px solid #f0f0f0',
-                            backgroundColor,
-                            cursor,
-                            position: 'relative',
-                            '&:hover': {
-                              backgroundColor: hoverColor,
-                            }
-                          }}
-                          onClick={() => handleSlotClick(day, time, room.id)}
-                        />
-                      );
-                    })}
-                    
-                    {/* Render all sessions for this room on this day with absolute positioning */}
-                    {daySessions
-                      .filter(s => s.roomId === room.id)
-                      .map(session => renderSessionInSlot(session, day, room.id))
-                    }
-                  </Box>
-                </Box>
-              ))}
+                );
+              })}
             </Box>
-          </Paper>
-        );
-      })}
+          </Box>
+
+          {/* Activities Column */}
+          <Box sx={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
+            <Box sx={{ 
+              height: '40px', 
+              borderBottom: '1px solid #e0e0e0', 
+              p: 0.5,
+              textAlign: 'center',
+              backgroundColor: 'grey.100'
+            }}>
+              <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                פעילויות
+              </Typography>
+            </Box>
+            <Box>
+              {timeSlots.map((time, index) => {
+                const reservedSlot = getReservedSlot(time, day);
+                return (
+                  <Box
+                    key={time}
+                    sx={{
+                      height: '20px',
+                      borderBottom: '1px solid #f0f0f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: reservedSlot ? reservedSlot.color : 'transparent',
+                      fontSize: '0.65rem',
+                      color: reservedSlot ? getContrastingTextColor(reservedSlot.color) : 'text.secondary'
+                    }}
+                  >
+                    {reservedSlot && (
+                      <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
+                        {reservedSlot.name}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+
+          {/* Room Columns */}
+          {activeRooms.map(room => (
+            <Box key={room.id} sx={{ flex: 1, borderRight: '1px solid #e0e0e0' }}>
+              {/* Room Header */}
+              <Box sx={{ 
+                height: '40px', 
+                borderBottom: '1px solid #e0e0e0', 
+                p: 0.5,
+                textAlign: 'center',
+                backgroundColor: room.color || 'grey.100',
+                color: room.color ? getContrastingTextColor(room.color) : 'inherit'
+              }}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                  {room.name}
+                </Typography>
+              </Box>
+              
+              {/* Room Time Grid - relative positioning container */}
+              <Box sx={{ position: 'relative', height: `${timeSlots.length * 20}px` }}>
+                {timeSlots.map((time, index) => {
+                  return (
+                    <Box
+                      key={time}
+                      sx={{
+                        height: '20px',
+                        borderBottom: '1px solid #f0f0f0',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        '&:hover': {
+                          backgroundColor: '#e3f2fd'
+                        },
+                        position: 'relative'
+                      }}
+                      onClick={() => {
+                        handleSlotClick(day, time, room.id);
+                      }}
+                    >
+                    </Box>
+                  );
+                })}
+                
+                {/* Render all sessions for this room on this day with absolute positioning */}
+                {daySessions
+                  .filter(s => s.roomId === room.id)
+                  .map(session => renderSessionInSlot(session, day, room.id))
+                }
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </Paper>
+    );
+  };
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      {/* Day Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs
+          value={selectedDay}
+          onChange={(event, newValue) => setSelectedDay(newValue)}
+          aria-label="day tabs"
+          variant="fullWidth"
+        >
+          {WEEK_DAYS.map(day => (
+            <Tab
+              key={day}
+              label={DAY_LABELS[day]}
+              value={day}
+              sx={{
+                fontWeight: selectedDay === day ? 'bold' : 'normal'
+              }}
+            />
+          ))}
+        </Tabs>
+      </Box>
+
+      {/* Selected Day Content */}
+      {renderDayContent(selectedDay)}
     </Box>
   );
 };
 
 export default RoomBigCalendarView;
-

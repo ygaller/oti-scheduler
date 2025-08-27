@@ -47,6 +47,7 @@ interface Session {
   roomId: string;
   patients: Patient[];
   notes?: string;
+  everyTwoWeeks?: boolean;
 }
 
 interface Activity {
@@ -157,6 +158,43 @@ class GoogleSheetsService {
   }
 
   /**
+   * Helper function to find all sessions for an employee in a time slot
+   */
+  private findSessionsForEmployeeInTimeSlot(
+    sessions: Session[], 
+    employeeId: string, 
+    time: string, 
+    day: WeekDay
+  ): Session[] {
+    const nextHour = this.getNextHour(time);
+    return sessions.filter((s: Session) => 
+      s.day === day &&
+      s.employeeIds && 
+      s.employeeIds.includes(employeeId) && 
+      s.startTime >= time && 
+      s.startTime < nextHour
+    ).sort((a: Session, b: Session) => a.startTime.localeCompare(b.startTime));
+  }
+
+  /**
+   * Helper function to find all sessions for a room in a time slot
+   */
+  private findSessionsForRoomInTimeSlot(
+    sessions: Session[], 
+    roomId: string, 
+    time: string, 
+    day: WeekDay
+  ): Session[] {
+    const nextHour = this.getNextHour(time);
+    return sessions.filter((s: Session) => 
+      s.day === day &&
+      s.roomId === roomId && 
+      s.startTime >= time && 
+      s.startTime < nextHour
+    ).sort((a: Session, b: Session) => a.startTime.localeCompare(b.startTime));
+  }
+
+  /**
    * Get role name for display
    */
   private getRoleName(role: string, roleId: string): string {
@@ -196,10 +234,11 @@ class GoogleSheetsService {
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
     );
 
-    // Create headers: יום, שעה, פעילויות, then employee columns
+    // Create headers: יום, שעה, פעילויות, then employee columns (2 columns per employee)
     const headers: any[] = ['יום', 'שעה', 'פעילויות'];
     sortedEmployees.forEach((employee: Employee) => {
       headers.push(String(`${String(employee.firstName || '')} ${String(employee.lastName || '')}`));
+      headers.push(''); // Second column for the employee (will be merged with first)
     });
     
     const data: any[][] = [headers];
@@ -207,55 +246,124 @@ class GoogleSheetsService {
     // Create data rows for each day and time slot
     WEEK_DAYS.forEach((day: WeekDay) => {
       const dayLabel = DAY_LABELS[day];
-      const daySessions = sessions.filter((s: Session) => s.day === day);
       
       timeSlots.forEach((time, timeIndex) => {
-        const row: any[] = [
-          timeIndex === 0 ? String(dayLabel) : '', // Show day only for first time slot
-          String(time),
-        ];
-        
-        // Check for activities
-        const activity = this.isTimeInActivityPeriod(time, activities, day);
-        row.push(activity ? String(activity.name || '') : '');
-        
-        // Check for sessions for each employee
+        // Find maximum number of regular sessions for any employee in this time slot
+        // Every two weeks sessions go side by side, not in additional rows
+        let maxSessionsInTimeSlot = 1;
         sortedEmployees.forEach((employee: Employee) => {
-          const session = daySessions.find((s: Session) => 
-            s.employeeIds && s.employeeIds.includes(employee.id) && 
-            s.startTime >= time && 
-            s.startTime < this.getNextHour(time)
-          );
-          
-          if (session) {
-            const room = options.rooms.find((r: Room) => r.id === session.roomId);
-            const patientNames = session.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
-            const employeeNames = session.employeeIds?.map((id: string) => {
-              const emp = options.employees.find((e: Employee) => e.id === id);
-              return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
-            }).filter(Boolean).join(', ') || 'לא ידוע';
-            
-            let cellContent = `${String(session.startTime || '')}-${String(session.endTime || '')}\n${String(room?.name || 'לא ידוע')}\n${employeeNames}\n${patientNames}`;
-            if (session.notes && String(session.notes).trim()) {
-              cellContent += `\nהערות: ${String(session.notes)}`;
-            }
-            row.push(String(cellContent));
-          } else {
-            // Check for reserved hours if no session
-            const reservedHour = employee.reservedHours?.find((rh: any) => 
-              rh.day === day && 
-              rh.startTime >= time && 
-              rh.startTime < this.getNextHour(time)
-            );
-            if (reservedHour) {
-              row.push(String(`${String(reservedHour.startTime || '')}-${String(reservedHour.endTime || '')}\nשעות שמורות\n${String(reservedHour.notes || 'ללא הערות')}`));
-            } else {
-              row.push('');
-            }
+          const employeeSessions = this.findSessionsForEmployeeInTimeSlot(sessions, employee.id, time, day);
+          const regularSessionCount = employeeSessions.filter((s: Session) => !s.everyTwoWeeks).length;
+          if (regularSessionCount > maxSessionsInTimeSlot) {
+            maxSessionsInTimeSlot = regularSessionCount;
           }
         });
         
-        data.push(row);
+        // Create rows for this time slot (one or more if there are multiple sessions)
+        for (let sessionRowIndex = 0; sessionRowIndex < maxSessionsInTimeSlot; sessionRowIndex++) {
+          const row: any[] = [
+            timeIndex === 0 && sessionRowIndex === 0 ? String(dayLabel) : '', // Show day only for first time slot and first session row
+            sessionRowIndex === 0 ? String(time) : '', // Show time only for first session row
+          ];
+          
+          // Check for activities (only in first session row)
+          const activity = sessionRowIndex === 0 ? this.isTimeInActivityPeriod(time, activities, day) : null;
+          row.push(activity ? String(activity.name || '') : '');
+          
+          // Process each employee (2 columns per employee)
+          sortedEmployees.forEach((employee: Employee) => {
+            const employeeSessions = this.findSessionsForEmployeeInTimeSlot(sessions, employee.id, time, day);
+            const regularSessions = employeeSessions.filter((s: Session) => !s.everyTwoWeeks);
+            const everyTwoWeeksSessions = employeeSessions.filter((s: Session) => s.everyTwoWeeks);
+            
+            // Handle every two weeks sessions only in the first row
+            if (sessionRowIndex === 0 && everyTwoWeeksSessions.length > 0) {
+              // Handle both every two weeks sessions in the first row
+              const firstEveryTwoWeeks = everyTwoWeeksSessions[0];
+              const secondEveryTwoWeeks = everyTwoWeeksSessions[1];
+              
+              // First column
+              if (firstEveryTwoWeeks) {
+                const room = options.rooms.find((r: Room) => r.id === firstEveryTwoWeeks.roomId);
+                const patientNames = firstEveryTwoWeeks.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
+                const employeeNames = firstEveryTwoWeeks.employeeIds?.map((id: string) => {
+                  const emp = options.employees.find((e: Employee) => e.id === id);
+                  return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+                }).filter(Boolean).join(', ') || 'לא ידוע';
+                
+                let cellContent = `${String(firstEveryTwoWeeks.startTime || '')}-${String(firstEveryTwoWeeks.endTime || '')}\n${String(room?.name || 'לא ידוע')}\n${employeeNames}\n${patientNames}`;
+                if (firstEveryTwoWeeks.notes && String(firstEveryTwoWeeks.notes).trim()) {
+                  cellContent += `\nהערות: ${String(firstEveryTwoWeeks.notes)}`;
+                }
+                row.push(String(cellContent));
+              } else {
+                row.push('');
+              }
+              
+              // Second column
+              if (secondEveryTwoWeeks) {
+                const room = options.rooms.find((r: Room) => r.id === secondEveryTwoWeeks.roomId);
+                const patientNames = secondEveryTwoWeeks.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
+                const employeeNames = secondEveryTwoWeeks.employeeIds?.map((id: string) => {
+                  const emp = options.employees.find((e: Employee) => e.id === id);
+                  return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+                }).filter(Boolean).join(', ') || 'לא ידוע';
+                
+                let cellContent = `${String(secondEveryTwoWeeks.startTime || '')}-${String(secondEveryTwoWeeks.endTime || '')}\n${String(room?.name || 'לא ידוע')}\n${employeeNames}\n${patientNames}`;
+                if (secondEveryTwoWeeks.notes && String(secondEveryTwoWeeks.notes).trim()) {
+                  cellContent += `\nהערות: ${String(secondEveryTwoWeeks.notes)}`;
+                }
+                row.push(String(cellContent));
+              } else {
+                row.push('');
+              }
+              
+              return; // Skip regular session handling for this employee
+            }
+            
+            // Handle regular sessions
+            const currentSession = regularSessions[sessionRowIndex];
+            
+            if (currentSession) {
+              const room = options.rooms.find((r: Room) => r.id === currentSession.roomId);
+              const patientNames = currentSession.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
+              const employeeNames = currentSession.employeeIds?.map((id: string) => {
+                const emp = options.employees.find((e: Employee) => e.id === id);
+                return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+              }).filter(Boolean).join(', ') || 'לא ידוע';
+              
+              let cellContent = `${String(currentSession.startTime || '')}-${String(currentSession.endTime || '')}\n${String(room?.name || 'לא ידוע')}\n${employeeNames}\n${patientNames}`;
+              if (currentSession.notes && String(currentSession.notes).trim()) {
+                cellContent += `\nהערות: ${String(currentSession.notes)}`;
+              }
+              
+              // Regular sessions span both columns
+              row.push(String(cellContent)); // First column
+              row.push(''); // Second column will be merged
+            } else if (sessionRowIndex === 0) {
+              // Check for reserved hours if no session (only in first session row)
+              const reservedHour = employee.reservedHours?.find((rh: any) => 
+                rh.day === day && 
+                rh.startTime >= time && 
+                rh.startTime < this.getNextHour(time)
+              );
+              if (reservedHour) {
+                const reservedContent = `${String(reservedHour.startTime || '')}-${String(reservedHour.endTime || '')}\nשעות שמורות\n${String(reservedHour.notes || 'ללא הערות')}`;
+                row.push(String(reservedContent)); // First column
+                row.push(''); // Second column will be merged
+              } else {
+                row.push(''); // First column
+                row.push(''); // Second column
+              }
+            } else {
+              // Empty cells for additional session rows when this employee has no more sessions
+              row.push(''); // First column
+              row.push(''); // Second column
+            }
+          });
+          
+          data.push(row);
+        }
       });
     });
 
@@ -270,10 +378,11 @@ class GoogleSheetsService {
     const timeSlots = this.generateTimeSlots();
     const sortedRooms = [...rooms].filter((r: Room) => r.isActive).sort((a: Room, b: Room) => a.name.localeCompare(b.name, 'he'));
 
-    // Create headers: יום, שעה, פעילויות, then room columns
+    // Create headers: יום, שעה, פעילויות, then room columns (2 columns per room)
     const headers: any[] = ['יום', 'שעה', 'פעילויות'];
     sortedRooms.forEach((room: Room) => {
       headers.push(String(room.name || ''));
+      headers.push(''); // Second column for the room (will be merged with first)
     });
     
     const data: any[][] = [headers];
@@ -281,44 +390,106 @@ class GoogleSheetsService {
     // Create data rows for each day and time slot
     WEEK_DAYS.forEach((day: WeekDay) => {
       const dayLabel = DAY_LABELS[day];
-      const daySessions = sessions.filter((s: Session) => s.day === day);
       
       timeSlots.forEach((time, timeIndex) => {
-        const row: any[] = [
-          timeIndex === 0 ? String(dayLabel) : '', // Show day only for first time slot
-          String(time),
-        ];
-        
-        // Check for activities
-        const activity = this.isTimeInActivityPeriod(time, activities, day);
-        row.push(activity ? String(activity.name || '') : '');
-        
-        // Check for sessions for each room
+        // Find maximum number of regular sessions for any room in this time slot
+        // Every two weeks sessions go side by side, not in additional rows
+        let maxSessionsInTimeSlot = 1;
         sortedRooms.forEach((room: Room) => {
-          const session = daySessions.find((s: Session) => 
-            s.roomId === room.id && 
-            s.startTime >= time && 
-            s.startTime < this.getNextHour(time)
-          );
-          
-          if (session) {
-            const patientNames = session.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
-            const employeeNames = session.employeeIds?.map((id: string) => {
-              const emp = employees.find((e: Employee) => e.id === id);
-              return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
-            }).filter(Boolean).join(', ') || 'לא ידוע';
-            
-            let cellContent = `${String(session.startTime || '')}-${String(session.endTime || '')}\n${employeeNames}\n${patientNames}`;
-            if (session.notes && String(session.notes).trim()) {
-              cellContent += `\nהערות: ${String(session.notes)}`;
-            }
-            row.push(String(cellContent));
-          } else {
-            row.push('');
+          const roomSessions = this.findSessionsForRoomInTimeSlot(sessions, room.id, time, day);
+          const regularSessionCount = roomSessions.filter((s: Session) => !s.everyTwoWeeks).length;
+          if (regularSessionCount > maxSessionsInTimeSlot) {
+            maxSessionsInTimeSlot = regularSessionCount;
           }
         });
         
-        data.push(row);
+        // Create rows for this time slot (one or more if there are multiple sessions)
+        for (let sessionRowIndex = 0; sessionRowIndex < maxSessionsInTimeSlot; sessionRowIndex++) {
+          const row: any[] = [
+            timeIndex === 0 && sessionRowIndex === 0 ? String(dayLabel) : '', // Show day only for first time slot and first session row
+            sessionRowIndex === 0 ? String(time) : '', // Show time only for first session row
+          ];
+          
+          // Check for activities (only in first session row)
+          const activity = sessionRowIndex === 0 ? this.isTimeInActivityPeriod(time, activities, day) : null;
+          row.push(activity ? String(activity.name || '') : '');
+          
+          // Process each room (2 columns per room)
+          sortedRooms.forEach((room: Room) => {
+            const roomSessions = this.findSessionsForRoomInTimeSlot(sessions, room.id, time, day);
+            const regularSessions = roomSessions.filter((s: Session) => !s.everyTwoWeeks);
+            const everyTwoWeeksSessions = roomSessions.filter((s: Session) => s.everyTwoWeeks);
+            
+            // Handle every two weeks sessions only in the first row
+            if (sessionRowIndex === 0 && everyTwoWeeksSessions.length > 0) {
+              // Handle both every two weeks sessions in the first row
+              const firstEveryTwoWeeks = everyTwoWeeksSessions[0];
+              const secondEveryTwoWeeks = everyTwoWeeksSessions[1];
+              
+              // First column
+              if (firstEveryTwoWeeks) {
+                const patientNames = firstEveryTwoWeeks.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
+                const employeeNames = firstEveryTwoWeeks.employeeIds?.map((id: string) => {
+                  const emp = employees.find((e: Employee) => e.id === id);
+                  return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+                }).filter(Boolean).join(', ') || 'לא ידוע';
+                
+                let cellContent = `${String(firstEveryTwoWeeks.startTime || '')}-${String(firstEveryTwoWeeks.endTime || '')}\n${employeeNames}\n${patientNames}`;
+                if (firstEveryTwoWeeks.notes && String(firstEveryTwoWeeks.notes).trim()) {
+                  cellContent += `\nהערות: ${String(firstEveryTwoWeeks.notes)}`;
+                }
+                row.push(String(cellContent));
+              } else {
+                row.push('');
+              }
+              
+              // Second column
+              if (secondEveryTwoWeeks) {
+                const patientNames = secondEveryTwoWeeks.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
+                const employeeNames = secondEveryTwoWeeks.employeeIds?.map((id: string) => {
+                  const emp = employees.find((e: Employee) => e.id === id);
+                  return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+                }).filter(Boolean).join(', ') || 'לא ידוע';
+                
+                let cellContent = `${String(secondEveryTwoWeeks.startTime || '')}-${String(secondEveryTwoWeeks.endTime || '')}\n${employeeNames}\n${patientNames}`;
+                if (secondEveryTwoWeeks.notes && String(secondEveryTwoWeeks.notes).trim()) {
+                  cellContent += `\nהערות: ${String(secondEveryTwoWeeks.notes)}`;
+                }
+                row.push(String(cellContent));
+              } else {
+                row.push('');
+              }
+              
+              return; // Skip regular session handling for this room
+            }
+            
+            // Handle regular sessions
+            const currentSession = regularSessions[sessionRowIndex];
+            
+            if (currentSession) {
+              const patientNames = currentSession.patients?.map((p: Patient) => `${String(p.firstName || '')} ${String(p.lastName || '')}`).join(', ') || 'חסר מטופל';
+              const employeeNames = currentSession.employeeIds?.map((id: string) => {
+                const emp = employees.find((e: Employee) => e.id === id);
+                return emp ? `${String(emp.firstName || '')} ${String(emp.lastName || '')}` : '';
+              }).filter(Boolean).join(', ') || 'לא ידוע';
+              
+              let cellContent = `${String(currentSession.startTime || '')}-${String(currentSession.endTime || '')}\n${employeeNames}\n${patientNames}`;
+              if (currentSession.notes && String(currentSession.notes).trim()) {
+                cellContent += `\nהערות: ${String(currentSession.notes)}`;
+              }
+              
+              // Regular sessions span both columns
+              row.push(String(cellContent)); // First column
+              row.push(''); // Second column will be merged
+            } else {
+              // Empty cells for additional session rows when this room has no more sessions
+              row.push(''); // First column
+              row.push(''); // Second column
+            }
+          });
+          
+          data.push(row);
+        }
       });
     });
 
@@ -653,25 +824,91 @@ class GoogleSheetsService {
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
     );
     
-    // Employee schedule structure: יום, שעה, פעילויות, then employee columns
+    // Merge headers for employee names (span across 2 columns)
     sortedEmployees.forEach((employee: Employee, empIndex: number) => {
-      const colIndex = 3 + empIndex; // Start after יום, שעה, פעילויות columns
+      const startCol = 3 + (empIndex * 2); // Start after יום, שעה, פעילויות columns
+      const endCol = startCol + 1;
+      requests.push({
+        mergeCells: {
+          range: {
+            sheetId: sheetId,
+            startRowIndex: 0,
+            endRowIndex: 1,
+            startColumnIndex: startCol,
+            endColumnIndex: endCol + 1
+          },
+          mergeType: 'MERGE_ALL'
+        }
+      });
+    });
+    
+    // Employee schedule structure: יום, שעה, פעילויות, then employee columns (2 per employee)
+    sortedEmployees.forEach((employee: Employee, empIndex: number) => {
+      const firstColIndex = 3 + (empIndex * 2); // Start after יום, שעה, פעילויות columns
+      const secondColIndex = firstColIndex + 1;
       const employeeColor = this.hexToRgb(employee.color);
       const textColor = this.getContrastingTextColor(employee.color);
       
-      // Apply employee color to all data cells in this employee's column (starting from row 1)
+      // Apply employee color to all data cells in this employee's columns (starting from row 1)
       for (let row = 1; row < data.length; row++) {
-        const cellValue = data[row][colIndex];
-        // Only color cells that have content (not empty)
-        if (cellValue && cellValue !== '') {
+        const firstCellValue = data[row][firstColIndex];
+        const secondCellValue = data[row][secondColIndex];
+        
+        // Handle first column
+        if (firstCellValue && firstCellValue !== '') {
+          // Check if second cell is empty (indicating a regular session that should span both columns)
+          if (!secondCellValue || secondCellValue === '') {
+            // Merge cells for regular sessions
+            requests.push({
+              mergeCells: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: row,
+                  endRowIndex: row + 1,
+                  startColumnIndex: firstColIndex,
+                  endColumnIndex: secondColIndex + 1
+                },
+                mergeType: 'MERGE_ALL'
+              }
+            });
+          }
+          
+          // Apply styling to first cell
           requests.push({
             repeatCell: {
               range: {
                 sheetId: sheetId,
                 startRowIndex: row,
                 endRowIndex: row + 1,
-                startColumnIndex: colIndex,
-                endColumnIndex: colIndex + 1
+                startColumnIndex: firstColIndex,
+                endColumnIndex: firstColIndex + 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: employeeColor,
+                  textFormat: {
+                    foregroundColor: textColor
+                  },
+                  wrapStrategy: 'WRAP',
+                  verticalAlignment: 'TOP',
+                  horizontalAlignment: 'RIGHT'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,wrapStrategy,verticalAlignment,horizontalAlignment)'
+            }
+          });
+        }
+        
+        // Handle second column if it has content (every two weeks sessions)
+        if (secondCellValue && secondCellValue !== '') {
+          requests.push({
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: row,
+                endRowIndex: row + 1,
+                startColumnIndex: secondColIndex,
+                endColumnIndex: secondColIndex + 1
               },
               cell: {
                 userEnteredFormat: {
@@ -706,25 +943,91 @@ class GoogleSheetsService {
     const { rooms } = scheduleData;
     const sortedRooms = [...rooms].filter((r: Room) => r.isActive).sort((a: Room, b: Room) => a.name.localeCompare(b.name, 'he'));
     
-    // Room schedule structure: יום, שעה, פעילויות, then room columns
+    // Merge headers for room names (span across 2 columns)
     sortedRooms.forEach((room: Room, roomIndex: number) => {
-      const colIndex = 3 + roomIndex; // Start after יום, שעה, פעילויות columns
+      const startCol = 3 + (roomIndex * 2); // Start after יום, שעה, פעילויות columns
+      const endCol = startCol + 1;
+      requests.push({
+        mergeCells: {
+          range: {
+            sheetId: sheetId,
+            startRowIndex: 0,
+            endRowIndex: 1,
+            startColumnIndex: startCol,
+            endColumnIndex: endCol + 1
+          },
+          mergeType: 'MERGE_ALL'
+        }
+      });
+    });
+    
+    // Room schedule structure: יום, שעה, פעילויות, then room columns (2 per room)
+    sortedRooms.forEach((room: Room, roomIndex: number) => {
+      const firstColIndex = 3 + (roomIndex * 2); // Start after יום, שעה, פעילויות columns
+      const secondColIndex = firstColIndex + 1;
       const roomColor = this.hexToRgb(room.color);
       const textColor = this.getContrastingTextColor(room.color);
       
-      // Apply room color to all data cells in this room's column (starting from row 1)
+      // Apply room color to all data cells in this room's columns (starting from row 1)
       for (let row = 1; row < data.length; row++) {
-        const cellValue = data[row][colIndex];
-        // Only color cells that have content (not empty)
-        if (cellValue && cellValue !== '') {
+        const firstCellValue = data[row][firstColIndex];
+        const secondCellValue = data[row][secondColIndex];
+        
+        // Handle first column
+        if (firstCellValue && firstCellValue !== '') {
+          // Check if second cell is empty (indicating a regular session that should span both columns)
+          if (!secondCellValue || secondCellValue === '') {
+            // Merge cells for regular sessions
+            requests.push({
+              mergeCells: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: row,
+                  endRowIndex: row + 1,
+                  startColumnIndex: firstColIndex,
+                  endColumnIndex: secondColIndex + 1
+                },
+                mergeType: 'MERGE_ALL'
+              }
+            });
+          }
+          
+          // Apply styling to first cell
           requests.push({
             repeatCell: {
               range: {
                 sheetId: sheetId,
                 startRowIndex: row,
                 endRowIndex: row + 1,
-                startColumnIndex: colIndex,
-                endColumnIndex: colIndex + 1
+                startColumnIndex: firstColIndex,
+                endColumnIndex: firstColIndex + 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: roomColor,
+                  textFormat: {
+                    foregroundColor: textColor
+                  },
+                  wrapStrategy: 'WRAP',
+                  verticalAlignment: 'TOP',
+                  horizontalAlignment: 'RIGHT'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,wrapStrategy,verticalAlignment,horizontalAlignment)'
+            }
+          });
+        }
+        
+        // Handle second column if it has content (every two weeks sessions)
+        if (secondCellValue && secondCellValue !== '') {
+          requests.push({
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: row,
+                endRowIndex: row + 1,
+                startColumnIndex: secondColIndex,
+                endColumnIndex: secondColIndex + 1
               },
               cell: {
                 userEnteredFormat: {
