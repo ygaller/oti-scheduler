@@ -182,7 +182,14 @@ export async function validateScheduleConstraintsFractionalAsync(
   roomRepo: any,
   activityRepo: any,
   scheduleId: string
-): Promise<{ isValid: boolean; error?: string }> {
+): Promise<{ 
+  isValid: boolean; 
+  error?: string; 
+  conflictDetails?: {
+    conflictType: 'employee' | 'room' | 'patient';
+    conflictingSessions: any[];
+  }
+}> {
   if (!session.employeeIds || session.employeeIds.length === 0) {
     return { isValid: false, error: 'לפחות עובד אחד חייב להיות משויך לטיפול' };
   }
@@ -212,7 +219,7 @@ export async function validateScheduleConstraintsFractionalAsync(
     };
 
     // Use the fractional validation function
-    const result = validateScheduleConstraintsFractional(
+    const result = validateScheduleConstraintsFractionalWithDetails(
       sessionForValidation,
       allSessions,
       allEmployees,
@@ -222,7 +229,8 @@ export async function validateScheduleConstraintsFractionalAsync(
 
     return {
       isValid: result.valid,
-      error: result.error
+      error: result.error,
+      conflictDetails: result.conflictDetails
     };
   } catch (error) {
     console.error('Error in validateScheduleConstraintsFractionalAsync:', error);
@@ -381,7 +389,7 @@ export interface SessionValidationInput {
 export function validateRoomFractionalAvailability(
   newSession: SessionValidationInput,
   existingSessions: SessionValidationInput[]
-): { valid: boolean; error?: string } {
+): { valid: boolean; error?: string; conflictingSessions?: SessionValidationInput[] } {
   const newSessionCount = getSessionFractionalCount(newSession.everyTwoWeeks || false);
   
   // Filter sessions that overlap with the new session
@@ -398,7 +406,8 @@ export function validateRoomFractionalAvailability(
     if (totalCount > 1) {
       return {
         valid: false,
-        error: `החדר תפוס בזמן זה - סך הטיפולים יעלה על המותר`
+        error: `החדר תפוס בזמן זה - סך הטיפולים יעלה על המותר`,
+        conflictingSessions: [overlappingSession]
       };
     }
   }
@@ -420,7 +429,7 @@ export function validateEmployeeFractionalAvailability(
   existingSessions: SessionValidationInput[],
   employeeId: string,
   employeeName: string
-): { valid: boolean; error?: string } {
+): { valid: boolean; error?: string; conflictingSessions?: SessionValidationInput[] } {
   const newSessionCount = getSessionFractionalCount(newSession.everyTwoWeeks || false);
   
   // Filter sessions that overlap with the new session and include this employee
@@ -437,7 +446,8 @@ export function validateEmployeeFractionalAvailability(
     if (totalCount > 1) {
       return {
         valid: false,
-        error: `העובד ${employeeName} תפוס בזמן זה - סך הטיפולים יעלה על המותר`
+        error: `העובד ${employeeName} תפוס בזמן זה - סך הטיפולים יעלה על המותר`,
+        conflictingSessions: [overlappingSession]
       };
     }
   }
@@ -459,7 +469,7 @@ export function validatePatientFractionalAvailability(
   existingSessions: SessionValidationInput[],
   patientId: string,
   patientName: string
-): { valid: boolean; error?: string } {
+): { valid: boolean; error?: string; conflictingSessions?: SessionValidationInput[] } {
   const newSessionCount = getSessionFractionalCount(newSession.everyTwoWeeks || false);
   
   // Filter sessions that overlap with the new session and include this patient
@@ -476,7 +486,8 @@ export function validatePatientFractionalAvailability(
     if (totalCount > 1) {
       return {
         valid: false,
-        error: `המטופל ${patientName} תפוס בזמן זה - סך הטיפולים יעלה על המותר`
+        error: `המטופל ${patientName} תפוס בזמן זה - סך הטיפולים יעלה על המותר`,
+        conflictingSessions: [overlappingSession]
       };
     }
   }
@@ -604,6 +615,186 @@ export function validateScheduleConstraintsFractional(
 
       if (!patientValidation.valid) {
         return patientValidation;
+      }
+    }
+  }
+
+  // Check for blocking activities (unchanged logic)
+  for (const activity of activities) {
+    if (!activity.isBlocking) continue; // Skip non-blocking activities
+
+    const activityTime = getActivityTimeForDay(activity, session.day);
+    if (!activityTime) continue; // No activity on this day
+
+    // Check if session overlaps with blocking activity
+    if (timesOverlap(session.startTime, session.endTime, activityTime.startTime, activityTime.endTime)) {
+      return { valid: false, error: 'לא ניתן לתזמן טיפול בזמן חסום' };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Enhanced validation function that returns detailed conflict information.
+ * This version includes information about conflicting sessions for better error messages.
+ */
+export function validateScheduleConstraintsFractionalWithDetails(
+  session: Session & { forceCreate?: boolean },
+  allSessions: Session[],
+  employees: Employee[],
+  rooms: Room[],
+  activities: Activity[]
+): { 
+  valid: boolean; 
+  error?: string; 
+  conflictDetails?: {
+    conflictType: 'employee' | 'room' | 'patient';
+    conflictingSessions: any[];
+  }
+} {
+  if (!session.employeeIds || session.employeeIds.length === 0) {
+    return { valid: false, error: 'לפחות עובד אחד חייב להיות משויך לטיפול' };
+  }
+
+  const room = rooms.find(r => r.id === session.roomId);
+  if (!room) return { valid: false, error: 'חדר לא נמצא' };
+
+  // Validate each assigned employee with detailed conflict information
+  for (const employeeId of session.employeeIds) {
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee) return { valid: false, error: `עובד לא נמצא: ${employeeId}` };
+
+    // Check working hours for this employee
+    const workingHours = employee.workingHours[session.day];
+    if (!workingHours) {
+      return { valid: false, error: `העובד ${employee.firstName} ${employee.lastName} לא עובד ביום זה` };
+    }
+
+    if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
+      return { valid: false, error: `הטיפול מחוץ לשעות העבודה של העובד ${employee.firstName} ${employee.lastName}` };
+    }
+
+    // Get employee sessions for fractional validation
+    const employeeSessions = allSessions
+      .filter(s => s.employeeIds && s.employeeIds.includes(employeeId) && s.day === session.day)
+      .map(s => ({
+        id: s.id,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        day: s.day,
+        everyTwoWeeks: s.everyTwoWeeks,
+        employeeIds: s.employeeIds,
+        roomId: s.roomId,
+        employees: s.employees,
+        patients: s.patients
+      }));
+
+    // Use fractional validation for employee conflicts
+    const employeeValidation = validateEmployeeFractionalAvailability(
+      {
+        id: session.id,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        day: session.day,
+        everyTwoWeeks: session.everyTwoWeeks
+      },
+      employeeSessions,
+      employeeId,
+      `${employee.firstName} ${employee.lastName}`
+    );
+
+    if (!employeeValidation.valid) {
+      return {
+        valid: false,
+        error: employeeValidation.error,
+        conflictDetails: {
+          conflictType: 'employee',
+          conflictingSessions: employeeValidation.conflictingSessions || []
+        }
+      };
+    }
+  }
+
+  // Check room conflicts with detailed information
+  const roomSessions = allSessions
+    .filter(s => s.roomId === session.roomId && s.day === session.day)
+    .map(s => ({
+      id: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      day: s.day,
+      everyTwoWeeks: s.everyTwoWeeks,
+      employeeIds: s.employeeIds,
+      roomId: s.roomId,
+      employees: s.employees,
+      patients: s.patients
+    }));
+
+  // Use fractional validation for room conflicts
+  const roomValidation = validateRoomFractionalAvailability(
+    {
+      id: session.id,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      day: session.day,
+      everyTwoWeeks: session.everyTwoWeeks
+    },
+    roomSessions
+  );
+
+  if (!roomValidation.valid) {
+    return {
+      valid: false,
+      error: roomValidation.error,
+      conflictDetails: {
+        conflictType: 'room',
+        conflictingSessions: roomValidation.conflictingSessions || []
+      }
+    };
+  }
+
+  // Validate each assigned patient (if any) with detailed conflict information
+  if (session.patients && session.patients.length > 0) {
+    for (const patient of session.patients) {
+      // Get patient sessions for fractional validation
+      const patientSessions = allSessions
+        .filter(s => s.patients && s.patients.some(p => p.id === patient.id) && s.day === session.day)
+        .map(s => ({
+          id: s.id,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          day: s.day,
+          everyTwoWeeks: s.everyTwoWeeks,
+          employeeIds: s.employeeIds,
+          roomId: s.roomId,
+          employees: s.employees,
+          patients: s.patients
+        }));
+
+      // Use fractional validation for patient conflicts
+      const patientValidation = validatePatientFractionalAvailability(
+        {
+          id: session.id,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          day: session.day,
+          everyTwoWeeks: session.everyTwoWeeks
+        },
+        patientSessions,
+        patient.id,
+        `${patient.firstName} ${patient.lastName}`
+      );
+
+      if (!patientValidation.valid) {
+        return {
+          valid: false,
+          error: patientValidation.error,
+          conflictDetails: {
+            conflictType: 'patient',
+            conflictingSessions: patientValidation.conflictingSessions || []
+          }
+        };
       }
     }
   }

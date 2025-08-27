@@ -295,7 +295,8 @@ export const createScheduleRouter = (
         if (!constraintValidation.isValid) {
           return res.status(409).json({ 
             error: constraintValidation.error,
-            code: 'SCHEDULE_CONSTRAINT_VIOLATION'
+            code: 'SCHEDULE_CONSTRAINT_VIOLATION',
+            conflictDetails: constraintValidation.conflictDetails
           });
         }
       }

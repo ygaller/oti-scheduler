@@ -19,13 +19,27 @@ class ConsecutiveSessionsWarning extends Error {
 }
 
 class BlockingActivityWarning extends Error {
-  constructor(
+constructor(
     public status: number,
     public warning: string,
     public requiresConfirmation: boolean = true
   ) {
-    super('Blocking activity warning');
+super('Blocking activity warning');
     this.name = 'BlockingActivityWarning';
+  }
+}
+
+class ScheduleConflictError extends Error {
+  constructor(
+    public status: number,
+    public message: string,
+    public conflictDetails?: {
+      conflictType: 'employee' | 'room' | 'patient';
+      conflictingSessions: any[];
+    }
+  ) {
+    super('Schedule conflict error');
+    this.name = 'ScheduleConflictError';
   }
 }
 
@@ -38,6 +52,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
       // Handle blocking activity overlap
       if (errorData.code === 'BLOCKING_ACTIVITY_OVERLAP') {
         throw new BlockingActivityWarning(response.status, errorData.error);
+      }
+      
+      // Handle schedule constraint violations with conflict details
+      if (errorData.code === 'SCHEDULE_CONSTRAINT_VIOLATION') {
+        throw new ScheduleConflictError(response.status, errorData.error, errorData.conflictDetails);
       }
       
       // Handle legacy format with requiresConfirmation flag
@@ -142,5 +161,5 @@ export const api = {
   },
 };
 
-export { ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning };
+export { ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning, ScheduleConflictError };
 

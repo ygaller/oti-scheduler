@@ -43,12 +43,52 @@ import TherapyRequirementsCards from './TherapyRequirementsCards';
 import EmployeeBigCalendarView from './EmployeeBigCalendarView';
 import RoomBigCalendarView from './RoomBigCalendarView';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
-import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning } from '../services';
+import { scheduleService, ApiError, ConsecutiveSessionsWarning, BlockingActivityWarning, ScheduleConflictError } from '../services';
 import { useActivities } from '../hooks';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 
 import { getContrastingTextColor } from '../utils/colorUtils';
+
+// Utility function to format conflict details for display
+const formatConflictDetails = (conflictDetails: {
+  conflictType: 'employee' | 'room' | 'patient';
+  conflictingSessions: any[];
+}, employees: Employee[], rooms: Room[], patients: Patient[]): string => {
+  if (!conflictDetails || !conflictDetails.conflictingSessions || conflictDetails.conflictingSessions.length === 0) {
+    return '';
+  }
+
+  const { conflictingSessions } = conflictDetails;
+  
+  let details = '\n\nטיפולים קיימים שמתנגשים:\n';
+  
+  conflictingSessions.forEach((session, index) => {
+    const sessionEmployees = session.employeeIds 
+      ? session.employeeIds.map((id: string) => {
+          const emp = employees.find(e => e.id === id);
+          return emp ? `${emp.firstName} ${emp.lastName}` : id;
+        }).join(', ')
+      : session.employees?.map((emp: any) => `${emp.firstName} ${emp.lastName}`).join(', ') || 'לא ידוע';
+    
+    const sessionRoom = rooms.find(r => r.id === session.roomId)?.name || 'לא ידוע';
+    
+    const sessionPatients = session.patients 
+      ? session.patients.map((patient: any) => `${patient.firstName} ${patient.lastName}`).join(', ')
+      : 'ללא מטופלים';
+    
+    details += `\n${index + 1}. זמן: ${session.startTime}-${session.endTime}`;
+    details += `\n   עובדים: ${sessionEmployees}`;
+    details += `\n   חדר: ${sessionRoom}`;
+    details += `\n   מטופלים: ${sessionPatients}`;
+    if (session.everyTwoWeeks) {
+      details += '\n   תדירות: כל שבועיים';
+    }
+    details += '\n';
+  });
+  
+  return details;
+};
 
 interface ScheduleViewProps {
   employees: Employee[];
@@ -352,6 +392,27 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         setWarningDialogTitle('פעילות חוסמת');
         setWarningDialogMessage(hebrewMessage);
         setWarningDialogOpen(true);
+        return;
+      }
+      
+      // Handle schedule conflict errors with detailed conflict information
+      if (error instanceof ScheduleConflictError) {
+        console.log('Schedule conflict error received, showing detailed conflict information');
+        
+        const conflictError = error as ScheduleConflictError;
+        let errorMessage = conflictError.message;
+        let errorDetails = '';
+        
+        if (conflictError.conflictDetails) {
+          errorDetails = formatConflictDetails(conflictError.conflictDetails, employees, rooms, patients);
+        }
+        
+        setErrorInfo({
+          title: 'קונפליקט בתזמון',
+          message: errorMessage,
+          details: errorDetails
+        });
+        setErrorModalOpen(true);
         return;
       }
       
