@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, ActivityRepository } from '../repositories';
-import { validateScheduleConstraintsAsync, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
+import { validateScheduleConstraintsFractionalAsync, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -281,11 +281,13 @@ export const createScheduleRouter = (
           });
         }
 
-        // Validate schedule constraints
-        const constraintValidation = await validateScheduleConstraintsAsync(
+        // Validate schedule constraints using fractional counting
+        const constraintValidation = await validateScheduleConstraintsFractionalAsync(
           sessionWithSchedule,
           employeeRepo,
           sessionRepo,
+          roomRepo,
+          activityRepo,
           scheduleId
         );
         
@@ -341,11 +343,13 @@ export const createScheduleRouter = (
           });
         }
 
-        // Validate schedule constraints
-        const constraintValidation = await validateScheduleConstraintsAsync(
+        // Validate schedule constraints using fractional counting
+        const constraintValidation = await validateScheduleConstraintsFractionalAsync(
           sessionForValidation,
           employeeRepo,
           sessionRepo,
+          roomRepo,
+          activityRepo,
           scheduleId
         );
 

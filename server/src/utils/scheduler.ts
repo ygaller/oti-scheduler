@@ -1,5 +1,6 @@
 import { Employee, Room, Session, WeekDay, Activity } from '../types';
 import { mapAPIWeekDayToPrisma } from '../mappers';
+import { getSessionFractionalCount } from './sessionCounting';
 
 export const WEEK_DAYS: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 
@@ -106,7 +107,7 @@ export function validateScheduleConstraints(
   return { valid: true };
 }
 
-// Repository-based validation function
+// Repository-based validation function (legacy - using boolean overlap checking)
 export async function validateScheduleConstraintsAsync(
   session: any,
   employeeRepo: any,
@@ -169,6 +170,62 @@ export async function validateScheduleConstraintsAsync(
     return { isValid: true };
   } catch (error) {
     console.error('Error in validateScheduleConstraintsAsync:', error);
+    return { isValid: false, error: 'שגיאה בבדיקת אילוצי התזמון' };
+  }
+}
+
+// Enhanced repository-based validation function using fractional counting
+export async function validateScheduleConstraintsFractionalAsync(
+  session: any,
+  employeeRepo: any,
+  sessionRepo: any,
+  roomRepo: any,
+  activityRepo: any,
+  scheduleId: string
+): Promise<{ isValid: boolean; error?: string }> {
+  if (!session.employeeIds || session.employeeIds.length === 0) {
+    return { isValid: false, error: 'לפחות עובד אחד חייב להיות משויך לטיפול' };
+  }
+
+  try {
+    // Get all sessions, employees, rooms, and activities for validation
+    const [allSessions, allEmployees, allRooms, allActivities] = await Promise.all([
+      sessionRepo.findByScheduleId(scheduleId),
+      employeeRepo.findAll(),
+      roomRepo.findAll(),
+      activityRepo.findAll()
+    ]);
+
+    // Map the session data to match the Session interface
+    const sessionForValidation: Session = {
+      id: session.id || '',
+      scheduleId: session.scheduleId,
+      employeeIds: session.employeeIds,
+      roomId: session.roomId,
+      day: session.day,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      notes: session.notes,
+      everyTwoWeeks: session.everyTwoWeeks || false,
+      employees: allEmployees.filter((e: any) => session.employeeIds.includes(e.id)),
+      patients: []
+    };
+
+    // Use the fractional validation function
+    const result = validateScheduleConstraintsFractional(
+      sessionForValidation,
+      allSessions,
+      allEmployees,
+      allRooms,
+      allActivities
+    );
+
+    return {
+      isValid: result.valid,
+      error: result.error
+    };
+  } catch (error) {
+    console.error('Error in validateScheduleConstraintsFractionalAsync:', error);
     return { isValid: false, error: 'שגיאה בבדיקת אילוצי התזמון' };
   }
 }
@@ -236,4 +293,193 @@ export async function validatePatientConsecutiveSessions(
     console.error('Error in validatePatientConsecutiveSessions:', error);
     throw error;
   }
+}
+
+// Interface for session validation input
+export interface SessionValidationInput {
+  id?: string;
+  startTime: string;
+  endTime: string;
+  day: WeekDay;
+  everyTwoWeeks?: boolean;
+}
+
+/**
+ * Pure function to validate room availability using fractional counting.
+ * 
+ * @param newSession - The new session to validate
+ * @param existingSessions - All existing sessions for the room on the same day
+ * @returns Object with validation result and optional error message
+ */
+export function validateRoomFractionalAvailability(
+  newSession: SessionValidationInput,
+  existingSessions: SessionValidationInput[]
+): { valid: boolean; error?: string } {
+  const newSessionCount = getSessionFractionalCount(newSession.everyTwoWeeks || false);
+  
+  // Filter sessions that overlap with the new session
+  const overlappingSessions = existingSessions.filter(session =>
+    session.id !== newSession.id &&
+    timesOverlap(session.startTime, session.endTime, newSession.startTime, newSession.endTime)
+  );
+  
+  // For each overlapping session, check if adding the new session would exceed capacity
+  for (const overlappingSession of overlappingSessions) {
+    const existingSessionCount = getSessionFractionalCount(overlappingSession.everyTwoWeeks || false);
+    const totalCount = newSessionCount + existingSessionCount;
+    
+    if (totalCount > 1) {
+      return {
+        valid: false,
+        error: `החדר תפוס בזמן זה - סך הטיפולים יעלה על ${totalCount.toFixed(1)}`
+      };
+    }
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Pure function to validate employee availability using fractional counting.
+ * 
+ * @param newSession - The new session to validate
+ * @param existingSessions - All existing sessions for the employee on the same day
+ * @param employeeId - The ID of the employee to validate
+ * @param employeeName - The name of the employee for error messages
+ * @returns Object with validation result and optional error message
+ */
+export function validateEmployeeFractionalAvailability(
+  newSession: SessionValidationInput,
+  existingSessions: SessionValidationInput[],
+  employeeId: string,
+  employeeName: string
+): { valid: boolean; error?: string } {
+  const newSessionCount = getSessionFractionalCount(newSession.everyTwoWeeks || false);
+  
+  // Filter sessions that overlap with the new session and include this employee
+  const overlappingSessions = existingSessions.filter(session =>
+    session.id !== newSession.id &&
+    timesOverlap(session.startTime, session.endTime, newSession.startTime, newSession.endTime)
+  );
+  
+  // For each overlapping session, check if adding the new session would exceed capacity
+  for (const overlappingSession of overlappingSessions) {
+    const existingSessionCount = getSessionFractionalCount(overlappingSession.everyTwoWeeks || false);
+    const totalCount = newSessionCount + existingSessionCount;
+    
+    if (totalCount > 1) {
+      return {
+        valid: false,
+        error: `העובד ${employeeName} תפוס בזמן זה - סך הטיפולים יעלה על ${totalCount.toFixed(1)}`
+      };
+    }
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Enhanced validation function that uses fractional counting for room and employee conflicts.
+ * This replaces the simple boolean overlap checking with fractional capacity validation.
+ */
+export function validateScheduleConstraintsFractional(
+  session: Session & { forceCreate?: boolean },
+  allSessions: Session[],
+  employees: Employee[],
+  rooms: Room[],
+  activities: Activity[]
+): { valid: boolean; error?: string } {
+  if (!session.employeeIds || session.employeeIds.length === 0) {
+    return { valid: false, error: 'לפחות עובד אחד חייב להיות משויך לטיפול' };
+  }
+
+  const room = rooms.find(r => r.id === session.roomId);
+  if (!room) return { valid: false, error: 'חדר לא נמצא' };
+
+  // Validate each assigned employee
+  for (const employeeId of session.employeeIds) {
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee) return { valid: false, error: `עובד לא נמצא: ${employeeId}` };
+
+    // Check working hours for this employee
+    const workingHours = employee.workingHours[session.day];
+    if (!workingHours) {
+      return { valid: false, error: `העובד ${employee.firstName} ${employee.lastName} לא עובד ביום זה` };
+    }
+
+    if (session.startTime < workingHours.startTime || session.endTime > workingHours.endTime) {
+      return { valid: false, error: `הטיפול מחוץ לשעות העבודה של העובד ${employee.firstName} ${employee.lastName}` };
+    }
+
+    // Get employee sessions for fractional validation
+    const employeeSessions = allSessions
+      .filter(s => s.employeeIds && s.employeeIds.includes(employeeId) && s.day === session.day)
+      .map(s => ({
+        id: s.id,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        day: s.day,
+        everyTwoWeeks: s.everyTwoWeeks
+      }));
+
+    // Use fractional validation for employee conflicts
+    const employeeValidation = validateEmployeeFractionalAvailability(
+      {
+        id: session.id,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        day: session.day,
+        everyTwoWeeks: session.everyTwoWeeks
+      },
+      employeeSessions,
+      employeeId,
+      `${employee.firstName} ${employee.lastName}`
+    );
+
+    if (!employeeValidation.valid) {
+      return employeeValidation;
+    }
+  }
+
+  // Get room sessions for fractional validation
+  const roomSessions = allSessions
+    .filter(s => s.roomId === session.roomId && s.day === session.day)
+    .map(s => ({
+      id: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      day: s.day,
+      everyTwoWeeks: s.everyTwoWeeks
+    }));
+
+  // Use fractional validation for room conflicts
+  const roomValidation = validateRoomFractionalAvailability(
+    {
+      id: session.id,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      day: session.day,
+      everyTwoWeeks: session.everyTwoWeeks
+    },
+    roomSessions
+  );
+
+  if (!roomValidation.valid) {
+    return roomValidation;
+  }
+
+  // Check for blocking activities (unchanged logic)
+  for (const activity of activities) {
+    if (!activity.isBlocking) continue; // Skip non-blocking activities
+
+    const activityTime = getActivityTimeForDay(activity, session.day);
+    if (!activityTime) continue; // No activity on this day
+
+    // Check if session overlaps with blocking activity
+    if (timesOverlap(session.startTime, session.endTime, activityTime.startTime, activityTime.endTime)) {
+      return { valid: false, error: 'לא ניתן לתזמן טיפול בזמן חסום' };
+    }
+  }
+
+  return { valid: true };
 }
