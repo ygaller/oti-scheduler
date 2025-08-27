@@ -144,6 +144,24 @@ try {
   const rootEnv = parseEnvFile(path.join(__dirname, '..', '.env'));
   const serverEnv = parseEnvFile(path.join(__dirname, '..', 'server', '.env'));
 
+  // Debug environment variable sources
+  console.log('🔍 Debugging environment variables:');
+  const serverEnvPath = path.join(__dirname, '..', 'server', '.env');
+  const rootEnvPath = path.join(__dirname, '..', '.env');
+  console.log(`   server/.env exists: ${fs.existsSync(serverEnvPath)}`);
+  console.log(`   root/.env exists: ${fs.existsSync(rootEnvPath)}`);
+  if (fs.existsSync(serverEnvPath)) {
+    try {
+      const serverEnvContent = fs.readFileSync(serverEnvPath, 'utf8');
+      console.log(`   server/.env content preview: ${serverEnvContent.substring(0, 200)}...`);
+    } catch (e) {
+      console.log(`   server/.env read error: ${e.message}`);
+    }
+  }
+  console.log(`   GOOGLE_CLIENT_ID from process.env: ${process.env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'}`);
+  console.log(`   GOOGLE_CLIENT_ID from server/.env: ${serverEnv.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'}`);
+  console.log(`   GOOGLE_CLIENT_ID from root/.env: ${rootEnv.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'}`);
+  
   const getVar = (name, fallback = '') => {
     return process.env[name] || serverEnv[name] || rootEnv[name] || fallback;
   };
@@ -173,7 +191,8 @@ try {
   const configPath = path.join(electronDir, 'config.json');
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   console.log(`✅ Wrote ${configPath}`);
-  console.log(`   googleClientId: ${config.googleClientId ? config.googleClientId.substring(0, 10) + '...' : 'NOT SET'}`);
+  console.log(`   googleClientId: ${config.googleClientId ? config.googleClientId.substring(0, 20) + '...' : 'NOT SET'}`);
+  console.log(`   googleClientIdFull: ${config.googleClientId || 'EMPTY'}`);
   console.log(`   apiUrl: ${config.apiUrl}`);
   console.log(`   redirectUri: ${config.redirectUri}`);
 } catch (e) {
