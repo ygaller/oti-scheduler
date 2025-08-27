@@ -513,7 +513,7 @@ describe('Schedule API Integration Tests', () => {
         .send(session2Data)
         .expect(409);
 
-      expect(session2Response.body.error).toBe('החדר תפוס בזמן זה');
+      expect(session2Response.body.error).toBe('החדר תפוס בזמן זה - סך הטיפולים יעלה על המותר');
       expect(session2Response.body.code).toBe('SCHEDULE_CONSTRAINT_VIOLATION');
 
       // Verify only one session exists in the database

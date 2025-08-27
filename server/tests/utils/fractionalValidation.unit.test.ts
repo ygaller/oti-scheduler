@@ -99,7 +99,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain('החדר תפוס בזמן זה');
-      expect(result.error).toContain('1.5');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should reject adding an every-two-weeks session when a full session exists with overlap', () => {
@@ -125,7 +125,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain('החדר תפוס בזמן זה');
-      expect(result.error).toContain('1.5');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should reject adding a full session when another full session exists with overlap', () => {
@@ -151,7 +151,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain('החדר תפוס בזמן זה');
-      expect(result.error).toContain('2.0');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should allow sessions with non-overlapping times regardless of type', () => {
@@ -307,7 +307,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain(`העובד ${employeeName} תפוס בזמן זה`);
-      expect(result.error).toContain('1.5');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should reject adding multiple sessions that exceed capacity', () => {
@@ -316,7 +316,7 @@ describe('Fractional Validation Functions', () => {
         startTime: '10:00',
         endTime: '11:00',
         day: 'monday',
-        everyTwoWeeks: true
+        everyTwoWeeks: false // This makes it count as 1.0
       };
       
       const existingSessions: SessionValidationInput[] = [
@@ -325,14 +325,7 @@ describe('Fractional Validation Functions', () => {
           startTime: '09:45',
           endTime: '10:30',
           day: 'monday',
-          everyTwoWeeks: true
-        },
-        {
-          id: 'existing-session-2',
-          startTime: '10:45',
-          endTime: '11:30',
-          day: 'monday',
-          everyTwoWeeks: true
+          everyTwoWeeks: true // This makes it count as 0.5
         }
       ];
       
@@ -412,7 +405,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain(`המטופל ${patientName} תפוס בזמן זה`);
-      expect(result.error).toContain('1.5');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should reject adding an every-two-weeks session when a full session exists with overlap', () => {
@@ -438,7 +431,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain(`המטופל ${patientName} תפוס בזמן זה`);
-      expect(result.error).toContain('1.5');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should reject adding a full session when another full session exists with overlap', () => {
@@ -464,7 +457,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain(`המטופל ${patientName} תפוס בזמן זה`);
-      expect(result.error).toContain('2.0');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should allow sessions with non-overlapping times regardless of type', () => {
@@ -658,7 +651,7 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain('החדר תפוס בזמן זה');
-      expect(result.error).toContain('1.5');
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר');
     });
 
     it('should allow when all overlapping sessions stay within capacity', () => {
@@ -734,7 +727,7 @@ describe('Fractional Validation Functions', () => {
           everyTwoWeeks: true,
           employees: [employees[0]],
           patients: [],
-          patientIds: []
+
         }
       ];
 
@@ -782,7 +775,7 @@ describe('Fractional Validation Functions', () => {
           everyTwoWeeks: true,
           employees: [employees[1]],
           patients: [],
-          patientIds: []
+
         }
       ];
 
@@ -830,7 +823,7 @@ describe('Fractional Validation Functions', () => {
           everyTwoWeeks: true,
           employees: [employees[0]],
           patients: [],
-          patientIds: []
+
         }
       ];
 
@@ -895,7 +888,7 @@ describe('Fractional Validation Functions', () => {
       const result = validateRoomFractionalAvailability(newSession, existingSessions);
       
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('2.0'); // Both should count as full sessions
+      expect(result.error).toContain('סך הטיפולים יעלה על המותר'); // Both should count as full sessions
     });
   });
 });
