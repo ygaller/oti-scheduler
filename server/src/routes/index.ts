@@ -35,7 +35,7 @@ export const createApiRouter = (
   router.use('/patients', createPatientRouter(patientRepo));
   router.use('/rooms', createRoomRouter(roomRepo));
   router.use('/roles', createRoleRouter(roleRepo));
-  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, prisma));
+  router.use('/schedule', createScheduleRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, activityRepo, patientRepo, prisma));
   router.use('/system', createSystemRouter(employeeRepo, roomRepo, scheduleRepo, sessionRepo, patientRepo, activityRepo));
   router.use('/activities', createActivityRouter(activityRepo));
   router.use('/google', googleRouter);

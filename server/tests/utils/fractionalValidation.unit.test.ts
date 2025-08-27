@@ -6,6 +6,7 @@
 import {
   validateRoomFractionalAvailability,
   validateEmployeeFractionalAvailability,
+  validatePatientFractionalAvailability,
   validateScheduleConstraintsFractional,
   SessionValidationInput,
   timesOverlap
@@ -339,6 +340,253 @@ describe('Fractional Validation Functions', () => {
       
       expect(result.valid).toBe(false);
       expect(result.error).toContain(`העובד ${employeeName} תפוס בזמן זה`);
+    });
+  });
+
+  describe('validatePatientFractionalAvailability', () => {
+    const patientId = 'patient1';
+    const patientName = 'Jane Doe';
+
+    it('should allow adding an every-two-weeks session when no existing sessions', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: true
+      };
+      
+      const existingSessions: SessionValidationInput[] = [];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should allow adding an every-two-weeks session when another every-two-weeks session exists with overlap', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: true
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'existing-session',
+          startTime: '10:30',
+          endTime: '11:30',
+          day: 'monday',
+          everyTwoWeeks: true
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should reject adding a full session when an every-two-weeks session exists with overlap', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: false
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'existing-session',
+          startTime: '10:30',
+          endTime: '11:30',
+          day: 'monday',
+          everyTwoWeeks: true
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain(`המטופל ${patientName} תפוס בזמן זה`);
+      expect(result.error).toContain('1.5');
+    });
+
+    it('should reject adding an every-two-weeks session when a full session exists with overlap', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: true
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'existing-session',
+          startTime: '10:30',
+          endTime: '11:30',
+          day: 'monday',
+          everyTwoWeeks: false
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain(`המטופל ${patientName} תפוס בזמן זה`);
+      expect(result.error).toContain('1.5');
+    });
+
+    it('should reject adding a full session when another full session exists with overlap', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: false
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'existing-session',
+          startTime: '10:30',
+          endTime: '11:30',
+          day: 'monday',
+          everyTwoWeeks: false
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain(`המטופל ${patientName} תפוס בזמן זה`);
+      expect(result.error).toContain('2.0');
+    });
+
+    it('should allow sessions with non-overlapping times regardless of type', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: false
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'existing-session-1',
+          startTime: '08:00',
+          endTime: '09:00',
+          day: 'monday',
+          everyTwoWeeks: false
+        },
+        {
+          id: 'existing-session-2',
+          startTime: '12:00',
+          endTime: '13:00',
+          day: 'monday',
+          everyTwoWeeks: true
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle edge case: same start and end times (exact overlap)', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: true
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'existing-session',
+          startTime: '10:00',
+          endTime: '11:00',
+          day: 'monday',
+          everyTwoWeeks: true
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle updating existing session (same ID should be ignored)', () => {
+      const sessionId = 'same-session';
+      const newSession: SessionValidationInput = {
+        id: sessionId,
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: false
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: sessionId, // Same ID - should be ignored
+          startTime: '10:00',
+          endTime: '11:00',
+          day: 'monday',
+          everyTwoWeeks: true
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle complex overlapping patient schedules', () => {
+      const newSession: SessionValidationInput = {
+        id: 'new-session',
+        startTime: '10:00',
+        endTime: '11:00',
+        day: 'monday',
+        everyTwoWeeks: true
+      };
+      
+      const existingSessions: SessionValidationInput[] = [
+        {
+          id: 'session-1',
+          startTime: '09:45',
+          endTime: '10:30',
+          day: 'monday',
+          everyTwoWeeks: true // Overlap: 0.5 + 0.5 = 1.0 ✓
+        },
+        {
+          id: 'session-2',
+          startTime: '10:45',
+          endTime: '11:30',
+          day: 'monday',
+          everyTwoWeeks: true // Overlap: 0.5 + 0.5 = 1.0 ✓
+        },
+        {
+          id: 'session-3',
+          startTime: '12:00',
+          endTime: '13:00',
+          day: 'monday',
+          everyTwoWeeks: false // No overlap
+        }
+      ];
+      
+      const result = validatePatientFractionalAvailability(newSession, existingSessions, patientId, patientName);
+      
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
     });
   });
 

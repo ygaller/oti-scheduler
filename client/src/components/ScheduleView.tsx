@@ -857,12 +857,51 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
 
 
+  // Helper function to check if two time ranges overlap (for patient view)
+  const patientTimesOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
+    const timeToMinutes = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+    
+    const start1Min = timeToMinutes(start1);
+    const end1Min = timeToMinutes(end1);
+    const start2Min = timeToMinutes(start2);
+    const end2Min = timeToMinutes(end2);
+    
+    return start1Min < end2Min && start2Min < end1Min;
+  };
+
+  // Helper function to calculate position for overlapping every-two-weeks sessions in patient view
+  const calculatePatientSessionPosition = (session: Session, allPatientSessions: Session[]) => {
+    if (!session.everyTwoWeeks) return { width: '100%', marginLeft: '0' };
+    
+    // Find other every-two-weeks sessions that overlap with this session
+    const overlappingSessions = allPatientSessions.filter(s => 
+      s.id !== session.id &&
+      s.everyTwoWeeks &&
+      patientTimesOverlap(session.startTime, session.endTime, s.startTime, s.endTime)
+    );
+    
+    if (overlappingSessions.length === 0) return { width: '50%', marginLeft: '0' };
+    
+    // Sort overlapping sessions by ID to ensure consistent positioning
+    const allOverlappingSessions = [session, ...overlappingSessions].sort((a, b) => a.id.localeCompare(b.id));
+    const sessionIndex = allOverlappingSessions.findIndex(s => s.id === session.id);
+    
+    // Position sessions side by side (each takes 50% width)
+    return {
+      width: '50%',
+      marginLeft: sessionIndex === 0 ? '0' : '50%'
+    };
+  };
+
   // Calendar components
   const PatientCalendarView = ({ day }: { day: WeekDay }) => {
     const patientSessions = getPatientSessionsForDay(day, selectedPatientId);
     
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, position: 'relative' }}>
         {patientSessions.length === 0 ? (
           <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
             אין טיפולים מתוזמנים ליום זה
@@ -875,13 +914,19 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             const backgroundColor = room?.color || '#845ec2'; // Use room color or default
             const textColor = getContrastingTextColor(backgroundColor);
             
+            const { width, marginLeft } = calculatePatientSessionPosition(session, patientSessions);
+            
             return (
               <Card
                 key={session.id}
                 sx={{
                   backgroundColor: backgroundColor,
                   cursor: 'pointer',
-                  width: session.everyTwoWeeks ? '50%' : '100%',
+                  width: width,
+                  marginLeft: marginLeft,
+                  position: session.everyTwoWeeks && marginLeft !== '0' ? 'absolute' : 'relative',
+                  top: session.everyTwoWeeks && marginLeft !== '0' ? '0' : 'auto',
+                  zIndex: session.everyTwoWeeks && marginLeft !== '0' ? 1 : 'auto',
                   '&:hover': {
                     filter: 'brightness(0.8)'
                   }

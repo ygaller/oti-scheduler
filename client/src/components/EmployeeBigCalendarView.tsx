@@ -209,10 +209,50 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
     });
   };
 
+  // Helper function to check if two time ranges overlap
+  const timesOverlap = (start1: string, end1: string, start2: string, end2: string): boolean => {
+    const timeToMinutes = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+    
+    const start1Min = timeToMinutes(start1);
+    const end1Min = timeToMinutes(end1);
+    const start2Min = timeToMinutes(start2);
+    const end2Min = timeToMinutes(end2);
+    
+    return start1Min < end2Min && start2Min < end1Min;
+  };
+
+  // Helper function to calculate left position for overlapping every-two-weeks sessions
+  const calculateSessionLeftPosition = (session: Session, employeeSessions: Session[]) => {
+    if (!session.everyTwoWeeks) return '1px';
+    
+    // Find other every-two-weeks sessions that overlap with this session
+    const overlappingSessions = employeeSessions.filter(s => 
+      s.id !== session.id &&
+      s.everyTwoWeeks &&
+      timesOverlap(session.startTime, session.endTime, s.startTime, s.endTime)
+    );
+    
+    if (overlappingSessions.length === 0) return '1px';
+    
+    // Sort overlapping sessions by ID to ensure consistent positioning
+    const allOverlappingSessions = [session, ...overlappingSessions].sort((a, b) => a.id.localeCompare(b.id));
+    const sessionIndex = allOverlappingSessions.findIndex(s => s.id === session.id);
+    
+    // Position sessions side by side (each takes 50% width)
+    return sessionIndex === 0 ? '1px' : '50%';
+  };
+
   // Render session with exact positioning
   const renderSessionInSlot = (session: Session, day: WeekDay, employeeId: string) => {
     const topPosition = getPixelPositionFromTime(session.startTime);
     const height = getPixelHeightFromDuration(session.startTime, session.endTime);
+    
+    // Get all sessions for this employee to calculate positioning
+    const employeeSessions = getSessionsForDay(day).filter(s => s.employeeIds.includes(employeeId));
+    const leftPosition = calculateSessionLeftPosition(session, employeeSessions);
     
     const room = rooms.find(r => r.id === session.roomId);
     const backgroundColor = room?.color || '#845ec2';
@@ -259,7 +299,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             padding: '4px',
             margin: '1px',
             fontSize: '0.75rem',
-            width: session.everyTwoWeeks ? '50%' : 'calc(100% - 2px)',
+            width: session.everyTwoWeeks ? 'calc(50% - 2px)' : 'calc(100% - 2px)',
             height: `${height - 2}px`, // Exact height based on duration, subtract 2px for margins
             cursor: 'pointer',
             display: 'flex',
@@ -269,7 +309,7 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             textAlign: 'center',
             position: 'absolute',
             top: `${topPosition + 1}px`, // Exact position based on start time
-            left: '1px',
+            left: leftPosition,
             zIndex: 10,
             '&:hover': {
               filter: 'brightness(0.8)'

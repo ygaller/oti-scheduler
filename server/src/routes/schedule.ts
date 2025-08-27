@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, ActivityRepository } from '../repositories';
-import { validateScheduleConstraintsFractionalAsync, validatePatientTimeConflict, validatePatientConsecutiveSessions } from '../utils/scheduler';
+import { EmployeeRepository, RoomRepository, ScheduleRepository, SessionRepository, ActivityRepository, PatientRepository } from '../repositories';
+import { validateScheduleConstraintsFractionalAsync, validatePatientTimeConflictFractional, validatePatientConsecutiveSessions } from '../utils/scheduler';
 import { CreateSessionDto, UpdateSessionDto } from '../types';
 import { validateUUID } from '../utils/validation';
 
@@ -59,6 +59,7 @@ export const createScheduleRouter = (
   scheduleRepo: ScheduleRepository,
   sessionRepo: SessionRepository,
   activityRepo: ActivityRepository,
+  patientRepo: PatientRepository,
   prisma: PrismaClient
 ): Router => {
   const router = Router();
@@ -429,11 +430,12 @@ export const createScheduleRouter = (
 
         // If not forcing assignment, run validations
         if (!forceAssign) {
-          // Validate patient time conflicts
-          const timeConflictValidation = await validatePatientTimeConflict(
+          // Validate patient time conflicts using fractional counting
+          const timeConflictValidation = await validatePatientTimeConflictFractional(
             patientId,
             existingSession,
             sessionRepo,
+            patientRepo,
             scheduleId
           );
           
@@ -537,11 +539,12 @@ export const createScheduleRouter = (
             const isAlreadyAssigned = existingSession.patients?.some(p => p.id === patientId);
             if (isAlreadyAssigned) continue;
 
-            // Validate patient time conflicts
-            const timeConflictValidation = await validatePatientTimeConflict(
+            // Validate patient time conflicts using fractional counting
+            const timeConflictValidation = await validatePatientTimeConflictFractional(
               patientId,
               existingSession,
               sessionRepo,
+              patientRepo,
               scheduleId
             );
             
