@@ -3,7 +3,6 @@ import {
   Box, 
   Typography, 
   Tooltip,
-  Chip,
   Paper
 } from '@mui/material';
 import { 
@@ -220,7 +219,10 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
               filter: 'brightness(0.8)'
             }
           }}
-          onClick={() => onSelectEvent(session)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectEvent(session);
+          }}
         >
           <Typography variant="caption" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.1 }}>
             {session.startTime} - {session.endTime}
