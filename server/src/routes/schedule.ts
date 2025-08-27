@@ -330,8 +330,18 @@ export const createScheduleRouter = (
         return res.status(404).json({ error: 'Session not found in this schedule' });
       }
 
-      // If not forcing update, run validations for the updated session
-      if (!forceCreate) {
+      // Check if any scheduling-relevant fields are being updated
+      const schedulingFieldsChanged = (
+        (updateData.hasOwnProperty('employeeIds') && 
+         JSON.stringify(updateData.employeeIds?.sort()) !== JSON.stringify(existingSession.employeeIds?.sort())) ||
+        (updateData.hasOwnProperty('roomId') && updateData.roomId !== existingSession.roomId) ||
+        (updateData.hasOwnProperty('day') && updateData.day !== existingSession.day) ||
+        (updateData.hasOwnProperty('startTime') && updateData.startTime !== existingSession.startTime) ||
+        (updateData.hasOwnProperty('endTime') && updateData.endTime !== existingSession.endTime)
+      );
+
+      // If not forcing update and scheduling fields changed, run validations for the updated session
+      if (!forceCreate && schedulingFieldsChanged) {
         // Create a merged session object for validation
         const sessionForValidation = { ...existingSession, ...updateData, scheduleId };
 

@@ -78,6 +78,9 @@ export class PrismaScheduleRepository implements ScheduleRepository {
             day: mapAPIWeekDayToPrisma(session.day),
             startTime: session.startTime,
             endTime: session.endTime,
+            notes: session.notes,
+            everyTwoWeeks: session.everyTwoWeeks || false,
+            noPatients: session.noPatients || false,
             sessionEmployees: {
               create: session.employeeIds.map(employeeId => ({
                 employeeId

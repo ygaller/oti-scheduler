@@ -147,10 +147,9 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
     const height = getPixelHeightFromDuration(session.startTime, session.endTime);
     
     const room = rooms.find(r => r.id === roomId);
-    const backgroundColor = room?.color || '#845ec2';
-    const textColor = getContrastingTextColor(backgroundColor);
-    
     const primaryEmployee = employees.find(e => session.employeeIds.includes(e.id));
+    const backgroundColor = primaryEmployee?.color || '#845ec2';
+    const textColor = getContrastingTextColor(backgroundColor);
     
     const leftPosition = session.everyTwoWeeks ? (session.startTime.localeCompare('12:00') < 0 ? '1px' : '50%') : '1px';
 
@@ -162,14 +161,16 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
         <Typography variant="body2" gutterBottom>
           <strong>חדר:</strong> {room?.name || 'לא ידוע'}
         </Typography>
-        {session.patients && session.patients.length > 0 ? (
-          <Typography variant="body2" gutterBottom>
-            <strong>מטופלים:</strong> {session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
-          </Typography>
-        ) : (
-          <Typography variant="body2" color="error" gutterBottom>
-            <strong>מטופלים:</strong> חסר מטופל
-          </Typography>
+        {!session.noPatients && (
+          session.patients && session.patients.length > 0 ? (
+            <Typography variant="body2" gutterBottom>
+              <strong>מטופלים:</strong> {session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="error" gutterBottom>
+              <strong>מטופלים:</strong> <span style={{ color: '#d32f2f' }}>חסר מטופל</span>
+            </Typography>
+          )
         )}
         {session.employeeIds && session.employeeIds.length > 0 && (
           <Typography variant="body2" gutterBottom>
@@ -225,6 +226,16 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
           {primaryEmployee && (
             <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', lineHeight: 1.1 }}>
               {primaryEmployee.firstName} {primaryEmployee.lastName}
+            </Typography>
+          )}
+          {session.notes && session.notes.trim() && (
+            <Typography variant="caption" display="block" sx={{ 
+              fontSize: '0.6rem', 
+              lineHeight: 1.1,
+              fontStyle: 'italic',
+              opacity: 0.8
+            }}>
+              הערות: {session.notes}
             </Typography>
           )}
 

@@ -221,14 +221,16 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
         <Typography variant="body2" gutterBottom>
           <strong>חדר:</strong> {room?.name || 'לא ידוע'}
         </Typography>
-        {session.patients && session.patients.length > 0 ? (
-          <Typography variant="body2" gutterBottom>
-            <strong>מטופלים:</strong> {session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
-          </Typography>
-        ) : (
-          <Typography variant="body2" color="error" gutterBottom>
-            <strong>מטופלים:</strong> חסר מטופל
-          </Typography>
+        {!session.noPatients && (
+          session.patients && session.patients.length > 0 ? (
+            <Typography variant="body2" gutterBottom>
+              <strong>מטופלים:</strong> {session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')}
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="error" gutterBottom>
+              <strong>מטופלים:</strong> חסר מטופל
+            </Typography>
+          )
         )}
         {session.employeeIds && session.employeeIds.length > 1 && (
           <Typography variant="body2" gutterBottom>
@@ -278,12 +280,28 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
           <Typography variant="caption" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.1 }}>
             {session.startTime} - {session.endTime}
           </Typography>
-          <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem', lineHeight: 1.1 }}>
-            {session.patients && session.patients.length > 0 
-              ? session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')
-              : 'חסר מטופל'
-            }
-          </Typography>
+          {!session.noPatients && (
+            <Typography variant="caption" display="block" sx={{ 
+              fontSize: '0.65rem', 
+              lineHeight: 1.1,
+              color: session.patients && session.patients.length > 0 ? 'inherit' : '#d32f2f'
+            }}>
+              {session.patients && session.patients.length > 0 
+                ? session.patients.map(p => `${p.firstName} ${p.lastName}`).join(', ')
+                : 'חסר מטופל'
+              }
+            </Typography>
+          )}
+          {session.notes && session.notes.trim() && (
+            <Typography variant="caption" display="block" sx={{ 
+              fontSize: '0.6rem', 
+              lineHeight: 1.1,
+              fontStyle: 'italic',
+              opacity: 0.8
+            }}>
+              הערות: {session.notes}
+            </Typography>
+          )}
 
         </Box>
       </Tooltip>

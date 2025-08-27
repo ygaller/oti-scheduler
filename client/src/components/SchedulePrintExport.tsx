@@ -324,7 +324,7 @@ export const createPrintExportService = (
                   <div class="session-item">
                     <div class="session-time">${session.startTime} - ${session.endTime}</div>
                     <div class="session-details">
-                      חדר: ${room ? room.name : 'לא ידוע'}${session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map((p: Patient) => `${p.firstName} ${p.lastName}`).join(', ') : '<br>ללא מטופל'}${session.notes && session.notes.trim() ? '<br>הערות: ' + session.notes : ''}
+                      חדר: ${room ? room.name : 'לא ידוע'}${!session.noPatients ? (session.patients && session.patients.length > 0 ? '<br>מטופלים: ' + session.patients.map((p: Patient) => `${p.firstName} ${p.lastName}`).join(', ') : '<br>ללא מטופל') : ''}${session.notes && session.notes.trim() ? '<br>הערות: ' + session.notes : ''}
                     </div>
                   </div>
                 `;

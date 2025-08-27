@@ -97,6 +97,7 @@ export class PrismaSessionRepository implements SessionRepository {
         endTime: sessionData.endTime,
         notes: sessionData.notes,
         everyTwoWeeks: sessionData.everyTwoWeeks || false,
+        noPatients: sessionData.noPatients || false,
         sessionEmployees: {
           create: sessionData.employeeIds.map(employeeId => ({
             employeeId
@@ -132,6 +133,14 @@ export class PrismaSessionRepository implements SessionRepository {
     if (sessionData.endTime !== undefined) updateData.endTime = sessionData.endTime;
     if (sessionData.notes !== undefined) updateData.notes = sessionData.notes;
     if (sessionData.everyTwoWeeks !== undefined) updateData.everyTwoWeeks = sessionData.everyTwoWeeks;
+    if (sessionData.noPatients !== undefined) updateData.noPatients = sessionData.noPatients;
+
+    // If noPatients is set to true, clear all patient assignments
+    if (sessionData.noPatients === true) {
+      await this.prisma.sessionPatient.deleteMany({
+        where: { sessionId: id }
+      });
+    }
 
     // Handle employee assignments
     if (sessionData.employeeIds !== undefined) {

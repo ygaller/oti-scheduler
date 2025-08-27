@@ -119,6 +119,7 @@ model Session {
   endTime       String   @map("end_time")   // Store as "HH:mm" format
   notes         String?  @map("notes") // Optional notes field
   everyTwoWeeks Boolean  @default(false) @map("every_two_weeks") // Boolean field for bi-weekly sessions
+  noPatients    Boolean  @default(false) @map("no_patients") // Boolean field for sessions without patients
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

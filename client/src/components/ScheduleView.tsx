@@ -198,7 +198,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       roomId: rooms[0]?.id || '',
       patientIds: [], // Initialize patientIds
       notes: '', // Initialize notes
-      everyTwoWeeks: false // Initialize everyTwoWeeks
+      everyTwoWeeks: false, // Initialize everyTwoWeeks
+      noPatients: false // Initialize noPatients
     };
     
     setSessionForm(sessionData);
@@ -298,6 +299,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       endTime: sessionForm.endTime!,
       notes: sessionForm.notes,
       everyTwoWeeks: sessionForm.everyTwoWeeks,
+      noPatients: sessionForm.noPatients,
       forceCreate: forceCreate, // Include forceCreate in the session object
     };
 
@@ -541,7 +543,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           endTime: editingSessionForAssignment.endTime,
           scheduleId: editingSessionForAssignment.scheduleId,
           notes: editingSessionForAssignment.notes,
-          everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks
+          everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
+          noPatients: editingSessionForAssignment.noPatients
         });
 
         // Then update patients separately
@@ -550,7 +553,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         // Only patients changed (and possibly notes/everyTwoWeeks) - update both patient assignments and session data
         await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
           notes: editingSessionForAssignment.notes,
-          everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks
+          everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
+          noPatients: editingSessionForAssignment.noPatients
         });
         await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       }
@@ -593,6 +597,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               scheduleId: editingSessionForAssignment.scheduleId,
               notes: editingSessionForAssignment.notes,
               everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
+              noPatients: editingSessionForAssignment.noPatients,
               forceCreate: true
             });
           } else {
@@ -600,6 +605,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
               notes: editingSessionForAssignment.notes,
               everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
+              noPatients: editingSessionForAssignment.noPatients,
               forceCreate: true
             });
           }
@@ -1262,19 +1268,41 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 </Select>
               </FormControl>
 
-              <Autocomplete
-                multiple
-                id="patients-autocomplete"
-                options={patients}
-                getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
-                value={patients.filter(p => sessionForm.patientIds?.includes(p.id))}
-                onChange={(event, newValue) => {
-                  setSessionForm(prev => ({ ...prev, patientIds: newValue.map(p => p.id) }));
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} variant="outlined" label="מטופלים" placeholder="בחר מטופלים" />
-                )}
-              />
+              <Box display="flex" gap={2} alignItems="center">
+                <Box flex={1}>
+                  <Autocomplete
+                    multiple
+                    id="patients-autocomplete"
+                    options={patients}
+                    getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                    value={patients.filter(p => sessionForm.patientIds?.includes(p.id))}
+                    onChange={(event, newValue) => {
+                      setSessionForm(prev => ({ ...prev, patientIds: newValue.map(p => p.id) }));
+                    }}
+                    disabled={sessionForm.noPatients}
+                    renderInput={(params) => (
+                      <TextField {...params} variant="outlined" label="מטופלים" placeholder="בחר מטופלים" />
+                    )}
+                  />
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={sessionForm.noPatients || false}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSessionForm(prev => ({ 
+                          ...prev, 
+                          noPatients: checked,
+                          patientIds: checked ? [] : prev.patientIds
+                        }));
+                      }}
+                      color="primary"
+                    />
+                  }
+                  label="ללא מטופלים"
+                />
+              </Box>
 
               <TextField
                 fullWidth
@@ -1444,9 +1472,34 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 }
               />
 
-              <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
-                מטופלים:
-              </Typography>
+              <Box display="flex" alignItems="center" gap={2} sx={{ mt: 2 }}>
+                <Typography variant="body1" gutterBottom>
+                  מטופלים:
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={editingSessionForAssignment.noPatients || false}
+                      onChange={(e) => {
+                        if (editingSessionForAssignment) {
+                          const checked = e.target.checked;
+                          setEditingSessionForAssignment({
+                            ...editingSessionForAssignment,
+                            noPatients: checked,
+                            patientIds: checked ? [] : editingSessionForAssignment.patientIds
+                          });
+                          // Also clear selected patients state when no patients is enabled
+                          if (checked) {
+                            setSelectedPatients([]);
+                          }
+                        }
+                      }}
+                      color="primary"
+                    />
+                  }
+                  label="ללא מטופלים"
+                />
+              </Box>
 
               <Autocomplete
                 multiple /* Added multiple prop */
@@ -1455,6 +1508,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'he')
                 )}
                 getOptionLabel={(option) => `${option.firstName} ${option.lastName}`}
+                disabled={editingSessionForAssignment.noPatients}
                 value={patients.filter(p => selectedPatients.includes(p.id))} /* Adjusted value to filter by array */
                 onChange={(event, newValue) => {
                   setSelectedPatients(newValue.map(p => p.id)); /* Adjusted onChange to map new value */

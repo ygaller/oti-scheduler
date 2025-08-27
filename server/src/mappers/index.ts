@@ -94,6 +94,7 @@ export const mapPrismaSessionToAPI = (prismaSession: PrismaSession): Session => 
     endTime: prismaSession.endTime,
     notes: prismaSession.notes,
     everyTwoWeeks: prismaSession.everyTwoWeeks,
+    noPatients: prismaSession.noPatients,
     employees: [],
     patients: []
   };
@@ -116,6 +117,7 @@ export const mapPrismaSessionWithPatientsToAPI = (
     endTime: prismaSession.endTime,
     notes: prismaSession.notes,
     everyTwoWeeks: prismaSession.everyTwoWeeks,
+    noPatients: prismaSession.noPatients,
     employees: prismaSession.sessionEmployees?.map(se => mapPrismaEmployeeToAPI(se.employee)) || [],
     patients: prismaSession.sessionPatients.map(sp => mapPrismaPatientToAPI(sp.patient)),
   };

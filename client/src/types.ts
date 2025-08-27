@@ -98,6 +98,7 @@ export interface Session {
   endTime: string;   // HH:mm format
   notes?: string; // Optional notes field
   everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
+  noPatients?: boolean; // Boolean field for sessions without patients
   employees: Employee[]; // Array of employees assigned to this session
   patients: Patient[];
   patientIds: string[];
