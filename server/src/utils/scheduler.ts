@@ -331,7 +331,7 @@ export function validateRoomFractionalAvailability(
     if (totalCount > 1) {
       return {
         valid: false,
-        error: `החדר תפוס בזמן זה - סך הטיפולים יעלה על ${totalCount.toFixed(1)}`
+        error: `החדר תפוס בזמן זה - סך הטיפולים יעלה על המותר`
       };
     }
   }
@@ -370,7 +370,7 @@ export function validateEmployeeFractionalAvailability(
     if (totalCount > 1) {
       return {
         valid: false,
-        error: `העובד ${employeeName} תפוס בזמן זה - סך הטיפולים יעלה על ${totalCount.toFixed(1)}`
+        error: `העובד ${employeeName} תפוס בזמן זה - סך הטיפולים יעלה על המותר`
       };
     }
   }
