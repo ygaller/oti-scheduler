@@ -33,7 +33,7 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
   onSelectEvent,
 }) => {
 
-  // Generate time slots
+  // Generate time slots for grid display (15-minute intervals)
   const generateTimeSlots = () => {
     const slots = [];
     for (let hour = 7; hour < 17; hour++) {
@@ -46,6 +46,26 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
   };
 
   const timeSlots = generateTimeSlots();
+  
+  // Constants for time calculations
+  const SCHEDULE_START_HOUR = 7;
+  const SLOT_HEIGHT = 20; // pixels per 15-minute slot
+  const PIXELS_PER_MINUTE = SLOT_HEIGHT / 15; // 1.33 pixels per minute
+  
+  // Helper function to calculate pixel position from time
+  const getPixelPositionFromTime = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const totalMinutes = (hours - SCHEDULE_START_HOUR) * 60 + minutes;
+    return totalMinutes * PIXELS_PER_MINUTE;
+  };
+  
+  // Helper function to calculate pixel height from duration
+  const getPixelHeightFromDuration = (startTime: string, endTime: string) => {
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const durationMinutes = endMinutes - startMinutes;
+    return durationMinutes * PIXELS_PER_MINUTE;
+  };
 
   // Get sessions for a specific day
   const getSessionsForDay = (day: WeekDay) => {
@@ -142,12 +162,10 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
     });
   };
 
-  // Render session in slot
+  // Render session with exact positioning
   const renderSessionInSlot = (session: Session, day: WeekDay, roomId: string) => {
-    const startMinutes = timeToMinutes(session.startTime);
-    const endMinutes = timeToMinutes(session.endTime);
-    const durationMinutes = endMinutes - startMinutes;
-    const durationSlots = Math.ceil(durationMinutes / 15); // Number of 15-minute slots
+    const topPosition = getPixelPositionFromTime(session.startTime);
+    const height = getPixelHeightFromDuration(session.startTime, session.endTime);
     
     const room = rooms.find(r => r.id === session.roomId);
     const backgroundColor = room?.color || '#845ec2';
@@ -202,8 +220,8 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
             padding: '4px',
             margin: '1px',
             fontSize: '0.75rem',
-            width: session.everyTwoWeeks ? '50%' : '100%',
-            height: `${durationSlots * 20 - 2}px`, // Each slot is 20px, subtract 2px for margins
+            width: session.everyTwoWeeks ? '50%' : 'calc(100% - 2px)',
+            height: `${height - 2}px`, // Exact height based on duration, subtract 2px for margins
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
@@ -211,9 +229,8 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
             alignItems: 'center',
             textAlign: 'center',
             position: 'absolute',
-            top: '1px',
+            top: `${topPosition + 1}px`, // Exact position based on start time
             left: '1px',
-            right: '1px',
             zIndex: 10,
             '&:hover': {
               filter: 'brightness(0.8)'
@@ -388,13 +405,8 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
                   </Box>
 
                   {/* Time Slots */}
-                  <Box>
+                  <Box sx={{ position: 'relative' }}>
                     {timeSlots.map(time => {
-                      const sessionsAtTime = daySessions.filter(s => 
-                        s.roomId === room.id &&
-                        s.startTime === time // Only show sessions at their start time
-                      );
-
                       const backgroundColor = 'transparent';
                       const cursor = 'pointer';
                       const hoverColor = '#f0f0f0';
@@ -413,14 +425,15 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
                             }
                           }}
                           onClick={() => handleSlotClick(day, time, room.id)}
-                        >
-                          {/* Render sessions */}
-                          {sessionsAtTime.map(session => {
-                            return renderSessionInSlot(session, day, room.id);
-                          })}
-                        </Box>
+                        />
                       );
                     })}
+                    
+                    {/* Render all sessions for this room on this day with absolute positioning */}
+                    {daySessions
+                      .filter(s => s.roomId === room.id)
+                      .map(session => renderSessionInSlot(session, day, room.id))
+                    }
                   </Box>
                 </Box>
               ))}
@@ -433,3 +446,4 @@ const RoomBigCalendarView: React.FC<RoomBigCalendarViewProps> = ({
 };
 
 export default RoomBigCalendarView;
+
