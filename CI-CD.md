@@ -111,6 +111,12 @@ APPLE_ID_PASSWORD        # App-specific password
 APPLE_TEAM_ID           # Developer Team ID
 ```
 
+#### Google OAuth Configuration
+```
+GOOGLE_CLIENT_ID         # Google OAuth Client ID (stored as repository variable)
+GOOGLE_CLIENT_SECRET     # Google OAuth Client Secret (stored as repository secret)
+```
+
 #### Windows Code Signing
 ```
 WINDOWS_CERT_DATA        # Base64 encoded code signing certificate (.p12)
@@ -269,6 +275,7 @@ ls -la dist-electron/
 - **Missing Dependencies:** Check `npm run setup`
 - **Node Version:** Ensure Node.js 18+ is used
 - **Platform Issues:** Some packages need platform-specific builds
+- **Environment Variables:** Windows PowerShell requires `$env:VAR` syntax instead of `${VAR}`
 
 #### Code Signing Issues
 - **Certificate Expired:** Renew certificates annually

@@ -84,7 +84,8 @@ jobs:
           }
         shell: powershell
 
-      - name: Create environment files
+      - name: Create environment files (macOS/Linux)
+        if: matrix.os != 'windows-latest'
         env:
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -105,9 +106,38 @@ jobs:
           echo "{" > electron/config.json
           echo "  \"googleClientId\": \"${GOOGLE_CLIENT_ID}\"," >> electron/config.json
           echo "  \"apiUrl\": \"http://localhost:3001/api\"," >> electron/config.json
-          echo "  \"redirectUri\": \"http://localhost:3000/auth/callback\"," >> electron/config.json
+          echo "  \"redirectUri\": \"http://localhost:8080/callback\"," >> electron/config.json
           echo "  \"isDevelopment\": false" >> electron/config.json
           echo "}" >> electron/config.json
+
+      - name: Create environment files (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          # Create server .env file
+          "DATABASE_URL=file:./production.db" | Out-File -FilePath "server/.env" -Encoding utf8
+          "DB_TYPE=embedded" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "NODE_ENV=production" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "PORT=3001" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "FRONTEND_URL=http://localhost:3000" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "GOOGLE_CLIENT_ID=$env:GOOGLE_CLIENT_ID" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "GOOGLE_CLIENT_SECRET=$env:GOOGLE_CLIENT_SECRET" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "GOOGLE_REDIRECT_URI_WEB=http://localhost:3000/auth/google/callback" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "GOOGLE_REDIRECT_URI_ELECTRON=http://localhost:3000/auth/google/callback" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          "ELECTRON=true" | Out-File -FilePath "server/.env" -Append -Encoding utf8
+          
+          # Create Electron config file
+          @"
+          {
+            "googleClientId": "$env:GOOGLE_CLIENT_ID",
+            "apiUrl": "http://localhost:3001/api",
+            "redirectUri": "http://localhost:8080/callback",
+            "isDevelopment": false
+          }
+          "@ | Out-File -FilePath "electron/config.json" -Encoding utf8
 
       - name: Build application
         run: npm run prepare:electron
