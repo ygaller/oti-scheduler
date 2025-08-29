@@ -313,7 +313,8 @@ export async function validatePatientTimeConflictFractional(
         startTime: s.startTime,
         endTime: s.endTime,
         day: s.day,
-        everyTwoWeeks: s.everyTwoWeeks
+        everyTwoWeeks: s.everyTwoWeeks,
+        parentsMeeting: s.parentsMeeting
       }));
 
     // Use fractional validation for patient conflicts
@@ -323,7 +324,8 @@ export async function validatePatientTimeConflictFractional(
         startTime: session.startTime,
         endTime: session.endTime,
         day: session.day,
-        everyTwoWeeks: session.everyTwoWeeks || false
+        everyTwoWeeks: session.everyTwoWeeks || false,
+        parentsMeeting: session.parentsMeeting || false
       },
       patientSessions,
       patientId,
@@ -377,6 +379,7 @@ export interface SessionValidationInput {
   endTime: string;
   day: WeekDay;
   everyTwoWeeks?: boolean;
+  parentsMeeting?: boolean;
 }
 
 /**
@@ -470,7 +473,8 @@ export function validatePatientFractionalAvailability(
   patientId: string,
   patientName: string
 ): { valid: boolean; error?: string; conflictingSessions?: SessionValidationInput[] } {
-  const newSessionCount = getSessionFractionalCount(newSession.everyTwoWeeks || false);
+  // Don't count sessions with parentsMeeting == true for patient availability
+  const newSessionCount = (newSession as any).parentsMeeting ? 0 : getSessionFractionalCount(newSession.everyTwoWeeks || false);
   
   // Filter sessions that overlap with the new session and include this patient
   const overlappingSessions = existingSessions.filter(session =>
@@ -480,7 +484,8 @@ export function validatePatientFractionalAvailability(
   
   // For each overlapping session, check if adding the new session would exceed capacity
   for (const overlappingSession of overlappingSessions) {
-    const existingSessionCount = getSessionFractionalCount(overlappingSession.everyTwoWeeks || false);
+    // Don't count sessions with parentsMeeting == true for patient availability
+    const existingSessionCount = (overlappingSession as any).parentsMeeting ? 0 : getSessionFractionalCount(overlappingSession.everyTwoWeeks || false);
     const totalCount = newSessionCount + existingSessionCount;
     
     if (totalCount > 1) {
@@ -596,7 +601,8 @@ export function validateScheduleConstraintsFractional(
           startTime: s.startTime,
           endTime: s.endTime,
           day: s.day,
-          everyTwoWeeks: s.everyTwoWeeks
+          everyTwoWeeks: s.everyTwoWeeks,
+          parentsMeeting: s.parentsMeeting
         }));
 
       // Use fractional validation for patient conflicts
@@ -606,7 +612,8 @@ export function validateScheduleConstraintsFractional(
           startTime: session.startTime,
           endTime: session.endTime,
           day: session.day,
-          everyTwoWeeks: session.everyTwoWeeks
+          everyTwoWeeks: session.everyTwoWeeks,
+          parentsMeeting: session.parentsMeeting
         },
         patientSessions,
         patient.id,
@@ -766,6 +773,7 @@ export function validateScheduleConstraintsFractionalWithDetails(
           endTime: s.endTime,
           day: s.day,
           everyTwoWeeks: s.everyTwoWeeks,
+          parentsMeeting: s.parentsMeeting,
           employeeIds: s.employeeIds,
           roomId: s.roomId,
           employees: s.employees,
@@ -779,7 +787,8 @@ export function validateScheduleConstraintsFractionalWithDetails(
           startTime: session.startTime,
           endTime: session.endTime,
           day: session.day,
-          everyTwoWeeks: session.everyTwoWeeks
+          everyTwoWeeks: session.everyTwoWeeks,
+          parentsMeeting: session.parentsMeeting
         },
         patientSessions,
         patient.id,

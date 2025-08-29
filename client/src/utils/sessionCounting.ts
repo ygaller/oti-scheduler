@@ -37,13 +37,14 @@ export const calculateEmployeeSessionCount = (
 /**
  * Calculates the fractional count of sessions for a specific patient.
  * Only counts sessions where the patient is assigned.
+ * Excludes sessions with parentsMeeting == true from the count.
  */
 export const calculatePatientSessionCount = (
   sessions: Session[], 
   patientId: string
 ): number => {
   const patientSessions = sessions.filter(session => 
-    session.patients?.some(p => p.id === patientId)
+    session.patients?.some(p => p.id === patientId) && !session.parentsMeeting
   );
   
   return calculateTotalSessionCount(patientSessions);
@@ -60,6 +61,7 @@ export const formatSessionCount = (count: number): string => {
 /**
  * Calculates session counts by role for a specific patient.
  * Returns an object with role keys and fractional counts as values.
+ * Excludes sessions with parentsMeeting == true from the count.
  */
 export const calculateSessionCountsByRole = (
   sessions: Session[], 
@@ -69,8 +71,8 @@ export const calculateSessionCountsByRole = (
   const sessionsByRole: Record<string, number> = {};
   
   sessions.forEach(session => {
-    // Only count sessions where this patient is assigned
-    if (session.patients?.some(p => p.id === patientId)) {
+    // Only count sessions where this patient is assigned and not a parent meeting
+    if (session.patients?.some(p => p.id === patientId) && !session.parentsMeeting) {
       // For multi-employee sessions, count for all employees assigned to the session
       const sessionEmployees = session.employeeIds ? 
         employees.filter(e => session.employeeIds.includes(e.id)) : [];
