@@ -118,6 +118,7 @@ export const mapPrismaSessionWithPatientsToAPI = (
     notes: prismaSession.notes,
     everyTwoWeeks: prismaSession.everyTwoWeeks,
     noPatients: prismaSession.noPatients,
+    parentsMeeting: prismaSession.parentsMeeting,
     employees: prismaSession.sessionEmployees?.map(se => mapPrismaEmployeeToAPI(se.employee)) || [],
     patients: prismaSession.sessionPatients.map(sp => mapPrismaPatientToAPI(sp.patient)),
   };

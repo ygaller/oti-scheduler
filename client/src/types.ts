@@ -99,6 +99,7 @@ export interface Session {
   notes?: string; // Optional notes field
   everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
   noPatients?: boolean; // Boolean field for sessions without patients
+  parentsMeeting?: boolean; // Boolean field for parents meetings (without child)
   employees: Employee[]; // Array of employees assigned to this session
   patients: Patient[];
   patientIds: string[];

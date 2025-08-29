@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { WeekDay, WEEK_DAYS, DAY_LABELS } from '../types/schedule';
 import { getContrastingTextColor } from '../utils/colorUtils';
+import familyIcon from '../family-icon.png';
 
 interface EmployeeBigCalendarViewProps {
   employees: Employee[];
@@ -242,6 +243,11 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             <strong>הערות:</strong> {session.notes}
           </Typography>
         )}
+        {session.parentsMeeting && (
+          <Typography variant="body2" gutterBottom>
+            <strong>פגישת הורים</strong>
+          </Typography>
+        )}
 
       </Box>
     );
@@ -277,9 +283,22 @@ const EmployeeBigCalendarView: React.FC<EmployeeBigCalendarViewProps> = ({
             onSelectEvent(session);
           }}
         >
-          <Typography variant="caption" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.1 }}>
-            {session.startTime} - {session.endTime}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {session.parentsMeeting && (
+              <Box
+                component="img"
+                src={familyIcon}
+                alt="פגישת הורים"
+                sx={{
+                  width: '16px',
+                  height: '16px'
+                }}
+              />
+            )}
+            <Typography variant="caption" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.1 }}>
+              {session.startTime} - {session.endTime}
+            </Typography>
+          </Box>
           {!session.noPatients && (
             <Typography variant="caption" display="block" sx={{ 
               fontSize: '0.65rem', 

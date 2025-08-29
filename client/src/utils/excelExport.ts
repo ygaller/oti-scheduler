@@ -183,6 +183,9 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
               const patientNames = firstEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
               const employeeNames = firstEveryTwoWeeks.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
               let cellContent = `${firstEveryTwoWeeks.startTime}-${firstEveryTwoWeeks.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+              if (firstEveryTwoWeeks.parentsMeeting) {
+                cellContent += `\nפגישת הורים`;
+              }
               if (firstEveryTwoWeeks.notes && firstEveryTwoWeeks.notes.trim()) {
                 cellContent += `\nהערות: ${firstEveryTwoWeeks.notes}`;
               }
@@ -197,6 +200,9 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
               const patientNames = secondEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
               const employeeNames = secondEveryTwoWeeks.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
               let cellContent = `${secondEveryTwoWeeks.startTime}-${secondEveryTwoWeeks.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+              if (secondEveryTwoWeeks.parentsMeeting) {
+                cellContent += `\nפגישת הורים`;
+              }
               if (secondEveryTwoWeeks.notes && secondEveryTwoWeeks.notes.trim()) {
                 cellContent += `\nהערות: ${secondEveryTwoWeeks.notes}`;
               }
@@ -216,6 +222,9 @@ function createEmployeeScheduleWorksheet(options: ExcelExportOptions): XLSX.Work
             const patientNames = currentSession.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
             const employeeNames = currentSession.employeeIds?.map(id => options.employees.find(e => e.id === id)?.firstName + " " + options.employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
             let cellContent = `${currentSession.startTime}-${currentSession.endTime}\n${room?.name || 'לא ידוע'}\n${employeeNames}\n${patientNames}`;
+            if (currentSession.parentsMeeting) {
+              cellContent += `\nפגישת הורים`;
+            }
             if (currentSession.notes && currentSession.notes.trim()) {
               cellContent += `\nהערות: ${currentSession.notes}`;
             }
@@ -418,6 +427,9 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
               const patientNames = firstEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
               const employeeNames = firstEveryTwoWeeks.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
               let cellContent = `${firstEveryTwoWeeks.startTime}-${firstEveryTwoWeeks.endTime}\n${employeeNames}\n${patientNames}`;
+              if (firstEveryTwoWeeks.parentsMeeting) {
+                cellContent += `\nפגישת הורים`;
+              }
               if (firstEveryTwoWeeks.notes && firstEveryTwoWeeks.notes.trim()) {
                 cellContent += `\nהערות: ${firstEveryTwoWeeks.notes}`;
               }
@@ -431,6 +443,9 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
               const patientNames = secondEveryTwoWeeks.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
               const employeeNames = secondEveryTwoWeeks.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
               let cellContent = `${secondEveryTwoWeeks.startTime}-${secondEveryTwoWeeks.endTime}\n${employeeNames}\n${patientNames}`;
+              if (secondEveryTwoWeeks.parentsMeeting) {
+                cellContent += `\nפגישת הורים`;
+              }
               if (secondEveryTwoWeeks.notes && secondEveryTwoWeeks.notes.trim()) {
                 cellContent += `\nהערות: ${secondEveryTwoWeeks.notes}`;
               }
@@ -449,6 +464,9 @@ function createRoomScheduleWorksheet(options: ExcelExportOptions): XLSX.WorkShee
             const patientNames = currentSession.patients?.map(p => `${p.firstName} ${p.lastName}`).join(', ') || 'חסר מטופל';
             const employeeNames = currentSession.employeeIds?.map(id => employees.find(e => e.id === id)?.firstName + " " + employees.find(e => e.id === id)?.lastName).filter(Boolean).join(', ') || 'לא ידוע';
             let cellContent = `${currentSession.startTime}-${currentSession.endTime}\n${employeeNames}\n${patientNames}`;
+            if (currentSession.parentsMeeting) {
+              cellContent += `\nפגישת הורים`;
+            }
             if (currentSession.notes && currentSession.notes.trim()) {
               cellContent += `\nהערות: ${currentSession.notes}`;
             }

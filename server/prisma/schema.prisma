@@ -120,6 +120,7 @@ model Session {
   notes         String?  @map("notes") // Optional notes field
   everyTwoWeeks Boolean  @default(false) @map("every_two_weeks") // Boolean field for bi-weekly sessions
   noPatients    Boolean  @default(false) @map("no_patients") // Boolean field for sessions without patients
+  parentsMeeting Boolean @default(false) @map("parents_meeting") // Boolean field for parents meetings (without child)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

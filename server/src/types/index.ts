@@ -95,6 +95,7 @@ export interface Session {
   notes?: string; // Optional notes field
   everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
   noPatients?: boolean; // Boolean field for sessions without patients
+  parentsMeeting?: boolean; // Boolean field for parents meetings (without child)
   employees?: Employee[]; // Optional array of employees assigned to this session
   patients?: Patient[]; // Optional array of patients assigned to this session
 }
@@ -152,6 +153,7 @@ export interface CreateSessionDto {
   notes?: string; // Optional notes field
   everyTwoWeeks?: boolean; // Boolean field for bi-weekly sessions
   noPatients?: boolean; // Boolean field for sessions without patients
+  parentsMeeting?: boolean; // Boolean field for parents meetings (without child)
   forceCreate?: boolean; // Added to allow bypassing certain validations with confirmation
 }
 

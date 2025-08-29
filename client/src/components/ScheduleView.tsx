@@ -49,6 +49,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 
 import { getContrastingTextColor } from '../utils/colorUtils';
+import familyIcon from '../family-icon.png';
 
 // Utility function to format conflict details for display
 const formatConflictDetails = (conflictDetails: {
@@ -340,6 +341,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       notes: sessionForm.notes,
       everyTwoWeeks: sessionForm.everyTwoWeeks,
       noPatients: sessionForm.noPatients,
+      parentsMeeting: sessionForm.parentsMeeting,
       forceCreate: forceCreate, // Include forceCreate in the session object
     };
 
@@ -605,7 +607,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           scheduleId: editingSessionForAssignment.scheduleId,
           notes: editingSessionForAssignment.notes,
           everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
-          noPatients: editingSessionForAssignment.noPatients
+          noPatients: editingSessionForAssignment.noPatients,
+          parentsMeeting: editingSessionForAssignment.parentsMeeting
         });
 
         // Then update patients separately
@@ -615,7 +618,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         await scheduleService.updateSession(selectedScheduleId, editingSessionForAssignment.id, {
           notes: editingSessionForAssignment.notes,
           everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks,
-          noPatients: editingSessionForAssignment.noPatients
+          noPatients: editingSessionForAssignment.noPatients,
+          parentsMeeting: editingSessionForAssignment.parentsMeeting
         });
         await scheduleService.updateSessionPatients(selectedScheduleId, editingSessionForAssignment.id, filteredPatients, forceAssign);
       }
@@ -1001,9 +1005,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 onClick={() => handleSessionClick(session)}
               >
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ color: textColor }}>
-                    {session.startTime} - {session.endTime}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                    {session.parentsMeeting && (
+                      <Box
+                        component="img"
+                        src={familyIcon}
+                        alt="פגישת הורים"
+                        sx={{
+                          width: '16px',
+                          height: '16px'
+                        }}
+                      />
+                    )}
+                    <Typography variant="subtitle2" fontWeight="bold" sx={{ color: textColor }}>
+                      {session.startTime} - {session.endTime}
+                    </Typography>
+                  </Box>
                   <Typography variant="body2" sx={{ color: textColor }}>
                     מטפלים: {sessionEmployees.length > 0 ? sessionEmployees.map(emp => `${emp.firstName} ${emp.lastName}`).join(', ') : 'לא ידוע'}
                   </Typography>
@@ -1016,6 +1033,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   {session.notes && (
                     <Typography variant="body2" sx={{ color: textColor, fontStyle: 'italic' }}>
                       הערות: {session.notes}
+                    </Typography>
+                  )}
+                  {session.parentsMeeting && (
+                    <Typography variant="body2" sx={{ color: textColor, fontWeight: 'bold' }}>
+                      פגישת הורים
                     </Typography>
                   )}
 
@@ -1385,6 +1407,17 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 }
                 label="אחת לשבועיים"
               />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={sessionForm.parentsMeeting || false}
+                    onChange={(e) => setSessionForm(prev => ({ ...prev, parentsMeeting: e.target.checked }))}
+                    color="primary"
+                  />
+                }
+                label="פגישת הורים (ללא הילד)"
+              />
             </Box>
           )}
         </DialogContent>
@@ -1625,6 +1658,25 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 label="אחת לשבועיים"
                 sx={{ mt: 1 }}
               />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={editingSessionForAssignment.parentsMeeting || false}
+                    onChange={(e) => {
+                      if (editingSessionForAssignment) {
+                        setEditingSessionForAssignment({
+                          ...editingSessionForAssignment,
+                          parentsMeeting: e.target.checked
+                        });
+                      }
+                    }}
+                    color="primary"
+                  />
+                }
+                label="פגישת הורים (ללא הילד)"
+                sx={{ mt: 1 }}
+              />
               
               <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                 <Button
@@ -1634,6 +1686,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                   onClick={() => {
                     setSessionEditDialogOpen(false);
                     setEditingSession(editingSessionForAssignment);
+                    // Populate sessionForm with the current session data
+                    if (editingSessionForAssignment) {
+                      setSessionForm({
+                        id: editingSessionForAssignment.id,
+                        day: editingSessionForAssignment.day,
+                        startTime: editingSessionForAssignment.startTime,
+                        endTime: editingSessionForAssignment.endTime,
+                        employeeIds: editingSessionForAssignment.employeeIds,
+                        roomId: editingSessionForAssignment.roomId,
+                        patientIds: editingSessionForAssignment.patientIds || [],
+                        notes: editingSessionForAssignment.notes || '',
+                        everyTwoWeeks: editingSessionForAssignment.everyTwoWeeks || false,
+                        noPatients: editingSessionForAssignment.noPatients || false,
+                        parentsMeeting: editingSessionForAssignment.parentsMeeting || false
+                      });
+                    }
                     setEditDialogOpen(true);
                   }}
                 >

@@ -48,6 +48,7 @@ interface Session {
   patients: Patient[];
   notes?: string;
   everyTwoWeeks?: boolean;
+  parentsMeeting?: boolean;
 }
 
 interface Activity {
