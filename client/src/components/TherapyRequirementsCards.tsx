@@ -72,6 +72,44 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
     });
   };
 
+  // Generate parents meeting requirement chips data
+  const generateParentsMeetingChips = () => {
+    const chips: Array<{
+      id: string;
+      patientName: string;
+      therapyType: string;
+      amount: number;
+      patientColor: string;
+    }> = [];
+
+    // Get only active patients
+    const activePatients = patients.filter(patient => patient.isActive);
+
+    activePatients.forEach(patient => {
+      const patientName = `${patient.firstName} ${patient.lastName}`;
+      
+      // Check if patient has any session with parents_meeting == true
+      const hasParentsMeeting = schedule?.sessions.some(session => 
+        session.patients.some(sessionPatient => sessionPatient.id === patient.id) && 
+        session.parentsMeeting === true
+      ) || false;
+      
+      // Only show chip if patient has no parents meeting sessions
+      if (!hasParentsMeeting) {
+        chips.push({
+          id: `${patient.id}-parents-meeting`,
+          patientName,
+          therapyType: 'פגישת הורים',
+          amount: 1,
+          patientColor: patient.color
+        });
+      }
+    });
+
+    // Sort chips by patient name
+    return chips.sort((a, b) => a.patientName.localeCompare(b.patientName, 'he'));
+  };
+
   // Generate therapy above minimum requirement chips data
   const generateAboveMinimumTherapyChips = () => {
     const chips: Array<{
@@ -167,28 +205,45 @@ const TherapyRequirementsCards: React.FC<TherapyRequirementsCardsProps> = ({
                 },
               }}
             >
-              {generateUnassignedTherapyChips().length > 0 ? (
-                generateUnassignedTherapyChips().map(chip => (
-                  <Chip
-                    key={chip.id}
-                    label={`${chip.patientName} - ${chip.therapyType} (${chip.amount})`}
-                    variant="outlined"
-                    size="small"
-                    sx={{
-                      borderColor: chip.patientColor,
-                      color: chip.patientColor,
-                      backgroundColor: `${chip.patientColor}15`,
-                      '&:hover': {
-                        backgroundColor: `${chip.patientColor}25`,
+              {(() => {
+                const unassignedChips = generateUnassignedTherapyChips();
+                const parentsMeetingChips = generateParentsMeetingChips();
+                const allChips = [...unassignedChips, ...parentsMeetingChips];
+                
+                // Sort all chips alphabetically by patient name, then by therapy type
+                allChips.sort((a, b) => {
+                  if (a.patientName !== b.patientName) {
+                    return a.patientName.localeCompare(b.patientName, 'he');
+                  }
+                  return a.therapyType.localeCompare(b.therapyType, 'he');
+                });
+                
+                return allChips.length > 0 ? (
+                  allChips.map(chip => (
+                    <Chip
+                      key={chip.id}
+                      label={chip.therapyType === 'פגישת הורים' ? 
+                        `${chip.patientName} - ${chip.therapyType}` : 
+                        `${chip.patientName} - ${chip.therapyType} (${chip.amount})`
                       }
-                    }}
-                  />
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                  כל הטיפולים הנדרשים הוקצו למטופלים
-                </Typography>
-              )}
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        borderColor: chip.patientColor,
+                        color: chip.patientColor,
+                        backgroundColor: `${chip.patientColor}15`,
+                        '&:hover': {
+                          backgroundColor: `${chip.patientColor}25`,
+                        }
+                      }}
+                    />
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    כל הטיפולים הנדרשים הוקצו למטופלים
+                  </Typography>
+                );
+              })()}
             </Box>
           </CardContent>
         </Card>
