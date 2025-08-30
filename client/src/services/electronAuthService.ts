@@ -174,7 +174,9 @@ class ElectronAuthService {
       console.log('🔍 [ELECTRON AUTH] Setting up callback listener...');
       
       // Create a temporary server to handle the callback
-      const server = new EventSource('/api/google/electron-callback-stream');
+      const sseUrl = `${this.API_BASE}/electron-callback-stream`;
+      console.log('🔍 [ELECTRON AUTH] Connecting to SSE endpoint:', sseUrl);
+      const server = new EventSource(sseUrl);
       
       server.onmessage = (event) => {
         try {
