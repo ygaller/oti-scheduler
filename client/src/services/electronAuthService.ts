@@ -171,27 +171,47 @@ class ElectronAuthService {
    */
   private async waitForCallback(): Promise<string> {
     return new Promise((resolve, reject) => {
+      console.log('🔍 [ELECTRON AUTH] Setting up callback listener...');
+      
       // Create a temporary server to handle the callback
       const server = new EventSource('/api/google/electron-callback-stream');
       
       server.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'auth_code') {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('🔍 [ELECTRON AUTH] Received SSE message:', data.type);
+          
+          if (data.type === 'ready') {
+            console.log('🔍 [ELECTRON AUTH] Callback server is ready');
+          } else if (data.type === 'auth_code') {
+            console.log('🔍 [ELECTRON AUTH] Received auth code');
+            server.close();
+            resolve(data.code);
+          } else if (data.type === 'error') {
+            console.error('🔍 [ELECTRON AUTH] Received error:', data.message);
+            server.close();
+            reject(new Error(data.message));
+          }
+        } catch (error) {
+          console.error('🔍 [ELECTRON AUTH] Error parsing SSE message:', error);
           server.close();
-          resolve(data.code);
-        } else if (data.type === 'error') {
-          server.close();
-          reject(new Error(data.message));
+          reject(new Error('Failed to parse callback response'));
         }
       };
 
-      server.onerror = () => {
+      server.onerror = (error) => {
+        console.error('🔍 [ELECTRON AUTH] SSE error:', error);
         server.close();
         reject(new Error('Failed to receive auth callback'));
       };
 
+      server.onopen = () => {
+        console.log('🔍 [ELECTRON AUTH] SSE connection opened');
+      };
+
       // Timeout after 5 minutes
       setTimeout(() => {
+        console.log('🔍 [ELECTRON AUTH] Callback timeout reached');
         server.close();
         reject(new Error('Authentication timeout'));
       }, 300000);

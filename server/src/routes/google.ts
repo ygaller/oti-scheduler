@@ -1,6 +1,7 @@
 import express from 'express';
 import GoogleAuthService from '../services/googleAuthService';
 import GoogleSheetsService from '../services/googleSheetsService';
+import ElectronCallbackServer from '../services/electronCallbackServer';
 import { GoogleTokenData, StoredGoogleAuth, GoogleAuthStatus, GoogleSheetsExportRequest } from '../types/google';
 
 const router = express.Router();
@@ -313,6 +314,90 @@ router.get('/debug', async (req, res) => {
     console.error('Error in debug endpoint:', error);
     res.status(500).json({
       error: 'Debug endpoint failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * GET /api/google/electron-callback-stream
+ * Server-Sent Events stream for Electron OAuth callbacks
+ */
+router.get('/electron-callback-stream', async (req, res) => {
+  try {
+    initializeGoogleServices();
+    
+    if (!googleAuthService) {
+      return res.status(500).json({ 
+        error: 'Google authentication not configured',
+        message: 'Missing Google OAuth credentials' 
+      });
+    }
+
+    // Set up Server-Sent Events
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    // Create and start the callback server
+    const callbackServer = new ElectronCallbackServer();
+
+    // Handle callback server events
+    callbackServer.on('success', (data: { code: string; state: string }) => {
+      console.log('OAuth callback received:', { code: data.code ? 'present' : 'missing', state: data.state });
+      
+      // Send the auth code to the client via SSE
+      res.write(`data: ${JSON.stringify({ type: 'auth_code', code: data.code, state: data.state })}\n\n`);
+      
+      // Clean up
+      callbackServer.stop();
+    });
+
+    callbackServer.on('error', (error: { error: string; description: string }) => {
+      console.error('OAuth callback error:', error);
+      
+      // Send error to client via SSE
+      res.write(`data: ${JSON.stringify({ type: 'error', message: error.description || error.error })}\n\n`);
+      
+      // Clean up
+      callbackServer.stop();
+    });
+
+    // Start the callback server
+    try {
+      await callbackServer.start();
+      console.log('Electron callback server started for OAuth flow');
+      
+      // Send ready signal
+      res.write(`data: ${JSON.stringify({ type: 'ready', message: 'Callback server started' })}\n\n`);
+    } catch (error) {
+      console.error('Failed to start callback server:', error);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to start callback server' })}\n\n`);
+      return;
+    }
+
+    // Handle client disconnect
+    req.on('close', () => {
+      console.log('Client disconnected from callback stream');
+      callbackServer.stop();
+    });
+
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      console.log('OAuth callback stream timeout');
+      res.write(`data: ${JSON.stringify({ type: 'error', message: 'Authentication timeout' })}\n\n`);
+      callbackServer.stop();
+      res.end();
+    }, 300000);
+
+  } catch (error) {
+    console.error('Error setting up callback stream:', error);
+    res.status(500).json({ 
+      error: 'Failed to set up callback stream',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
