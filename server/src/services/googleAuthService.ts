@@ -103,7 +103,7 @@ class GoogleAuthService {
   /**
    * Exchange authorization code for tokens (supports both public and confidential clients)
    */
-  async exchangeCodeForTokens(code: string, state?: string): Promise<GoogleTokenData> {
+  async exchangeCodeForTokens(code: string, state?: string, codeVerifier?: string): Promise<GoogleTokenData> {
     try {
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
       
@@ -136,16 +136,18 @@ class GoogleAuthService {
           throw new Error('Google client ID not configured');
         }
 
-        // Retrieve PKCE parameters from state
-        let codeVerifier: string | undefined;
-        if (state && this.pkceStore.has(state)) {
+        // Get PKCE code verifier
+        // Priority: 1) Provided directly (Electron), 2) Retrieved from state (Web)
+        let finalCodeVerifier: string | undefined = codeVerifier;
+        
+        if (!finalCodeVerifier && state && this.pkceStore.has(state)) {
           const pkceParams = this.pkceStore.get(state)!;
-          codeVerifier = pkceParams.codeVerifier;
+          finalCodeVerifier = pkceParams.codeVerifier;
           // Clean up used PKCE parameters
           this.pkceStore.delete(state);
         }
 
-        if (!codeVerifier) {
+        if (!finalCodeVerifier) {
           throw new Error('PKCE code verifier not found. Invalid or expired session.');
         }
 
@@ -154,7 +156,7 @@ class GoogleAuthService {
           client_id: clientId,
           code: code,
           redirect_uri: redirectUri,
-          code_verifier: codeVerifier, // Include PKCE code verifier
+          code_verifier: finalCodeVerifier, // Include PKCE code verifier
         });
 
         const response = await fetch('https://oauth2.googleapis.com/token', {

@@ -1,4 +1,4 @@
-import { generatePKCE, buildAuthUrl, exchangeCodeForTokens } from '../utils/pkce';
+import { generatePKCE, buildAuthUrl } from '../utils/pkce';
 
 export interface ElectronAuthResult {
   success: boolean;
@@ -93,24 +93,15 @@ class ElectronAuthService {
       // Start local server to handle callback
       const authCode = await this.waitForCallback();
       
-      // Exchange code for tokens
-      const tokens = await exchangeCodeForTokens({
-        clientId,
-        redirectUri,
-        code: authCode,
-        codeVerifier: pkce.codeVerifier
-      });
-
-      // Get user info
-      const userInfo = await this.getUserInfo(tokens.access_token);
+      // Exchange code for tokens using server-side endpoint
+      // This allows the server to handle both Web app (with client_secret) and Desktop app (PKCE) flows
+      const authResponse = await this.exchangeCodeOnServer(authCode, 'electron-auth', pkce.codeVerifier);
       
-      // Create auth object
-      const auth = {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiryDate: Date.now() + (tokens.expires_in * 1000),
-        userInfo
-      };
+      if (!authResponse.success) {
+        throw new Error(authResponse.error || 'Token exchange failed');
+      }
+
+      const auth = authResponse.auth;
 
       // Store auth data
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(auth));
@@ -221,6 +212,58 @@ class ElectronAuthService {
         reject(new Error('Authentication timeout'));
       }, 300000);
     });
+  }
+
+  /**
+   * Exchange authorization code for tokens using server-side endpoint
+   */
+  private async exchangeCodeOnServer(code: string, state?: string, codeVerifier?: string): Promise<{
+    success: boolean;
+    auth?: {
+      accessToken: string;
+      refreshToken?: string;
+      expiryDate: number;
+      userInfo: {
+        id: string;
+        email: string;
+        name: string;
+        picture?: string;
+      };
+    };
+    error?: string;
+    message?: string;
+  }> {
+    try {
+      const response = await fetch(`${this.API_BASE}/auth/callback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code, state, codeVerifier }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Authentication failed',
+          message: data.message
+        };
+      }
+
+      return {
+        success: true,
+        auth: data.auth
+      };
+    } catch (error) {
+      console.error('🔍 [ELECTRON AUTH] Error exchanging code on server:', error);
+      return {
+        success: false,
+        error: 'Network error during authentication',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 
   /**

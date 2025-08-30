@@ -117,7 +117,7 @@ router.post('/auth/callback', async (req, res) => {
       });
     }
 
-    const { code, state } = req.body;
+    const { code, state, codeVerifier } = req.body;
     
     if (!code) {
       return res.status(400).json({ 
@@ -126,8 +126,10 @@ router.post('/auth/callback', async (req, res) => {
       });
     }
 
-    // Exchange code for tokens (include state for PKCE)
-    const tokenData: GoogleTokenData = await googleAuthService.exchangeCodeForTokens(code, state);
+    // Exchange code for tokens
+    // If codeVerifier is provided, use it for PKCE flow (Electron)
+    // Otherwise, use the traditional flow with state for PKCE lookup
+    const tokenData: GoogleTokenData = await googleAuthService.exchangeCodeForTokens(code, state, codeVerifier);
     
     // Get user information
     const userInfo = await googleAuthService.getUserInfo(tokenData.access_token);
