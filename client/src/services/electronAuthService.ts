@@ -172,6 +172,9 @@ class ElectronAuthService {
   private async waitForCallback(): Promise<string> {
     return new Promise((resolve, reject) => {
       console.log('🔍 [ELECTRON AUTH] Setting up callback listener...');
+      console.log('🔍 [ELECTRON AUTH] API_BASE:', this.API_BASE);
+      console.log('🔍 [ELECTRON AUTH] process.env.REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+      console.log('🔍 [ELECTRON AUTH] window.location:', window.location.href);
       
       // Create a temporary server to handle the callback
       const sseUrl = `${this.API_BASE}/electron-callback-stream`;
