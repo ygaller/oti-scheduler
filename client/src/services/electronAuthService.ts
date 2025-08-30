@@ -23,6 +23,7 @@ export interface ElectronAuthResult {
  */
 class ElectronAuthService {
   private readonly STORAGE_KEY = 'electron_google_auth_data';
+  private readonly API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/google`;
   private readonly SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file',
@@ -50,7 +51,10 @@ class ElectronAuthService {
    * Start PKCE authentication flow
    */
   async authenticate(): Promise<ElectronAuthResult> {
+    console.log('🔍 [ELECTRON AUTH] Starting authentication flow');
+    
     if (!this.isElectron()) {
+      console.log('🔍 [ELECTRON AUTH] Not running in Electron environment');
       return {
         success: false,
         error: 'Not running in Electron',
@@ -59,15 +63,19 @@ class ElectronAuthService {
     }
 
     try {
+      console.log('🔍 [ELECTRON AUTH] Generating PKCE parameters');
       // Generate PKCE parameters
       const pkce = await generatePKCE();
       
       // Store code verifier for later use
       sessionStorage.setItem('pkce_code_verifier', pkce.codeVerifier);
+      console.log('🔍 [ELECTRON AUTH] PKCE parameters generated and stored');
       
       // Get client ID (we'll need to fetch this from server or config)
+      console.log('🔍 [ELECTRON AUTH] Fetching client ID from server');
       const clientId = await this.getClientId();
       const redirectUri = 'http://localhost:8080/callback';
+      console.log('🔍 [ELECTRON AUTH] Client ID retrieved, redirect URI set to:', redirectUri);
       
       // Build authorization URL
       const authUrl = buildAuthUrl({
@@ -110,7 +118,12 @@ class ElectronAuthService {
       return { success: true, auth };
 
     } catch (error) {
-      console.error('Electron auth error:', error);
+      console.error('🔍 [ELECTRON AUTH] Authentication error:', error);
+      console.error('🔍 [ELECTRON AUTH] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return {
         success: false,
         error: 'Authentication failed',
@@ -124,10 +137,19 @@ class ElectronAuthService {
    */
   private async getClientId(): Promise<string> {
     try {
-      const response = await fetch('/api/google/desktop-client-id');
+      console.log('🔍 [ELECTRON AUTH] Fetching client ID from:', `${this.API_BASE}/desktop-client-id`);
+      const response = await fetch(`${this.API_BASE}/desktop-client-id`);
+      
+      if (!response.ok) {
+        console.error('🔍 [ELECTRON AUTH] Failed to fetch client ID:', response.status, response.statusText);
+        throw new Error(`Failed to fetch client ID: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('🔍 [ELECTRON AUTH] Successfully retrieved client ID');
       return data.clientId;
     } catch (error) {
+      console.error('🔍 [ELECTRON AUTH] Error getting client ID:', error);
       throw new Error('Failed to get Google client ID');
     }
   }

@@ -46,21 +46,28 @@ function initializeGoogleServices() {
  * Get desktop client ID for Electron PKCE flow
  */
 router.get('/desktop-client-id', async (req, res) => {
+  console.log('🔍 [SERVER] Desktop client ID endpoint called');
+  console.log('🔍 [SERVER] Request headers:', req.headers);
+  console.log('🔍 [SERVER] Request origin:', req.get('origin'));
+  
   try {
     initializeGoogleServices();
     
     const clientId = process.env.GOOGLE_CLIENT_ID;
+    console.log('🔍 [SERVER] Client ID check:', clientId ? `${clientId.substring(0, 10)}...` : 'NOT SET');
     
     if (!clientId) {
+      console.error('🔍 [SERVER] Google client ID not configured');
       return res.status(500).json({
         error: 'Google client ID not configured',
         message: 'GOOGLE_CLIENT_ID environment variable is not set'
       });
     }
 
+    console.log('🔍 [SERVER] Returning client ID successfully');
     res.json({ clientId });
   } catch (error) {
-    console.error('Error getting client ID:', error);
+    console.error('🔍 [SERVER] Error getting client ID:', error);
     res.status(500).json({
       error: 'Failed to get client ID',
       message: error instanceof Error ? error.message : 'Unknown error'
